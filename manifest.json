@@ -1,0 +1,21 @@
+{
+  "name": "汽車美容 CRM PWA",
+  "short_name": "汽美CRM",
+  "description": "汽車美容前台預約、後台 CRM、行事曆與財務看板 PWA。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f7f8fa",
+  "theme_color": "#242933",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}
