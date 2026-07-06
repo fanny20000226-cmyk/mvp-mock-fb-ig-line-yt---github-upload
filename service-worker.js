@@ -1,13 +1,13 @@
-const CACHE = "car-beauty-full-v12";
+const CACHE = "car-beauty-full-v13";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles-v7.css?v=1",
   "./password-hide.css?v=1",
-  "./menu-reservation.css?v=1",
+  "./menu-reservation.css?v=2",
   "./app-v10.js?v=1",
   "./paste-auto.js?v=1",
-  "./menu-reservation.js?v=1",
+  "./menu-reservation.js?v=2",
   "./manifest.json",
   "./icons/icon.svg"
 ];

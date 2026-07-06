@@ -432,6 +432,20 @@
         <button class="tool" data-ext-go="cancelAdmin"><strong>取</strong><span>取消列表</span></button>
       `);
     }
+
+    const menu = document.querySelector(".admin-menu");
+    if (menu && !menu.querySelector('[data-ext-go="menuAdmin"]')) {
+      menu.insertAdjacentHTML("afterbegin", `
+        <button data-ext-go="menuAdmin">圖片菜單管理</button>
+        <button data-ext-go="cancelAdmin">取消預約列表</button>
+      `);
+    }
+
+    const title = document.querySelector(".topbar h1")?.textContent || "";
+    const isOldPricePage = title.includes("價目") && !document.querySelector(".upload-box");
+    if (isOldPricePage && data().authed) {
+      menuAdmin();
+    }
   }
 
   const routes = { publicMenu, menuAdmin, memberReservations, cancelAdmin };
@@ -443,6 +457,14 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       routes[route.dataset.extGo]?.();
+      return;
+    }
+
+    const oldPriceButton = event.target.closest('[data-go="prices"]');
+    if (oldPriceButton) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      menuAdmin();
       return;
     }
 
