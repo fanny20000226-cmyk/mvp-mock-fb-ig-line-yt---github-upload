@@ -1,8 +1,8 @@
-const CACHE = "car-beauty-workbench-v6";
+const CACHE = "car-beauty-workbench-v7";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=3",
+  "./styles-v7.css?v=1",
   "./app-v6.js?v=1",
   "./manifest.json",
   "./icons/icon.svg"
