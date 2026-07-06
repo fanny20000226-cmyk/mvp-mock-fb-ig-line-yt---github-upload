@@ -1,4 +1,4 @@
-const CACHE = "car-beauty-full-v13";
+const CACHE = "car-beauty-full-v14";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./app-v10.js?v=1",
   "./paste-auto.js?v=1",
   "./menu-reservation.js?v=2",
+  "./role-manager.js?v=1",
   "./manifest.json",
   "./icons/icon.svg"
 ];
