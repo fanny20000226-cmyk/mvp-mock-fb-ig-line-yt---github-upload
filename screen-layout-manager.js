@@ -14,13 +14,18 @@
     { id: "B005", zone: "back", title: "訂單管理", icon: "訂", targetType: "go", target: "orders", sort: 50, active: true },
     { id: "B006", zone: "back", title: "行事曆", icon: "曆", targetType: "go", target: "calendar", sort: 60, active: true },
     { id: "B007", zone: "back", title: "客戶管理", icon: "客", targetType: "go", target: "customers", sort: 70, active: true },
-    { id: "B008", zone: "back", title: "財務報表", icon: "財", targetType: "go", target: "reports", sort: 80, active: true },
+    { id: "B008", zone: "back", title: "財務報表", icon: "報", targetType: "go", target: "reports", sort: 80, active: true },
     { id: "B009", zone: "back", title: "菜單管理", icon: "菜", targetType: "ext", target: "menuAdmin", sort: 90, active: true },
     { id: "B010", zone: "back", title: "取消列表", icon: "取", targetType: "ext", target: "cancelAdmin", sort: 100, active: true },
     { id: "B011", zone: "back", title: "品牌設定", icon: "色", targetType: "brand", target: "settings", sort: 110, active: true },
     { id: "B012", zone: "back", title: "權限管理", icon: "權", targetType: "admin", target: "rbac", sort: 120, active: true },
     { id: "B013", zone: "back", title: "人資管理", icon: "人", targetType: "admin", target: "hr", sort: 130, active: true },
-    { id: "B014", zone: "back", title: "庫存管理", icon: "庫", targetType: "admin", target: "operation", sort: 140, active: true }
+    { id: "B014", zone: "back", title: "財務管理", icon: "財", targetType: "admin", target: "finance", sort: 140, active: true },
+    { id: "B015", zone: "back", title: "庫存管理", icon: "庫", targetType: "admin", target: "operation", sort: 150, active: true },
+    { id: "B016", zone: "back", title: "系統日誌", icon: "誌", targetType: "admin", target: "logs", sort: 160, active: true },
+    { id: "B017", zone: "back", title: "畫面管理", icon: "排", targetType: "screen", target: "manager", sort: 170, active: true },
+    { id: "B018", zone: "back", title: "快捷設定", icon: "快", targetType: "shortcut", target: "settings", sort: 180, active: true },
+    { id: "B019", zone: "back", title: "登出後台", icon: "出", targetType: "act", target: "logout", sort: 190, active: true }
   ];
   const TARGETS = [
     ["go|front", "前台預約"], ["go|paste", "貼上填單"], ["go|eval", "後台評估"], ["go|site", "現場預約"],
@@ -29,7 +34,7 @@
     ["go|reports", "財務報表"], ["go|logs", "操作紀錄"], ["ext|publicMenu", "圖片菜單"], ["ext|memberReservations", "我的預約"],
     ["ext|menuAdmin", "菜單管理"], ["ext|cancelAdmin", "取消/改期管理"], ["brand|settings", "品牌設定"],
     ["admin|rbac", "權限管理"], ["admin|hr", "人資管理"], ["admin|finance", "財務管理"], ["admin|operation", "庫存管理"], ["admin|logs", "系統日誌"],
-    ["url|./employee-mobile/", "員工打卡"]
+    ["screen|manager", "畫面管理"], ["shortcut|settings", "快捷設定"], ["url|./employee-mobile/", "員工打卡"], ["act|logout", "登出後台"]
   ];
 
   function getDb() {
@@ -52,25 +57,45 @@
     if (item.targetType === "admin") return `data-admin-module="${esc(item.target)}"`;
     if (item.targetType === "url") return `data-screen-url="${esc(item.target)}"`;
     if (item.targetType === "brand") return `data-brand-open="1"`;
+    if (item.targetType === "screen") return "data-screen-manager";
+    if (item.targetType === "shortcut") return "data-shortcut-settings";
+    if (item.targetType === "act") return `data-act="${esc(item.target)}"`;
     return `data-menu-action="${esc(item.target)}"`;
   }
-  function button(item) {
-    return `<button ${attrs(item)}><span>${esc(item.icon || "功")}</span><b>${esc(item.title)}</b><small>${item.zone === "front" ? "前台" : "後台"}</small></button>`;
+  function tile(item) {
+    return `<button ${attrs(item)}><span>${esc(item.icon || "功")}</span><b>${esc(item.title)}</b></button>`;
   }
   function items(zone) {
     return getDb().screenItems.filter((x) => x.zone === zone && x.active !== false).sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
   }
-  function applyWorkspaces() {
+  function beautifyShell() {
+    const db = getDb();
+    document.body.classList.toggle("admin-clean-mode", Boolean(db.authed));
     const grid = document.querySelector(".tool-grid");
-    if (!grid) return;
-    const view = getDb().view;
-    const zone = view === "adminHome" ? "back" : view === "home" ? "front" : "";
-    if (!zone) return;
-    const signature = `${zone}:${items(zone).map((x) => `${x.id}-${x.title}-${x.sort}-${x.active}`).join("|")}`;
-    if (grid.dataset.screenSignature === signature) return;
-    grid.dataset.screenSignature = signature;
-    grid.classList.add("screen-workspace-grid");
-    grid.innerHTML = items(zone).map(button).join("");
+    if (grid) {
+      const zone = db.view === "adminHome" ? "back" : db.view === "home" ? "front" : "";
+      if (zone) {
+        const signature = `${zone}:${items(zone).map((x) => `${x.id}-${x.title}-${x.sort}-${x.active}`).join("|")}`;
+        if (grid.dataset.screenSignature !== signature) {
+          grid.dataset.screenSignature = signature;
+          grid.classList.add("screen-workspace-grid");
+          grid.innerHTML = items(zone).map(tile).join("");
+        }
+      }
+    }
+    addAdminSubnav();
+  }
+  function addAdminSubnav() {
+    const db = getDb();
+    const adminViews = ["config", "workers", "prices", "orders", "calendar", "customers", "reports", "logs"];
+    if (!db.authed || db.view === "adminHome" || !adminViews.includes(db.view)) return;
+    const page = document.querySelector("main.page");
+    if (!page || page.querySelector(".admin-subnav-card")) return;
+    page.insertAdjacentHTML("afterbegin", `<section class="admin-subnav-card">
+      <button data-go="adminHome"><span>總</span><b>管理總覽</b></button>
+      <button data-screen-manager><span>排</span><b>畫面管理</b></button>
+      <button data-shortcut-settings><span>快</span><b>快捷設定</b></button>
+    </section>`);
   }
   function row(item, index, listLength) {
     return `<article class="screen-row">
@@ -86,8 +111,8 @@
   function panel(zone, title) {
     const list = getDb().screenItems.filter((x) => x.zone === zone).sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
     return `<section class="screen-panel" id="screen-${zone}">
-      <div class="screen-panel-head"><h2>${title}</h2><small>左右滑動切換分頁，按上移/下移調整位置</small></div>
-      <div class="screen-preview tool-grid screen-workspace-grid">${list.filter((x) => x.active !== false).map(button).join("")}</div>
+      <div class="screen-panel-head"><h2>${title}</h2><small>左右滑動切換，使用上移/下移調整按鈕位置</small></div>
+      <div class="screen-preview tool-grid screen-workspace-grid">${list.filter((x) => x.active !== false).map(tile).join("")}</div>
       <section class="card">
         <h3>新增 ${title} 按鈕</h3>
         <div class="grid four">
@@ -171,6 +196,6 @@
     item[field] = field === "active" ? input.checked : input.value;
     save();
   });
-  document.addEventListener("DOMContentLoaded", () => setInterval(applyWorkspaces, 500));
-  window.screenLayoutManager = { page, applyWorkspaces };
+  document.addEventListener("DOMContentLoaded", () => setInterval(beautifyShell, 400));
+  window.screenLayoutManager = { page, applyWorkspaces: beautifyShell };
 })();

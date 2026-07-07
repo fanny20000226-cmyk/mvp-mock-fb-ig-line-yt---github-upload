@@ -1,52 +1,64 @@
 .screen-manager-page{width:min(1180px,100%)}
 
+.admin-clean-mode .admin-menu{display:none!important}
+.admin-clean-mode .topbar{box-shadow:none;border-bottom:1px solid rgba(220,228,238,.9)}
+.admin-clean-mode .page{padding-top:22px}
+.admin-subnav-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px;padding:12px;border-radius:22px;background:rgba(255,255,255,.92);box-shadow:var(--soft)}
+.admin-subnav-card button{min-height:64px!important;border-radius:16px!important;background:#f2f7fc!important;color:#1d3557!important;box-shadow:none!important;border:1px solid #e1ecf6!important}
+.admin-subnav-card button span{width:32px!important;height:32px!important;background:#dceeff!important;color:#147bd1!important}
+.admin-subnav-card button b{color:#1d3557!important;font-size:13px!important}
+
 /* Unified app tile style for every workspace/function entrance. */
 .tool-grid{align-items:stretch}
 .tool-grid>button,.tool-grid>.tool,.screen-workspace-grid button{
-  min-height:88px!important;
-  border-radius:14px!important;
-  padding:12px 10px!important;
-  background:linear-gradient(135deg,#2389e8 0%,#0873d4 100%)!important;
+  min-height:104px!important;
+  border-radius:20px!important;
+  padding:16px 12px!important;
+  background:linear-gradient(145deg,#ffffff 0%,#f7fbff 100%)!important;
   color:#fff!important;
-  box-shadow:0 12px 24px rgba(16,116,212,.18)!important;
+  box-shadow:0 14px 34px rgba(31,57,97,.10)!important;
   display:grid!important;
   place-items:center!important;
   align-content:center!important;
-  gap:6px!important;
+  gap:8px!important;
   text-align:center!important;
-  border:0!important;
+  border:1px solid #e7eff8!important;
 }
 .tool-grid>button:hover,.tool-grid>.tool:hover,.screen-workspace-grid button:hover{
   transform:translateY(-1px);
-  box-shadow:0 16px 30px rgba(16,116,212,.24)!important;
+  border-color:#bfe2ff!important;
+  box-shadow:0 18px 38px rgba(31,57,97,.16)!important;
 }
 .tool-grid>button span:first-child,.tool-grid>.tool strong,.screen-workspace-grid button span{
-  width:42px!important;
-  height:42px!important;
+  width:50px!important;
+  height:50px!important;
   border-radius:50%!important;
   display:grid!important;
   place-items:center!important;
   margin:0 auto!important;
-  background:linear-gradient(135deg,rgba(255,255,255,.38),rgba(255,255,255,.13))!important;
+  background:linear-gradient(135deg,#2c97ef 0%,#086ed0 100%)!important;
   color:#fff!important;
-  font-size:18px!important;
+  font-size:19px!important;
   font-weight:950!important;
-  box-shadow:none!important;
+  box-shadow:0 10px 22px rgba(20,123,209,.22)!important;
 }
 .tool-grid>button b,.tool-grid>.tool span,.screen-workspace-grid button b{
   display:block!important;
-  color:#fff!important;
-  font-size:14px!important;
+  color:#172033!important;
+  font-size:15px!important;
   line-height:1.25!important;
   font-weight:900!important;
   max-width:100%;
   word-break:break-word;
 }
 .tool-grid>button small,.screen-workspace-grid button small{
-  color:#eaf5ff!important;
+  color:#7b8794!important;
   font-size:11px!important;
   line-height:1.2!important;
 }
+.admin-clean-mode .tool-grid{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:14px}
+.admin-clean-mode .stats-grid{margin-bottom:18px}
+.admin-clean-mode .stat-card{border:1px solid #e7eff8;box-shadow:0 14px 34px rgba(31,57,97,.08)}
 
 .screen-tabs{position:sticky;top:130px;z-index:20;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 14px;padding:8px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:var(--soft);backdrop-filter:blur(12px)}
 .screen-tabs a{min-height:48px;display:grid;place-items:center;border-radius:999px;background:#eef7ff;color:#1676dc;text-decoration:none;font-weight:900}
@@ -57,7 +69,7 @@
 .screen-panel-head h2{margin:0}
 .screen-panel-head small{color:var(--muted);font-weight:700}
 .screen-preview{margin-bottom:16px}
-.screen-workspace-grid button{min-height:88px;border-radius:14px;background:linear-gradient(135deg,#2389e8,#0873d4);color:#fff;box-shadow:0 10px 22px rgba(16,116,212,.18);display:grid;place-items:center;gap:5px;text-align:center}
+.screen-workspace-grid button{min-height:104px;border-radius:20px;background:linear-gradient(145deg,#ffffff,#f7fbff);color:#172033;box-shadow:0 14px 34px rgba(31,57,97,.10);display:grid;place-items:center;gap:5px;text-align:center}
 .screen-workspace-grid button span{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffffff55,#ffffff18);font-size:18px;font-weight:950}
 .screen-workspace-grid button b{font-size:14px;line-height:1.2}
 .screen-workspace-grid button small{font-size:11px;color:#eaf5ff}
@@ -80,6 +92,7 @@
   .screen-row button{font-size:12px;padding:7px}
   .screen-row .warn{grid-column:1 / -1}
   .screen-workspace-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .admin-subnav-card{grid-template-columns:1fr}
 }
 @media(max-width:460px){
   .screen-tabs{top:104px}
@@ -88,4 +101,5 @@
   .screen-row .switch{grid-column:1}
   .screen-row button{min-height:40px}
   .screen-row .warn{grid-column:1 / -1}
+  .admin-clean-mode .tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
