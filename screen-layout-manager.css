@@ -1,4 +1,53 @@
 .screen-manager-page{width:min(1180px,100%)}
+
+/* Unified app tile style for every workspace/function entrance. */
+.tool-grid{align-items:stretch}
+.tool-grid>button,.tool-grid>.tool,.screen-workspace-grid button{
+  min-height:88px!important;
+  border-radius:14px!important;
+  padding:12px 10px!important;
+  background:linear-gradient(135deg,#2389e8 0%,#0873d4 100%)!important;
+  color:#fff!important;
+  box-shadow:0 12px 24px rgba(16,116,212,.18)!important;
+  display:grid!important;
+  place-items:center!important;
+  align-content:center!important;
+  gap:6px!important;
+  text-align:center!important;
+  border:0!important;
+}
+.tool-grid>button:hover,.tool-grid>.tool:hover,.screen-workspace-grid button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 16px 30px rgba(16,116,212,.24)!important;
+}
+.tool-grid>button span:first-child,.tool-grid>.tool strong,.screen-workspace-grid button span{
+  width:42px!important;
+  height:42px!important;
+  border-radius:50%!important;
+  display:grid!important;
+  place-items:center!important;
+  margin:0 auto!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.38),rgba(255,255,255,.13))!important;
+  color:#fff!important;
+  font-size:18px!important;
+  font-weight:950!important;
+  box-shadow:none!important;
+}
+.tool-grid>button b,.tool-grid>.tool span,.screen-workspace-grid button b{
+  display:block!important;
+  color:#fff!important;
+  font-size:14px!important;
+  line-height:1.25!important;
+  font-weight:900!important;
+  max-width:100%;
+  word-break:break-word;
+}
+.tool-grid>button small,.screen-workspace-grid button small{
+  color:#eaf5ff!important;
+  font-size:11px!important;
+  line-height:1.2!important;
+}
+
 .screen-tabs{position:sticky;top:130px;z-index:20;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 14px;padding:8px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:var(--soft);backdrop-filter:blur(12px)}
 .screen-tabs a{min-height:48px;display:grid;place-items:center;border-radius:999px;background:#eef7ff;color:#1676dc;text-decoration:none;font-weight:900}
 .screen-tabs a:focus,.screen-tabs a:hover{background:linear-gradient(135deg,#258ef4,#1676dc);color:#fff}
@@ -8,7 +57,7 @@
 .screen-panel-head h2{margin:0}
 .screen-panel-head small{color:var(--muted);font-weight:700}
 .screen-preview{margin-bottom:16px}
-.screen-workspace-grid button{min-height:88px;border-radius:18px;background:linear-gradient(135deg,#2389e8,#0873d4);color:#fff;box-shadow:0 10px 22px rgba(16,116,212,.18);display:grid;place-items:center;gap:5px;text-align:center}
+.screen-workspace-grid button{min-height:88px;border-radius:14px;background:linear-gradient(135deg,#2389e8,#0873d4);color:#fff;box-shadow:0 10px 22px rgba(16,116,212,.18);display:grid;place-items:center;gap:5px;text-align:center}
 .screen-workspace-grid button span{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffffff55,#ffffff18);font-size:18px;font-weight:950}
 .screen-workspace-grid button b{font-size:14px;line-height:1.2}
 .screen-workspace-grid button small{font-size:11px;color:#eaf5ff}
