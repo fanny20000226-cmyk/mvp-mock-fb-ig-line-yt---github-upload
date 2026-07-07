@@ -59,6 +59,9 @@
 .admin-clean-mode .tool-grid{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:14px}
 .admin-clean-mode .stats-grid{margin-bottom:18px}
 .admin-clean-mode .stat-card{border:1px solid #e7eff8;box-shadow:0 14px 34px rgba(31,57,97,.08)}
+.store-today-card strong{color:#147bd1!important;font-size:26px!important}
+.store-today-card span{font-size:13px!important;color:#344256!important}
+.store-today-card:after{background:linear-gradient(135deg,#dff1ff,#ffffff)!important}
 
 .screen-tabs{position:sticky;top:130px;z-index:20;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 14px;padding:8px;border-radius:999px;background:rgba(255,255,255,.92);box-shadow:var(--soft);backdrop-filter:blur(12px)}
 .screen-tabs a{min-height:48px;display:grid;place-items:center;border-radius:999px;background:#eef7ff;color:#1676dc;text-decoration:none;font-weight:900}

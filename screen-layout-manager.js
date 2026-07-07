@@ -71,6 +71,7 @@
   function beautifyShell() {
     const db = getDb();
     document.body.classList.toggle("admin-clean-mode", Boolean(db.authed));
+    applyStoreTodayStats();
     const grid = document.querySelector(".tool-grid");
     if (grid) {
       const zone = db.view === "adminHome" ? "back" : db.view === "home" ? "front" : "";
@@ -84,6 +85,21 @@
       }
     }
     addAdminSubnav();
+  }
+  function applyStoreTodayStats() {
+    const db = getDb();
+    if (!["home", "adminHome"].includes(db.view)) return;
+    const stats = document.querySelector(".stats-grid");
+    if (!stats) return;
+    const stores = ["三重", "桃園", "新竹", "台南"];
+    const today = new Date().toISOString().slice(0, 10);
+    const signature = `store-today:${today}:${(db.orders || []).map((o) => `${o.id}-${o.store}-${o.date}`).join("|")}`;
+    if (stats.dataset.storeTodaySignature === signature) return;
+    stats.dataset.storeTodaySignature = signature;
+    stats.innerHTML = stores.map((store) => {
+      const count = (db.orders || []).filter((order) => order.store === store && order.date === today && order.status !== "取消").length;
+      return `<article class="card stat-card store-today-card"><span>${store} 當天預約車輛</span><strong>${count} 台</strong></article>`;
+    }).join("");
   }
   function addAdminSubnav() {
     const db = getDb();
