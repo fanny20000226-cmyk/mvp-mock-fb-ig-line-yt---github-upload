@@ -85,6 +85,7 @@
       }
     }
     addAdminSubnav();
+    addOrderDeleteButtons();
   }
   function applyStoreTodayStats() {
     const db = getDb();
@@ -112,6 +113,18 @@
       <button data-screen-manager><span>排</span><b>畫面管理</b></button>
       <button data-shortcut-settings><span>快</span><b>快捷設定</b></button>
     </section>`);
+  }
+  function addOrderDeleteButtons() {
+    const db = getDb();
+    if (db.view !== "orders") return;
+    document.querySelectorAll(".table-wrap tbody tr").forEach((row) => {
+      if (row.querySelector("[data-delete-order]")) return;
+      const firstCell = row.querySelector("td");
+      const lastCell = row.querySelector("td:last-child");
+      const orderId = (firstCell?.textContent || "").trim();
+      if (!orderId || !lastCell) return;
+      lastCell.insertAdjacentHTML("beforeend", `<button class="danger-btn" data-delete-order="${esc(orderId)}">刪除</button>`);
+    });
   }
   function row(item, index, listLength) {
     return `<article class="screen-row">
@@ -202,6 +215,17 @@
     }
     const url = event.target.closest("[data-screen-url]");
     if (url) location.href = url.dataset.screenUrl;
+    const deleteOrder = event.target.closest("[data-delete-order]");
+    if (deleteOrder) {
+      const id = deleteOrder.dataset.deleteOrder;
+      if (!confirm(`確定刪除訂單 ${id}？刪除後此畫面不會再顯示。`)) return;
+      const db = getDb();
+      db.orders = (db.orders || []).filter((order) => String(order.id) !== String(id));
+      db.logs ||= [];
+      db.logs.unshift(`${new Date().toLocaleString("zh-TW")} 刪除訂單 ${id}`);
+      save();
+      if (window.go) window.go("orders");
+    }
   });
   document.addEventListener("input", (event) => {
     const input = event.target.closest("[data-screen-field]");

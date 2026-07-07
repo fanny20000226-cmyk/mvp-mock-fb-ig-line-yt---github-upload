@@ -1,4 +1,4 @@
-const CACHE = "car-beauty-pwa-v28";
+const CACHE = "car-beauty-pwa-v29";
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,7 +10,7 @@ const ASSETS = [
   "./menu-reservation.css?v=2",
   "./brand-manager.css?v=1",
   "./shortcut-manager.css?v=1",
-  "./screen-layout-manager.css?v=4",
+  "./screen-layout-manager.css?v=5",
   "./app-v10.js?v=1",
   "./paste-auto.js?v=1",
   "./menu-reservation.js?v=3",
@@ -18,7 +18,7 @@ const ASSETS = [
   "./brand-manager.js?v=3",
   "./admin-modules.js?v=2",
   "./shortcut-manager.js?v=5",
-  "./screen-layout-manager.js?v=3",
+  "./screen-layout-manager.js?v=4",
   "./pwa-init.js?v=1",
   "./employee-mobile/",
   "./employee-mobile/index.html",
