@@ -10,7 +10,8 @@
     { id: "SC007", title: "客戶資料", icon: "客", targetType: "go", target: "customers", sort: 70, active: true },
     { id: "SC008", title: "圖片菜單", icon: "菜", targetType: "ext", target: "publicMenu", sort: 80, active: true },
     { id: "SC009", title: "我的預約", icon: "我", targetType: "ext", target: "memberReservations", sort: 90, active: true },
-    { id: "SC010", title: "管理後台", icon: "管", targetType: "go", target: "adminLogin", sort: 100, active: true }
+    { id: "SC010", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 100, active: true },
+    { id: "SC011", title: "管理後台", icon: "管", targetType: "go", target: "adminLogin", sort: 110, active: true }
   ];
   const TARGETS = [
     { label: "前台預約", type: "go", target: "front" },
@@ -26,12 +27,16 @@
     { label: "圖片菜單管理", type: "ext", target: "menuAdmin" },
     { label: "取消預約列表", type: "ext", target: "cancelAdmin" },
     { label: "品牌設定", type: "brand", target: "settings" },
-    { label: "店長副店長", type: "role", target: "roleStaff" }
+    { label: "店長副店長", type: "role", target: "roleStaff" },
+    { label: "員工打卡", type: "url", target: "./employee-mobile/" }
   ];
 
   function db() {
     const data = window.db || {};
     data.shortcuts = data.shortcuts || DEFAULT_SHORTCUTS.map((item) => ({ ...item }));
+    if (!data.shortcuts.some((item) => item.id === "SC010" || item.target === "./employee-mobile/")) {
+      data.shortcuts.push({ id: "SC010", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 100, active: true });
+    }
     return data;
   }
 
@@ -88,7 +93,9 @@
         ? `data-ext-go="${esc(item.target)}"`
         : item.targetType === "brand"
           ? `data-brand-go="${esc(item.target)}"`
-          : `data-role-go="${esc(item.target)}"`;
+          : item.targetType === "role"
+            ? `data-role-go="${esc(item.target)}"`
+            : `data-shortcut-url="${esc(item.target)}"`;
     return `<button class="tool" ${attrs}><strong>${esc(item.icon || item.title.slice(0, 1))}</strong><span>${esc(item.title)}</span></button>`;
   }
 
@@ -223,6 +230,14 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       manager();
+      return;
+    }
+
+    const urlButton = event.target.closest("[data-shortcut-url]");
+    if (urlButton) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      location.href = urlButton.dataset.shortcutUrl;
       return;
     }
 
