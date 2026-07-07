@@ -63,6 +63,7 @@
         ${btn("財務管理", 'data-admin-module="finance"')}
         ${btn("庫存管理", 'data-admin-module="operation"')}
         ${btn("系統日誌", 'data-admin-module="logs"')}
+        ${btn("畫面管理", 'data-screen-manager')}
         ${btn("快捷按鈕", 'data-shortcut-settings')}
         ${btn("員工打卡", 'data-shortcut-url="./employee-mobile/"')}
         ${btn("舊後台", 'data-go="adminHome"')}
@@ -257,7 +258,7 @@
     const top = document.querySelector(".admin-menu");
     if (top && !top.dataset.adminModules) {
       top.dataset.adminModules = "1";
-      top.insertAdjacentHTML("beforeend", `${btn("權限管理", 'data-admin-module="rbac"')}${btn("人資管理", 'data-admin-module="hr"')}${btn("財務管理", 'data-admin-module="finance"')}${btn("庫存管理", 'data-admin-module="operation"')}${btn("系統日誌", 'data-admin-module="logs"')}${btn("快捷按鈕", 'data-shortcut-settings')}`);
+      top.insertAdjacentHTML("beforeend", `${btn("權限管理", 'data-admin-module="rbac"')}${btn("人資管理", 'data-admin-module="hr"')}${btn("財務管理", 'data-admin-module="finance"')}${btn("庫存管理", 'data-admin-module="operation"')}${btn("系統日誌", 'data-admin-module="logs"')}${btn("畫面管理", 'data-screen-manager')}${btn("快捷按鈕", 'data-shortcut-settings')}`);
     }
     const grid = document.querySelector(".tool-grid");
     if (grid && !grid.dataset.adminModules) {
@@ -266,7 +267,8 @@
         <button data-admin-module="hr"><span>人</span><b>人資管理</b><small>員工、考勤、補卡、外勤</small></button>
         <button data-admin-module="finance"><span>財</span><b>財務管理</b><small>流水、薪資、報表</small></button>
         <button data-admin-module="operation"><span>庫</span><b>庫存管理</b><small>物料、入庫、調撥</small></button>
-        <button data-admin-module="rbac"><span>權</span><b>權限管理</b><small>管理帳號與角色</small></button>`);
+        <button data-admin-module="rbac"><span>權</span><b>權限管理</b><small>管理帳號與角色</small></button>
+        <button data-screen-manager><span>排</span><b>畫面管理</b><small>前台/後台分頁與排序</small></button>`);
     }
   }
 
