@@ -1,14 +1,17 @@
 {
-  "name": "汽車美容 CRM PWA",
-  "short_name": "汽美CRM",
-  "description": "汽車美容前台預約、後台 CRM、行事曆與財務看板 PWA。",
-  "start_url": "./",
+  "name": "汽車美容門店管理 PWA",
+  "short_name": "汽美工作台",
+  "description": "支援汽車美容前台預約、後台管理、菜單、角色權限、改期取消與離線快取的漸進式網頁 App。",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#f7f8fa",
-  "theme_color": "#242933",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#f7fbff",
+  "theme_color": "#1f8ff5",
   "lang": "zh-Hant",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "./icons/icon.svg",
@@ -17,5 +20,18 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"]
+  "shortcuts": [
+    {
+      "name": "前台預約",
+      "short_name": "預約",
+      "url": "./index.html?shortcut=reserve",
+      "icons": [{ "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "管理後台",
+      "short_name": "後台",
+      "url": "./index.html?shortcut=admin",
+      "icons": [{ "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
 }

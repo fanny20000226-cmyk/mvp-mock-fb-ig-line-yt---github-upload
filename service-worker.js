@@ -1,37 +1,39 @@
-const CACHE = "car-beauty-full-v14";
+const CACHE = "car-beauty-pwa-v15";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles-v7.css?v=1",
+  "./manifest.json",
+  "./icons/icon.svg",
+  "./styles-v7.css?v=2",
   "./password-hide.css?v=1",
   "./menu-reservation.css?v=2",
   "./app-v10.js?v=1",
   "./paste-auto.js?v=1",
   "./menu-reservation.js?v=2",
   "./role-manager.js?v=1",
-  "./manifest.json",
-  "./icons/icon.svg"
+  "./pwa-init.js?v=1"
 ];
 
-self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(key => key === CACHE ? null : caches.delete(key))))
+    caches.keys().then((keys) => Promise.all(keys.map((key) => key === CACHE ? null : caches.delete(key))))
   );
   self.clients.claim();
 });
 
-self.addEventListener("fetch", event => {
+self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
   event.respondWith(
-    fetch(event.request).then(response => {
+    fetch(event.request).then((response) => {
       const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put(event.request, copy));
+      caches.open(CACHE).then((cache) => cache.put(event.request, copy));
       return response;
-    }).catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
+    }).catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
   );
 });
