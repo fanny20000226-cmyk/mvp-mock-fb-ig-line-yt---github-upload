@@ -1,7 +1,8 @@
-const CACHE = "car-beauty-pwa-v19";
+const CACHE = "car-beauty-pwa-v20";
 const ASSETS = [
   "./",
   "./index.html",
+  "./reset.html",
   "./manifest.json",
   "./icons/icon.svg",
   "./styles-v7.css?v=2",
