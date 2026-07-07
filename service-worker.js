@@ -1,4 +1,4 @@
-const CACHE = "car-beauty-pwa-v23";
+const CACHE = "car-beauty-pwa-v24";
 const ASSETS = [
   "./",
   "./index.html",
@@ -15,13 +15,13 @@ const ASSETS = [
   "./menu-reservation.js?v=3",
   "./role-manager.js?v=2",
   "./brand-manager.js?v=3",
-  "./admin-modules.js?v=1",
-  "./shortcut-manager.js?v=4",
+  "./admin-modules.js?v=2",
+  "./shortcut-manager.js?v=5",
   "./pwa-init.js?v=1",
   "./employee-mobile/",
   "./employee-mobile/index.html",
   "./employee-mobile/style.css",
-  "./employee-mobile/employee-app.js"
+  "./employee-mobile/employee-app.js?v=2"
 ];
 
 self.addEventListener("install", (event) => {
