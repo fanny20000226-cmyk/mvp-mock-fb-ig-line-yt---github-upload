@@ -1,0 +1,7 @@
+.shortcut-card{display:grid;gap:10px}
+.shortcut-card.is-offline{opacity:.62}
+.shortcut-preview{width:100%;min-height:92px;pointer-events:none}
+.shortcut-card .row button{flex:1 1 96px}
+@media(max-width:520px){
+  .shortcut-card .row button{flex:1 1 100%}
+}

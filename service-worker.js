@@ -1,4 +1,4 @@
-const CACHE = "car-beauty-pwa-v16";
+const CACHE = "car-beauty-pwa-v17";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,11 +8,13 @@ const ASSETS = [
   "./password-hide.css?v=1",
   "./menu-reservation.css?v=2",
   "./brand-manager.css?v=1",
+  "./shortcut-manager.css?v=1",
   "./app-v10.js?v=1",
   "./paste-auto.js?v=1",
   "./menu-reservation.js?v=2",
   "./role-manager.js?v=1",
   "./brand-manager.js?v=1",
+  "./shortcut-manager.js?v=1",
   "./pwa-init.js?v=1"
 ];
 
