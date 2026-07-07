@@ -34,8 +34,8 @@
   function db() {
     const data = window.db || {};
     data.shortcuts = data.shortcuts || DEFAULT_SHORTCUTS.map((item) => ({ ...item }));
-    if (!data.shortcuts.some((item) => item.id === "SC010" || item.target === "./employee-mobile/")) {
-      data.shortcuts.push({ id: "SC010", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 100, active: true });
+    if (!data.shortcuts.some((item) => item.target === "./employee-mobile/")) {
+      data.shortcuts.push({ id: `SC_EMP_${Date.now()}`, title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 5, active: true });
     }
     return data;
   }
