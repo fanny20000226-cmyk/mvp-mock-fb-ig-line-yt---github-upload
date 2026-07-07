@@ -11,7 +11,9 @@
     { id: "SC008", title: "圖片菜單", icon: "菜", targetType: "ext", target: "publicMenu", sort: 80, active: true },
     { id: "SC009", title: "我的預約", icon: "我", targetType: "ext", target: "memberReservations", sort: 90, active: true },
     { id: "SC010", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 100, active: true },
-    { id: "SC011", title: "管理後台", icon: "管", targetType: "go", target: "adminLogin", sort: 110, active: true }
+    { id: "SC011", title: "人資管理", icon: "人", targetType: "admin", target: "hr", sort: 105, active: true },
+    { id: "SC012", title: "財務管理", icon: "財", targetType: "admin", target: "finance", sort: 106, active: true },
+    { id: "SC013", title: "管理後台", icon: "管", targetType: "go", target: "adminLogin", sort: 110, active: true }
   ];
   const TARGETS = [
     { label: "前台預約", type: "go", target: "front" },
@@ -28,7 +30,9 @@
     { label: "取消預約列表", type: "ext", target: "cancelAdmin" },
     { label: "品牌設定", type: "brand", target: "settings" },
     { label: "店長副店長", type: "role", target: "roleStaff" },
-    { label: "員工打卡", type: "url", target: "./employee-mobile/" }
+    { label: "員工打卡", type: "url", target: "./employee-mobile/" },
+    { label: "人資管理", type: "admin", target: "hr" },
+    { label: "財務管理", type: "admin", target: "finance" }
   ];
 
   function db() {
@@ -36,6 +40,12 @@
     data.shortcuts = data.shortcuts || DEFAULT_SHORTCUTS.map((item) => ({ ...item }));
     if (!data.shortcuts.some((item) => item.target === "./employee-mobile/")) {
       data.shortcuts.push({ id: `SC_EMP_${Date.now()}`, title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 5, active: true });
+    }
+    if (!data.shortcuts.some((item) => item.targetType === "admin" && item.target === "hr")) {
+      data.shortcuts.push({ id: `SC_HR_${Date.now()}`, title: "人資管理", icon: "人", targetType: "admin", target: "hr", sort: 6, active: true });
+    }
+    if (!data.shortcuts.some((item) => item.targetType === "admin" && item.target === "finance")) {
+      data.shortcuts.push({ id: `SC_FIN_${Date.now()}`, title: "財務管理", icon: "財", targetType: "admin", target: "finance", sort: 7, active: true });
     }
     return data;
   }
@@ -95,7 +105,9 @@
           ? `data-brand-go="${esc(item.target)}"`
           : item.targetType === "role"
             ? `data-role-go="${esc(item.target)}"`
-            : `data-shortcut-url="${esc(item.target)}"`;
+            : item.targetType === "admin"
+              ? `data-admin-module="${esc(item.target)}"`
+              : `data-shortcut-url="${esc(item.target)}"`;
     return `<button class="tool" ${attrs}><strong>${esc(item.icon || item.title.slice(0, 1))}</strong><span>${esc(item.title)}</span></button>`;
   }
 
