@@ -45,6 +45,7 @@
 
   function applyBrand() {
     const brand = { ...DEFAULT_BRAND, ...(db().brand || {}) };
+    const signature = `${brand.name}|${brand.logo}|${brand.primary}|${brand.accent}|${brand.background}`;
     document.documentElement.style.setProperty("--blue", brand.primary);
     document.documentElement.style.setProperty("--orange", brand.accent);
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", brand.background || brand.primary);
@@ -56,31 +57,30 @@
       style.id = "brand-dynamic-style";
       document.head.appendChild(style);
     }
-    style.textContent = `
+    const css = `
       body{background:linear-gradient(180deg,${brand.background} 0%,#f3f6fb 52%,#f7f8fb 100%)}
-      button:not(.ghost):not(.secondary):not(.tool):not(.bottom-nav button){background:linear-gradient(135deg,${brand.primary},${shade(brand.primary, -18)})}
+      button:not(.ghost):not(.secondary):not(.tool){background:linear-gradient(135deg,${brand.primary},${shade(brand.primary, -18)})}
+      .bottom-nav button{background:transparent;color:#8a96a8;box-shadow:none}
       button.gold,.todo button{background:linear-gradient(135deg,${shade(brand.accent, 10)},${brand.accent})}
       .tool strong,.bottom-nav button.active strong{background:linear-gradient(135deg,${brand.primary},${brand.accent})}
       .bottom-nav button.active{color:${brand.primary};background:${hexToRgba(brand.primary, .10)}}
       .price{color:${brand.accent}}
     `;
+    if (style.textContent !== css) style.textContent = css;
 
     document.querySelectorAll(".topbar").forEach((bar) => {
-      if (bar.querySelector(".brand-logo-wrap")) return;
       const titleBox = bar.querySelector("div");
       if (!titleBox) return;
       titleBox.classList.add("brand-title-row");
-      titleBox.insertAdjacentHTML("afterbegin", logoHtml(brand));
-    });
-
-    document.querySelectorAll(".brand-logo-wrap").forEach((box) => {
-      box.outerHTML = logoHtml(brand);
+      const current = titleBox.querySelector(".brand-logo-wrap");
+      if (!current) titleBox.insertAdjacentHTML("afterbegin", logoHtml(brand, signature));
+      else if (current.dataset.brandSignature !== signature) current.outerHTML = logoHtml(brand, signature);
     });
   }
 
-  function logoHtml(brand) {
-    if (brand.logo) return `<span class="brand-logo-wrap"><img src="${brand.logo}" alt="${esc(brand.name)}"></span>`;
-    return `<span class="brand-logo-wrap brand-logo-text">${esc((brand.name || "汽").slice(0, 1))}</span>`;
+  function logoHtml(brand, signature = "") {
+    if (brand.logo) return `<span class="brand-logo-wrap" data-brand-signature="${esc(signature)}"><img src="${brand.logo}" alt="${esc(brand.name)}"></span>`;
+    return `<span class="brand-logo-wrap brand-logo-text" data-brand-signature="${esc(signature)}">${esc((brand.name || "汽").slice(0, 1))}</span>`;
   }
 
   function shade(hex, percent) {
@@ -219,6 +219,14 @@
     reader.readAsDataURL(file);
   }, true);
 
-  new MutationObserver(enhance).observe(document.documentElement, { childList: true, subtree: true });
+  let enhanceQueued = false;
+  new MutationObserver(() => {
+    if (enhanceQueued) return;
+    enhanceQueued = true;
+    requestAnimationFrame(() => {
+      enhanceQueued = false;
+      enhance();
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
   setTimeout(enhance, 100);
 })();
