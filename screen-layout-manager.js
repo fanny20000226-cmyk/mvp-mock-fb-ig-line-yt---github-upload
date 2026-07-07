@@ -23,7 +23,7 @@
     { id: "B014", zone: "back", title: "財務管理", icon: "財", targetType: "admin", target: "finance", sort: 140, active: true },
     { id: "B015", zone: "back", title: "庫存管理", icon: "庫", targetType: "admin", target: "operation", sort: 150, active: true },
     { id: "B016", zone: "back", title: "系統日誌", icon: "誌", targetType: "admin", target: "logs", sort: 160, active: true },
-    { id: "B017", zone: "back", title: "畫面管理", icon: "排", targetType: "screen", target: "manager", sort: 170, active: true },
+    { id: "B017", zone: "back", title: "新增/排序按鈕", icon: "加", targetType: "screen", target: "manager", sort: 170, active: true },
     { id: "B018", zone: "back", title: "快捷設定", icon: "快", targetType: "shortcut", target: "settings", sort: 180, active: true },
     { id: "B019", zone: "back", title: "登出後台", icon: "出", targetType: "act", target: "logout", sort: 190, active: true }
   ];
@@ -43,6 +43,12 @@
     DEFAULT_ITEMS.forEach((item) => {
       if (!db.screenItems.some((row) => row.zone === item.zone && row.targetType === item.targetType && row.target === item.target)) {
         db.screenItems.push({ ...item, id: `${item.id}_${Date.now()}` });
+      }
+    });
+    db.screenItems.forEach((item) => {
+      if (item.zone === "back" && item.targetType === "screen" && item.target === "manager") {
+        item.title = "新增/排序按鈕";
+        item.icon = "加";
       }
     });
     window.db = db;
@@ -84,7 +90,6 @@
         }
       }
     }
-    addAdminSubnav();
     addOrderDeleteButtons();
   }
   function applyStoreTodayStats() {
@@ -101,18 +106,6 @@
       const count = (db.orders || []).filter((order) => order.store === store && order.date === today && order.status !== "取消").length;
       return `<article class="card stat-card store-today-card"><span>${store} 當天預約車輛</span><strong>${count} 台</strong></article>`;
     }).join("");
-  }
-  function addAdminSubnav() {
-    const db = getDb();
-    const adminViews = ["config", "workers", "prices", "orders", "calendar", "customers", "reports", "logs"];
-    if (!db.authed || db.view === "adminHome" || !adminViews.includes(db.view)) return;
-    const page = document.querySelector("main.page");
-    if (!page || page.querySelector(".admin-subnav-card")) return;
-    page.insertAdjacentHTML("afterbegin", `<section class="admin-subnav-card">
-      <button data-go="adminHome"><span>總</span><b>管理總覽</b></button>
-      <button data-screen-manager><span>排</span><b>畫面管理</b></button>
-      <button data-shortcut-settings><span>快</span><b>快捷設定</b></button>
-    </section>`);
   }
   function addOrderDeleteButtons() {
     const db = getDb();

@@ -3,7 +3,7 @@
 .admin-clean-mode .admin-menu{display:none!important}
 .admin-clean-mode .topbar{box-shadow:none;border-bottom:1px solid rgba(220,228,238,.9)}
 .admin-clean-mode .page{padding-top:22px}
-.admin-subnav-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 16px;padding:12px;border-radius:22px;background:rgba(255,255,255,.92);box-shadow:var(--soft)}
+.admin-subnav-card{display:none!important}
 .admin-subnav-card button{min-height:64px!important;border-radius:16px!important;background:#f2f7fc!important;color:#1d3557!important;box-shadow:none!important;border:1px solid #e1ecf6!important}
 .admin-subnav-card button span{width:32px!important;height:32px!important;background:#dceeff!important;color:#147bd1!important}
 .admin-subnav-card button b{color:#1d3557!important;font-size:13px!important}
