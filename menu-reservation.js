@@ -531,6 +531,12 @@
     }
   }, true);
 
-  new MutationObserver(enhanceHome).observe(document.documentElement, { childList: true, subtree: true });
+  let enhanceRuns = 0;
+  const enhanceTimer = setInterval(() => {
+    enhanceHome();
+    enhanceRuns += 1;
+    if (enhanceRuns > 20) clearInterval(enhanceTimer);
+  }, 300);
+  document.addEventListener("click", () => setTimeout(enhanceHome, 80), true);
   setTimeout(enhanceHome, 100);
 })();

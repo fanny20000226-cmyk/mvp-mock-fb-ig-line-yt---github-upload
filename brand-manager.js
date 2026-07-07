@@ -219,14 +219,12 @@
     reader.readAsDataURL(file);
   }, true);
 
-  let enhanceQueued = false;
-  new MutationObserver(() => {
-    if (enhanceQueued) return;
-    enhanceQueued = true;
-    requestAnimationFrame(() => {
-      enhanceQueued = false;
-      enhance();
-    });
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  let enhanceRuns = 0;
+  const enhanceTimer = setInterval(() => {
+    enhance();
+    enhanceRuns += 1;
+    if (enhanceRuns > 20) clearInterval(enhanceTimer);
+  }, 300);
+  document.addEventListener("click", () => setTimeout(enhance, 80), true);
   setTimeout(enhance, 100);
 })();
