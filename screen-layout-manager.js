@@ -72,7 +72,7 @@
     if (item.targetType === "finance") return `data-finance-page="${esc(item.target)}"`;
     if (item.targetType === "managerExpense") return "data-manager-expense-entry";
     if (item.targetType === "act") return `data-act="${esc(item.target)}"`;
-    return `data-menu-action="${esc(item.target)}"`;
+    return `data-ext-go="${esc(item.target)}"`;
   }
   function tile(item) {
     return `<button data-screen-owned="1" ${attrs(item)}><span>${esc(item.icon || "功")}</span><b>${esc(item.title)}</b></button>`;

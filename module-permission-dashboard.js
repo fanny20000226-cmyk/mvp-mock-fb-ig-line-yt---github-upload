@@ -138,7 +138,7 @@
     if (item.type === "go") return `data-go="${esc(item.target)}"`;
     if (item.type === "admin") return `data-admin-module="${esc(item.target)}"`;
     if (item.type === "finance") return `data-finance-page="${esc(item.target)}"`;
-    if (item.type === "menu") return `data-menu-action="${esc(item.target)}"`;
+    if (item.type === "menu") return `data-ext-go="${esc(item.target)}"`;
     if (item.type === "brand") return "data-brand-open=\"1\"";
     if (item.type === "screen") return "data-screen-manager";
     if (item.type === "shortcut") return "data-shortcut-settings";

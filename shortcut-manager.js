@@ -66,7 +66,7 @@
     if (item.targetType === "admin") return `data-admin-module="${esc(item.target)}"`;
     if (item.targetType === "url") return `data-shortcut-url="${esc(item.target)}"`;
     if (item.targetType === "brand") return `data-brand-open="1"`;
-    return `data-menu-action="${esc(item.target)}"`;
+    return `data-ext-go="${esc(item.target)}"`;
   }
   function shortcutButton(item) {
     return `<button ${shortcutAttrs(item)}><span>${esc(item.icon || "功")}</span><b>${esc(item.title)}</b><small>${esc(labelFor(item))}</small></button>`;
