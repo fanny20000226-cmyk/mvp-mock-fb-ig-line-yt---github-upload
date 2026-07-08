@@ -1,0 +1,8 @@
+.finance-nav-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 16px;padding:14px;border-radius:24px;background:#fff;box-shadow:var(--soft)}
+.finance-nav-card button{min-height:82px!important;border-radius:18px!important;background:linear-gradient(145deg,#ffffff,#f7fbff)!important;color:#172033!important;border:1px solid #e7eff8!important;box-shadow:none!important;display:grid!important;place-items:center!important;gap:6px!important}
+.finance-nav-card button span{width:42px!important;height:42px!important;border-radius:50%!important;display:grid!important;place-items:center!important;background:linear-gradient(135deg,#2c97ef,#086ed0)!important;color:#fff!important;font-weight:950!important}
+.finance-nav-card button b{font-size:15px!important;color:#172033!important}
+.finance-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:90;width:min(760px,calc(100vw - 28px));max-height:86vh;overflow:auto;background:#fff;border-radius:24px;padding:18px;box-shadow:0 28px 80px rgba(22,36,54,.26);border:1px solid #e6eef8}
+.finance-modal:before{content:"";position:fixed;inset:-100vh;background:rgba(15,23,42,.34);z-index:-1}
+.finance-modal h2{margin-top:0}
+@media(max-width:680px){.finance-nav-card{grid-template-columns:1fr}.finance-modal{width:calc(100vw - 20px);padding:14px}.finance-nav-card button{min-height:70px!important}}
