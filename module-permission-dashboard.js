@@ -143,6 +143,7 @@
     const grid = document.querySelector(".tool-grid");
     if (!grid) return;
     window.categoryDashboardActive = true;
+    grid.dataset.screenSignature = "category-dashboard";
     const signature = `cat:${JSON.stringify(unlocks())}:${data.storeExpenseRequests.length}`;
     if (grid.dataset.categorySignature === signature) return;
     grid.dataset.categorySignature = signature;
