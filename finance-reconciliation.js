@@ -247,10 +247,6 @@
     URL.revokeObjectURL(a.href);
   }
   function addEntrances() {
-    const grid = document.querySelector(".tool-grid");
-    if (grid && db().view === "adminHome" && !grid.querySelector("[data-finance-page]")) {
-      grid.insertAdjacentHTML("beforeend", `<button data-finance-page="checkout"><span>收</span><b>收款核銷</b></button><button data-finance-page="revenue"><span>報</span><b>營收報表</b></button><button data-finance-page="payments"><span>流</span><b>收款流水</b></button>`);
-    }
     const financePageVisible = document.querySelector("h1")?.textContent?.includes("財務") || document.getElementById("ledgerDate") || document.getElementById("payrollMonth");
     if (financePageVisible && !document.querySelector(".finance-nav-card")) {
       document.querySelector("main.page")?.insertAdjacentHTML("afterbegin", financeNav());

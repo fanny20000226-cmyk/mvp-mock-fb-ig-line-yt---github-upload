@@ -25,7 +25,10 @@
     { id: "B016", zone: "back", title: "系統日誌", icon: "誌", targetType: "admin", target: "logs", sort: 160, active: true },
     { id: "B017", zone: "back", title: "新增/排序按鈕", icon: "加", targetType: "screen", target: "manager", sort: 170, active: true },
     { id: "B018", zone: "back", title: "快捷設定", icon: "快", targetType: "shortcut", target: "settings", sort: 180, active: true },
-    { id: "B019", zone: "back", title: "登出後台", icon: "出", targetType: "act", target: "logout", sort: 190, active: true }
+    { id: "B019", zone: "back", title: "收款核銷", icon: "收", targetType: "finance", target: "checkout", sort: 190, active: true },
+    { id: "B020", zone: "back", title: "營收報表", icon: "報", targetType: "finance", target: "revenue", sort: 200, active: true },
+    { id: "B021", zone: "back", title: "收款流水", icon: "流", targetType: "finance", target: "payments", sort: 210, active: true },
+    { id: "B022", zone: "back", title: "登出後台", icon: "出", targetType: "act", target: "logout", sort: 220, active: true }
   ];
   const TARGETS = [
     ["go|front", "前台預約"], ["go|paste", "貼上填單"], ["go|eval", "後台評估"], ["go|site", "現場預約"],
@@ -34,7 +37,7 @@
     ["go|reports", "財務報表"], ["go|logs", "操作紀錄"], ["ext|publicMenu", "圖片菜單"], ["ext|memberReservations", "我的預約"],
     ["ext|menuAdmin", "菜單管理"], ["ext|cancelAdmin", "取消/改期管理"], ["brand|settings", "品牌設定"],
     ["admin|rbac", "權限管理"], ["admin|hr", "人資管理"], ["admin|finance", "財務管理"], ["admin|operation", "庫存管理"], ["admin|logs", "系統日誌"],
-    ["screen|manager", "畫面管理"], ["shortcut|settings", "快捷設定"], ["url|./employee-mobile/", "員工打卡"], ["act|logout", "登出後台"]
+    ["screen|manager", "畫面管理"], ["shortcut|settings", "快捷設定"], ["finance|checkout", "收款核銷"], ["finance|revenue", "營收報表"], ["finance|payments", "收款流水"], ["url|./employee-mobile/", "員工打卡"], ["act|logout", "登出後台"]
   ];
 
   function getDb() {
@@ -65,11 +68,12 @@
     if (item.targetType === "brand") return `data-brand-open="1"`;
     if (item.targetType === "screen") return "data-screen-manager";
     if (item.targetType === "shortcut") return "data-shortcut-settings";
+    if (item.targetType === "finance") return `data-finance-page="${esc(item.target)}"`;
     if (item.targetType === "act") return `data-act="${esc(item.target)}"`;
     return `data-menu-action="${esc(item.target)}"`;
   }
   function tile(item) {
-    return `<button ${attrs(item)}><span>${esc(item.icon || "功")}</span><b>${esc(item.title)}</b></button>`;
+    return `<button data-screen-owned="1" ${attrs(item)}><span>${esc(item.icon || "功")}</span><b>${esc(item.title)}</b></button>`;
   }
   function items(zone) {
     return getDb().screenItems.filter((x) => x.zone === zone && x.active !== false).sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0));
@@ -83,7 +87,8 @@
       const zone = db.view === "adminHome" ? "back" : db.view === "home" ? "front" : "";
       if (zone) {
         const signature = `${zone}:${items(zone).map((x) => `${x.id}-${x.title}-${x.sort}-${x.active}`).join("|")}`;
-        if (grid.dataset.screenSignature !== signature) {
+        const ownedCount = grid.querySelectorAll("[data-screen-owned]").length;
+        if (grid.dataset.screenSignature !== signature || ownedCount !== items(zone).length || grid.children.length !== items(zone).length) {
           grid.dataset.screenSignature = signature;
           grid.classList.add("screen-workspace-grid");
           grid.innerHTML = items(zone).map(tile).join("");
