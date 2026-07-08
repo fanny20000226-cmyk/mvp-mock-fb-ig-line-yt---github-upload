@@ -308,6 +308,7 @@
     reviewPage();
   }
   function addFrontExpenseEntry() {
+    if (window.screenLayoutManager) return;
     const data = db();
     if (data.view !== "home") return;
     const grid = document.querySelector(".tool-grid");

@@ -422,6 +422,7 @@
   }
 
   function enhanceHome() {
+    if (window.screenLayoutManager) return;
     data();
     const grid = document.querySelector(".tool-grid");
     if (grid && !grid.querySelector("[data-ext-go]")) {

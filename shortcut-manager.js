@@ -78,6 +78,7 @@
     return "功能入口";
   }
   function renderGrid() {
+    if (window.screenLayoutManager) return;
     const grid = document.querySelector(".tool-grid");
     if (!grid || grid.dataset.shortcutEnhanced) return;
     grid.dataset.shortcutEnhanced = "1";
