@@ -100,11 +100,16 @@
   }
   function save() { localStorage.setItem(KEY, JSON.stringify(db())); }
   function esc(value) { return String(value ?? "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char])); }
-  function unlocks() { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "{}"); }
+  function unlocks() {
+    const fromSession = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "{}");
+    return { ...(db().moduleUnlocks || {}), ...fromSession };
+  }
   function setUnlock(role) {
     const state = unlocks();
     state[role] = true;
     if (role === "master") CATEGORIES.forEach((category) => state[category.role] = true);
+    db().moduleUnlocks = state;
+    save();
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
   }
   function canAccess(role) {
@@ -173,6 +178,11 @@
       }
       closeModal();
       if (afterUnlock) afterUnlock();
+      if (unlocks().master) {
+        document.querySelectorAll(".module-category-card").forEach((card) => card.classList.add("is-open"));
+      } else {
+        document.querySelector(`[data-category-id="${categoryId}"]`)?.classList.add("is-open");
+      }
       renderAdminDashboard();
     }, { once: true });
   }
