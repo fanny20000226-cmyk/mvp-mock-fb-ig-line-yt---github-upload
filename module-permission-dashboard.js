@@ -112,6 +112,24 @@
     save();
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
   }
+  function lockRole(role) {
+    const data = db();
+    const state = unlocks();
+    if (role === "master") {
+      CATEGORIES.forEach((category) => delete state[category.role]);
+      delete state.master;
+      data.finance = false;
+    } else {
+      delete state[role];
+      if (role === "finance") {
+        delete state.master;
+        data.finance = false;
+      }
+    }
+    data.moduleUnlocks = state;
+    save();
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  }
   function canAccess(role) {
     const state = unlocks();
     return Boolean(state.master || state[role]);
@@ -130,6 +148,7 @@
   }
   function categoryHtml(category) {
     const opened = canAccess(category.role);
+    const lockText = category.role === "finance" ? "登出財務" : category.role === "master" ? "登出大權限" : "登出此權限";
     return `<article class="module-category-card ${opened ? "is-open" : ""}" data-category-id="${esc(category.id)}">
       <button class="module-category-head" data-category-open="${esc(category.id)}">
         <span>${esc(category.icon)}</span>
@@ -139,6 +158,7 @@
       </button>
       <div class="module-category-actions">
         ${category.items.map((item) => `<button ${actionAttrs(item)}><span>${esc(item.icon)}</span><b>${esc(item.title)}</b></button>`).join("")}
+        <button class="module-lock-button" data-module-lock="${esc(category.role)}"><span>鎖</span><b>${esc(lockText)}</b></button>
       </div>
     </article>`;
   }
@@ -303,6 +323,12 @@
       showPasswordModal(category.id, category.role, category.passwordLabel, null);
     }
     if (event.target.closest("[data-module-modal-close]")) closeModal();
+    const lockButton = event.target.closest("[data-module-lock]");
+    if (lockButton) {
+      lockRole(lockButton.dataset.moduleLock);
+      renderAdminDashboard();
+      return;
+    }
     if (event.target.closest("[data-manager-expense-entry]")) frontExpenseLogin();
     if (event.target.closest("[data-manager-expense-login]")) {
       const pass = value("managerExpensePassword");
