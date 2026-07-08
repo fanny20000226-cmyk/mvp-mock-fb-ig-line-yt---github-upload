@@ -3,11 +3,12 @@
   const DEFAULT_ITEMS = [
     { id: "F001", zone: "front", title: "前台預約", icon: "預", targetType: "go", target: "front", sort: 10, active: true },
     { id: "F002", zone: "front", title: "貼上填單", icon: "貼", targetType: "go", target: "paste", sort: 20, active: true },
-    { id: "F003", zone: "front", title: "圖片菜單", icon: "菜", targetType: "ext", target: "publicMenu", sort: 30, active: true },
-    { id: "F004", zone: "front", title: "我的預約", icon: "我", targetType: "ext", target: "memberReservations", sort: 40, active: true },
-    { id: "F005", zone: "front", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 50, active: true },
-    { id: "F006", zone: "front", title: "價目菜單", icon: "價", targetType: "go", target: "price", sort: 60, active: true },
-    { id: "F007", zone: "front", title: "店長支出", icon: "支", targetType: "managerExpense", target: "entry", sort: 70, active: true },
+    { id: "F003", zone: "front", title: "預約評估", icon: "評", targetType: "go", target: "eval", sort: 30, active: true },
+    { id: "F004", zone: "front", title: "圖片菜單", icon: "菜", targetType: "ext", target: "publicMenu", sort: 40, active: true },
+    { id: "F005", zone: "front", title: "我的預約", icon: "我", targetType: "ext", target: "memberReservations", sort: 50, active: true },
+    { id: "F006", zone: "front", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 60, active: true },
+    { id: "F007", zone: "front", title: "價目菜單", icon: "價", targetType: "go", target: "price", sort: 70, active: true },
+    { id: "F008", zone: "front", title: "店長支出", icon: "支", targetType: "managerExpense", target: "entry", sort: 80, active: true },
     { id: "B001", zone: "back", title: "管理總覽", icon: "總", targetType: "go", target: "adminHome", sort: 10, active: true },
     { id: "B002", zone: "back", title: "基礎配置", icon: "基", targetType: "go", target: "config", sort: 20, active: true },
     { id: "B003", zone: "back", title: "施工人員", icon: "施", targetType: "go", target: "workers", sort: 30, active: true },
@@ -50,6 +51,11 @@
       }
     });
     db.screenItems.forEach((item) => {
+      if (item.zone === "front" && item.targetType === "go" && item.target === "eval") {
+        item.title = "預約評估";
+        item.icon = "評";
+        if (!item.sort || Number(item.sort) > 35) item.sort = 30;
+      }
       if (item.zone === "back" && item.targetType === "screen" && item.target === "manager") {
         item.title = "新增/排序按鈕";
         item.icon = "加";
