@@ -284,6 +284,7 @@
     const exportButton = event.target.closest("[data-finance-export]");
     if (exportButton) exportCsv(exportButton.dataset.financeExport);
   });
-  document.addEventListener("DOMContentLoaded", () => setInterval(addEntrances, 500));
+  document.addEventListener("DOMContentLoaded", addEntrances);
+  window.addEventListener("ui:stabilize", addEntrances);
   window.financeReconciliation = { checkoutPage, revenuePage, paymentsPage };
 })();

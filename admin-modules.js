@@ -287,5 +287,6 @@
   });
 
   window.adminModules = pages;
-  document.addEventListener("DOMContentLoaded", () => setInterval(addEntrances, 500));
+  document.addEventListener("DOMContentLoaded", addEntrances);
+  window.addEventListener("ui:stabilize", addEntrances);
 })();

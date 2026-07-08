@@ -237,6 +237,12 @@
     item[field] = field === "active" ? input.checked : input.value;
     save();
   });
-  document.addEventListener("DOMContentLoaded", () => setInterval(beautifyShell, 400));
+  function bootStableShell() {
+    beautifyShell();
+    setTimeout(beautifyShell, 80);
+    setTimeout(beautifyShell, 240);
+  }
+  document.addEventListener("DOMContentLoaded", bootStableShell);
+  window.addEventListener("ui:stabilize", beautifyShell);
   window.screenLayoutManager = { page, applyWorkspaces: beautifyShell };
 })();

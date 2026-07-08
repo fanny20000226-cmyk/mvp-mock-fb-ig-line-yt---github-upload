@@ -13,7 +13,9 @@
 /* Unified app tile style for every workspace/function entrance. */
 .tool-grid{align-items:stretch}
 .tool-grid>button,.tool-grid>.tool,.screen-workspace-grid button{
+  width:100%!important;
   min-height:104px!important;
+  min-width:0!important;
   border-radius:20px!important;
   padding:16px 12px!important;
   background:linear-gradient(145deg,#ffffff 0%,#f7fbff 100%)!important;
@@ -25,6 +27,8 @@
   gap:8px!important;
   text-align:center!important;
   border:1px solid #e7eff8!important;
+  transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,opacity .16s ease!important;
+  contain:layout paint;
 }
 .tool-grid>button:hover,.tool-grid>.tool:hover,.screen-workspace-grid button:hover{
   transform:translateY(-1px);
@@ -58,6 +62,7 @@
   font-size:11px!important;
   line-height:1.2!important;
 }
+.tool-grid>button.is-clicking,.tool-grid>.tool.is-clicking,.screen-workspace-grid button.is-clicking{opacity:.82;pointer-events:none}
 .admin-clean-mode .tool-grid{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:14px}
 .admin-clean-mode .stats-grid{margin-bottom:18px}
 .admin-clean-mode .stat-card{border:1px solid #e7eff8;box-shadow:0 14px 34px rgba(31,57,97,.08)}

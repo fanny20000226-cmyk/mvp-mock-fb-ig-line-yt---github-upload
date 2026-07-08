@@ -352,9 +352,11 @@
     const url = event.target.closest("[data-manager-url]");
     if (url) location.href = url.dataset.managerUrl;
   });
-  document.addEventListener("DOMContentLoaded", () => setInterval(() => {
+  function stabilizeDashboard() {
     renderAdminDashboard();
     addFrontExpenseEntry();
-  }, 450));
+  }
+  document.addEventListener("DOMContentLoaded", stabilizeDashboard);
+  window.addEventListener("ui:stabilize", stabilizeDashboard);
   window.modulePermissionDashboard = { renderAdminDashboard, frontExpensePage, reviewPage };
 })();

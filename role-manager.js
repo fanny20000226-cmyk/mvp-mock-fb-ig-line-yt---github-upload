@@ -236,12 +236,8 @@
     }
   }, true);
 
-  let enhanceRuns = 0;
-  const enhanceTimer = setInterval(() => {
-    enhance();
-    enhanceRuns += 1;
-    if (enhanceRuns > 20) clearInterval(enhanceTimer);
-  }, 300);
-  document.addEventListener("click", () => setTimeout(enhance, 80), true);
+  document.addEventListener("DOMContentLoaded", enhance);
+  window.addEventListener("ui:stabilize", enhance);
+  document.addEventListener("click", () => window.scheduleUiStabilize?.(80), true);
   setTimeout(enhance, 100);
 })();

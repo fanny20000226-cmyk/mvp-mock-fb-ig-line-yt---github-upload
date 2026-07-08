@@ -5,6 +5,7 @@
 .top-actions .ghost{min-height:42px}
 .top-actions .danger-lite{color:#d93030;background:#fff5f5;border-color:#ffd6d6}
 .module-category-card{background:#fff;border:1px solid #e6eef8;border-radius:24px;padding:12px;box-shadow:var(--soft);overflow:hidden}
+.module-category-card,.module-category-actions button,.module-category-head{contain:layout paint}
 .module-category-head{width:100%;min-height:138px!important;border-radius:20px!important;background:linear-gradient(145deg,#ffffff,#f7fbff)!important;color:#172033!important;border:0!important;box-shadow:none!important;display:grid!important;place-items:center!important;align-content:center!important;gap:7px!important;text-align:center!important}
 .module-category-head span{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2c97ef,#086ed0);color:#fff;font-weight:950;font-size:20px;box-shadow:0 12px 24px rgba(20,123,209,.22)}
 .module-category-head b{font-size:18px;color:#172033}
@@ -13,6 +14,7 @@
 .module-category-actions{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
 .module-category-card.is-open .module-category-actions{display:grid}
 .module-category-actions button{min-height:74px!important;border-radius:17px!important;background:linear-gradient(135deg,#2389e8,#0873d4)!important;color:#fff!important;box-shadow:0 10px 22px rgba(16,116,212,.18)!important;display:grid!important;place-items:center!important;gap:4px!important;text-align:center!important}
+.module-category-actions button,.module-category-head{transition:transform .16s ease,box-shadow .16s ease,opacity .16s ease!important}
 .module-category-actions button span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.22);color:#fff;font-weight:950}
 .module-category-actions button b{font-size:13px;color:#fff}
 .module-category-actions .module-lock-button{background:linear-gradient(135deg,#f05b5b,#d93030)!important;box-shadow:0 10px 22px rgba(217,48,48,.16)!important}

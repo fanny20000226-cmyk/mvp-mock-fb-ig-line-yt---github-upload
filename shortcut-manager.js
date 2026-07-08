@@ -133,6 +133,7 @@
     else item[fieldInput.dataset.shortcutField] = fieldInput.value;
     save();
   });
-  document.addEventListener("DOMContentLoaded", () => setInterval(renderGrid, 500));
+  document.addEventListener("DOMContentLoaded", renderGrid);
+  window.addEventListener("ui:stabilize", renderGrid);
   window.shortcutManager = { settingsPage, renderGrid };
 })();
