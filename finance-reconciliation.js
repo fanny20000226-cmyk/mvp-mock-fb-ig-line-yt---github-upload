@@ -206,13 +206,13 @@
         ${select("付款方式", "reportPay", [["", "全部"], ...PAY_TYPES], val("reportPay"))}
         <button data-finance-page="revenue">篩選</button><button data-finance-export="revenue">匯出</button>
       </section>
-      <section class="table-wrap"><table><thead><tr><th>門店</th><th>訂金/收款</th><th>刷卡</th><th>匯款</th><th>現金</th><th>退款</th><th>淨營收</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.store)}</td><td>${money(r.total)}</td><td>${money(r.card)}</td><td>${money(r.transfer)}</td><td>${money(r.cash)}</td><td>${money(r.refund)}</td><td>${money(r.net)}</td></tr>`).join("")}</tbody></table></section>`);
+      <section class="table-wrap"><table><thead><tr><th>門店</th><th>訂金/收款</th><th>刷卡</th><th>匯款</th><th>現金</th><th>退款</th><th>店長支出</th><th>淨營收</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.store)}</td><td>${money(r.total)}</td><td>${money(r.card)}</td><td>${money(r.transfer)}</td><td>${money(r.cash)}</td><td>${money(r.refund)}</td><td>${money(r.managerExpense)}</td><td>${money(r.net)}</td></tr>`).join("")}</tbody></table></section>`);
   }
   function summarize(payments) {
     const map = {};
     payments.forEach((row) => {
       const key = row.store || "未指定";
-      map[key] ||= { store: key, total: 0, card: 0, transfer: 0, cash: 0, refund: 0, net: 0 };
+      map[key] ||= { store: key, total: 0, card: 0, transfer: 0, cash: 0, refund: 0, managerExpense: 0, net: 0 };
       const amount = Number(row.pay_amount || 0);
       map[key].total += amount > 0 ? amount : 0;
       map[key].refund += amount < 0 ? Math.abs(amount) : 0;
@@ -220,6 +220,19 @@
       if (Number(row.pay_type) === 1) map[key].cash += amount;
       if ([2, 7].includes(Number(row.pay_type))) map[key].transfer += amount;
       if (Number(row.pay_type) === 3) map[key].card += amount;
+    });
+    const start = val("reportStart");
+    const end = val("reportEnd");
+    const storeFilter = val("reportStore");
+    (db().storeExpenseRequests || []).filter((item) => {
+      const day = String(item.expenseDate || "");
+      return ["核准通過", "已核銷"].includes(item.status) && (!storeFilter || item.store === storeFilter) && (!start || day >= start) && (!end || day <= end);
+    }).forEach((item) => {
+      const store = item.store || "未指定";
+      map[store] ||= { store, total: 0, card: 0, transfer: 0, cash: 0, refund: 0, managerExpense: 0, net: 0 };
+      const amount = Number(item.amount || 0);
+      map[store].managerExpense += amount;
+      map[store].net -= amount;
     });
     return Object.values(map);
   }
@@ -237,7 +250,7 @@
   function exportCsv(kind) {
     const rows = kind === "payments"
       ? [["時間", "訂單", "門店", "方式", "金額", "交易單號", "備註"], ...filteredPayments().map((x) => [x.pay_time, x.order_primary_id, x.store, payName(x.pay_type), x.pay_amount, x.trade_sn, x.remark])]
-      : [["門店", "收款", "刷卡", "匯款", "現金", "退款", "淨營收"], ...summarize(filteredPayments()).map((x) => [x.store, x.total, x.card, x.transfer, x.cash, x.refund, x.net])];
+      : [["門店", "收款", "刷卡", "匯款", "現金", "退款", "店長支出", "淨營收"], ...summarize(filteredPayments()).map((x) => [x.store, x.total, x.card, x.transfer, x.cash, x.refund, x.managerExpense, x.net])];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");

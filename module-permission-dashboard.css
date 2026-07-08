@@ -1,0 +1,17 @@
+.module-category-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:14px 0 18px}
+.module-category-card{background:#fff;border:1px solid #e6eef8;border-radius:24px;padding:12px;box-shadow:var(--soft);overflow:hidden}
+.module-category-head{width:100%;min-height:138px!important;border-radius:20px!important;background:linear-gradient(145deg,#ffffff,#f7fbff)!important;color:#172033!important;border:0!important;box-shadow:none!important;display:grid!important;place-items:center!important;align-content:center!important;gap:7px!important;text-align:center!important}
+.module-category-head span{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2c97ef,#086ed0);color:#fff;font-weight:950;font-size:20px;box-shadow:0 12px 24px rgba(20,123,209,.22)}
+.module-category-head b{font-size:18px;color:#172033}
+.module-category-head small{font-size:12px;color:#147bd1;font-weight:900;background:#edf7ff;border-radius:999px;padding:5px 10px}
+.module-category-head em{font-style:normal;color:#7b8794;font-size:12px;line-height:1.35}
+.module-category-actions{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.module-category-card.is-open .module-category-actions{display:grid}
+.module-category-actions button{min-height:74px!important;border-radius:17px!important;background:linear-gradient(135deg,#2389e8,#0873d4)!important;color:#fff!important;box-shadow:0 10px 22px rgba(16,116,212,.18)!important;display:grid!important;place-items:center!important;gap:4px!important;text-align:center!important}
+.module-category-actions button span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.22);color:#fff;font-weight:950}
+.module-category-actions button b{font-size:13px;color:#fff}
+.module-modal{position:fixed;inset:0;z-index:120;display:grid;place-items:center;background:rgba(15,23,42,.38);padding:18px}
+.module-modal-card{width:min(440px,100%);background:#fff;border-radius:24px;padding:20px;box-shadow:0 28px 80px rgba(22,36,54,.26);border:1px solid #e6eef8}
+.module-modal-card h2{margin-top:0}
+.module-modal-card .row{margin-top:12px}
+@media(max-width:560px){.module-category-grid{grid-template-columns:1fr}.module-category-actions{grid-template-columns:1fr}.module-category-head{min-height:124px!important}}
