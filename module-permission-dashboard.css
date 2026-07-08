@@ -1,4 +1,6 @@
 .module-category-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:14px 0 18px}
+.module-dashboard-mode .admin-menu{display:none!important}
+.module-dashboard-mode .page{max-width:1060px;margin:0 auto;padding-inline:18px}
 .module-category-card{background:#fff;border:1px solid #e6eef8;border-radius:24px;padding:12px;box-shadow:var(--soft);overflow:hidden}
 .module-category-head{width:100%;min-height:138px!important;border-radius:20px!important;background:linear-gradient(145deg,#ffffff,#f7fbff)!important;color:#172033!important;border:0!important;box-shadow:none!important;display:grid!important;place-items:center!important;align-content:center!important;gap:7px!important;text-align:center!important}
 .module-category-head span{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2c97ef,#086ed0);color:#fff;font-weight:950;font-size:20px;box-shadow:0 12px 24px rgba(20,123,209,.22)}
@@ -14,4 +16,4 @@
 .module-modal-card{width:min(440px,100%);background:#fff;border-radius:24px;padding:20px;box-shadow:0 28px 80px rgba(22,36,54,.26);border:1px solid #e6eef8}
 .module-modal-card h2{margin-top:0}
 .module-modal-card .row{margin-top:12px}
-@media(max-width:560px){.module-category-grid{grid-template-columns:1fr}.module-category-actions{grid-template-columns:1fr}.module-category-head{min-height:124px!important}}
+@media(max-width:760px){.module-dashboard-mode .page{padding-inline:12px}.module-category-grid{grid-template-columns:1fr}.module-category-actions{grid-template-columns:1fr}.module-category-head{min-height:124px!important}}

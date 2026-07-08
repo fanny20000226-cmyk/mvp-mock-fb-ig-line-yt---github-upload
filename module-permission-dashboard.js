@@ -144,8 +144,9 @@
   }
   function renderAdminDashboard() {
     const data = db();
+    document.body.classList.toggle("module-dashboard-mode", Boolean(data.authed && data.view === "adminHome"));
     if (!data.authed || data.view !== "adminHome") return;
-    const grid = document.querySelector(".tool-grid");
+    const grid = document.querySelector(".tool-grid, .module-category-grid");
     if (!grid) return;
     window.categoryDashboardActive = true;
     grid.dataset.screenSignature = "category-dashboard";
