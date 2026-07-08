@@ -18,13 +18,19 @@
 
   function readField(text, labels) {
     const wanted = [].concat(labels).map(clean);
-    const lines = String(text || "").split(/\r?\n/);
+    const normalizedText = String(text || "")
+      .replace(/\s+(\d{1,2}\s*[.、．]\s*(稱呼|車型|車牌|電話|預約|預算|最在意|職業|如何|車輛))/g, "\n$1");
+    const lines = normalizedText.split(/\r?\n/);
     for (const raw of lines) {
       const line = raw.replace(/^\s*\d+\s*[.、．]?\s*/, "").trim();
       const normalized = clean(line);
       if (!wanted.some((label) => normalized.startsWith(label) || normalized.includes(label))) continue;
       const parts = line.split(/[：:]/);
-      if (parts.length > 1) return parts.slice(1).join(":").trim();
+      if (parts.length > 1) {
+        return parts.slice(1).join(":")
+          .replace(/\s*\d{1,2}\s*[.、．]\s*(稱呼|車型|車牌|電話|預約|預算|最在意|職業|如何|車輛).*$/u, "")
+          .trim();
+      }
     }
     return "";
   }
