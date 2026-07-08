@@ -7,6 +7,7 @@
     { id: "F004", zone: "front", title: "我的預約", icon: "我", targetType: "ext", target: "memberReservations", sort: 40, active: true },
     { id: "F005", zone: "front", title: "員工打卡", icon: "卡", targetType: "url", target: "./employee-mobile/", sort: 50, active: true },
     { id: "F006", zone: "front", title: "價目菜單", icon: "價", targetType: "go", target: "price", sort: 60, active: true },
+    { id: "F007", zone: "front", title: "店長支出", icon: "支", targetType: "managerExpense", target: "entry", sort: 70, active: true },
     { id: "B001", zone: "back", title: "管理總覽", icon: "總", targetType: "go", target: "adminHome", sort: 10, active: true },
     { id: "B002", zone: "back", title: "基礎配置", icon: "基", targetType: "go", target: "config", sort: 20, active: true },
     { id: "B003", zone: "back", title: "施工人員", icon: "施", targetType: "go", target: "workers", sort: 30, active: true },
@@ -37,7 +38,7 @@
     ["go|reports", "財務報表"], ["go|logs", "操作紀錄"], ["ext|publicMenu", "圖片菜單"], ["ext|memberReservations", "我的預約"],
     ["ext|menuAdmin", "菜單管理"], ["ext|cancelAdmin", "取消/改期管理"], ["brand|settings", "品牌設定"],
     ["admin|rbac", "權限管理"], ["admin|hr", "人資管理"], ["admin|finance", "財務管理"], ["admin|operation", "庫存管理"], ["admin|logs", "系統日誌"],
-    ["screen|manager", "畫面管理"], ["shortcut|settings", "快捷設定"], ["finance|checkout", "收款核銷"], ["finance|revenue", "營收報表"], ["finance|payments", "收款流水"], ["url|./employee-mobile/", "員工打卡"], ["act|logout", "登出後台"]
+    ["screen|manager", "畫面管理"], ["shortcut|settings", "快捷設定"], ["finance|checkout", "收款核銷"], ["finance|revenue", "營收報表"], ["finance|payments", "收款流水"], ["managerExpense|entry", "店長支出"], ["url|./employee-mobile/", "員工打卡"], ["act|logout", "登出後台"]
   ];
 
   function getDb() {
@@ -69,6 +70,7 @@
     if (item.targetType === "screen") return "data-screen-manager";
     if (item.targetType === "shortcut") return "data-shortcut-settings";
     if (item.targetType === "finance") return `data-finance-page="${esc(item.target)}"`;
+    if (item.targetType === "managerExpense") return "data-manager-expense-entry";
     if (item.targetType === "act") return `data-act="${esc(item.target)}"`;
     return `data-menu-action="${esc(item.target)}"`;
   }
@@ -82,6 +84,7 @@
     const db = getDb();
     document.body.classList.toggle("admin-clean-mode", Boolean(db.authed));
     applyStoreTodayStats();
+    if (db.authed && db.view === "adminHome" && window.modulePermissionDashboard) return;
     const grid = document.querySelector(".tool-grid");
     if (grid) {
       const zone = db.view === "adminHome" ? "back" : db.view === "home" ? "front" : "";

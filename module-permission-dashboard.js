@@ -2,7 +2,7 @@
   const KEY = "beauty-crm-v10";
   const SESSION_KEY = "beauty-crm-module-unlocks";
   const PASSWORDS = {
-    master: "admin1234",
+    master: "boss8888",
     operations: "op1234",
     finance: "boss1688",
     hr: "hr1688",
@@ -90,6 +90,11 @@
     data.financeLedger ||= [];
     data.systemLogs ||= [];
     data.permissionPasswords ||= { ...PASSWORDS };
+    data.permissionPasswords.master = "boss8888";
+    data.permissionPasswords.operations ||= PASSWORDS.operations;
+    data.permissionPasswords.finance ||= PASSWORDS.finance;
+    data.permissionPasswords.hr ||= PASSWORDS.hr;
+    data.permissionPasswords.managerExpense ||= PASSWORDS.managerExpense;
     window.db = data;
     return data;
   }
