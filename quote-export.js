@@ -1,51 +1,76 @@
 (() => {
-  const KEY = "beauty-crm-v10";
-  const QUOTE_STATUS = {
-    DRAFT: "待確認",
-    CONFIRMED: "已確認",
-    CONVERTED: "已轉工單",
-    VOID: "已作廢"
+  var KEY = "beauty-crm-v10";
+  var T = {
+    quoteList: "\u5831\u50f9\u55ae\u532f\u51fa",
+    workTrace: "\u5de5\u55ae\u8ffd\u6eaf",
+    makeQuote: "\u88fd\u4f5c\u5831\u50f9\u55ae",
+    completionDoc: "\u7522\u51fa\u65bd\u5de5\u55ae",
+    markDone: "\u6a19\u8a18\u5b8c\u5de5",
+    detail: "\u8a73\u60c5",
+    pdf: "\u4e0b\u8f09PDF\u5831\u50f9\u55ae",
+    image: "\u532f\u51fa\u5716\u7247\u50b3\u9001\u5ba2\u6236",
+    convert: "\u8f49\u5de5\u55ae",
+    sourceQuote: "\u67e5\u770b\u539f\u59cb\u5831\u50f9\u55ae",
+    back: "\u8fd4\u56de\u4e0a\u4e00\u9801",
+    listBack: "\u56de\u5217\u8868",
+    noQuote: "\u627e\u4e0d\u5230\u5831\u50f9\u55ae",
+    noPermission: "\u76ee\u524d\u89d2\u8272\u6c92\u6709\u532f\u51fa\u5831\u50f9\u55ae\u6b0a\u9650",
+    voidBlocked: "\u5df2\u4f5c\u5ee2\u5831\u50f9\u55ae\u7981\u6b62\u532f\u51fa",
+    doneWork: "\u5df2\u8f49\u6210\u5de5\u55ae\uff0c\u53ef\u5f9e\u5de5\u55ae\u8ffd\u6eaf\u539f\u59cb\u5831\u50f9\u55ae\u3002",
+    store: "\u4e09\u91cd\u6c7d\u8eca\u7f8e\u5bb9",
+    carLogo: "\u6c7d",
+    statusDraft: "\u5f85\u78ba\u8a8d",
+    statusConverted: "\u5df2\u8f49\u5de5\u55ae",
+    statusDone: "\u65bd\u5de5\u5b8c\u6210",
+    customer: "\u5ba2\u6236",
+    vehicle: "\u8eca\u8f1b",
+    amount: "\u91d1\u984d",
+    status: "\u72c0\u614b",
+    action: "\u64cd\u4f5c",
+    quoteNo: "\u5831\u50f9\u55ae",
+    serviceItems: "\u670d\u52d9\u660e\u7d30",
+    packageTotal: "\u57fa\u790e\u5957\u9910\u5408\u8a08",
+    addonTotal: "\u52a0\u8cfc\u9805\u76ee\u5408\u8a08",
+    discount: "\u512a\u60e0\u6298\u6263",
+    payable: "\u6700\u7d42\u61c9\u4ed8\u7e3d\u50f9",
+    deposit: "\u5df2\u6536\u8a02\u91d1",
+    note: "\u5099\u8a3b",
+    footer: "\u8f4e\u8eca\u8eca\u578b\u4ee5\u4e0a\u6216\u8eca\u8f1b\u904e\u9ad2\u7b49\u6703\u53e6\u5916\u914c\u6536\u6e05\u6f54\u8cbb",
+    storeSign: "\u9580\u5e97\u78ba\u8a8d\u7c3d\u540d",
+    customerSign: "\u5ba2\u6236\u78ba\u8a8d\u7c3d\u540d"
   };
 
-  function db() {
-    const data = window.db || JSON.parse(localStorage.getItem(KEY) || "{}");
-    data.quoteEstimates ||= seedQuotes(data);
-    data.quoteEstimateItems ||= seedQuoteItems(data.quoteEstimates);
-    data.quoteWorkOrders ||= [];
-    data.servicePriceDict ||= seedServiceDict(data);
+  function readDb() {
+    var data = window.db || JSON.parse(localStorage.getItem(KEY) || "{}");
+    if (!data.quoteEstimates) data.quoteEstimates = seedQuotes(data);
+    if (!data.quoteEstimateItems) data.quoteEstimateItems = seedItems(data.quoteEstimates);
+    if (!data.quoteWorkOrders) data.quoteWorkOrders = [];
     window.db = data;
     return data;
   }
 
-  function save() {
-    localStorage.setItem(KEY, JSON.stringify(db()));
+  function saveDb() {
+    localStorage.setItem(KEY, JSON.stringify(readDb()));
   }
 
   function esc(value) {
-    return String(value ?? "").replace(/[&<>"]/g, (char) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;"
-    }[char]));
+    return String(value == null ? "" : value).replace(/[&<>"]/g, function (char) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char];
+    });
   }
 
   function money(value) {
-    return `$${Number(value || 0).toLocaleString("zh-TW")}`;
-  }
-
-  function canExport() {
-    const role = db().currentRole || db().role || "SUPER_ADMIN";
-    return !["TECHNICIAN", "技師", "EMPLOYEE"].includes(role);
+    return "$" + Number(value || 0).toLocaleString("zh-TW");
   }
 
   function seedQuotes(data) {
-    const order = (data.orders || [])[0] || {};
+    var order = (data.orders || [])[0] || {};
+    var store = order.store || "\u4e09\u91cd";
     return [{
       quote_id: "Q20260709001",
-      store_code: order.store || "三重",
-      store_name: `${order.store || "三重"}汽車美容`,
-      customer_name: order.name || "王先生",
+      store_code: store,
+      store_name: store + "\u6c7d\u8eca\u7f8e\u5bb9",
+      customer_name: order.name || "\u738b\u5148\u751f",
       phone: order.phone || "0911222333",
       plate: order.plate || "ABC-1234",
       car_model: order.car || "Tesla Model Y",
@@ -55,8 +80,8 @@
       discount_amount: 300,
       deposit_amount: 500,
       appointment_date: order.date || "2026-07-10 10:00",
-      remark: "示範報價單，可直接匯出 PDF 或圖片給客戶確認。",
-      status: QUOTE_STATUS.DRAFT,
+      remark: "\u7bc4\u4f8b\u5831\u50f9\u55ae\uff0c\u53ef\u4e0b\u8f09 PDF \u6216\u532f\u51fa\u5716\u7247\u7d66\u5ba2\u6236\u78ba\u8a8d\u3002",
+      status: T.statusDraft,
       created_by: "admin",
       created_at: new Date().toISOString(),
       pdf_file_path: "",
@@ -64,338 +89,322 @@
     }];
   }
 
-  function seedQuoteItems(quotes) {
-    const quoteId = quotes[0]?.quote_id || "Q20260709001";
+  function seedItems(quotes) {
+    var quoteId = quotes && quotes[0] ? quotes[0].quote_id : "Q20260709001";
     return [
-      { quote_id: quoteId, category: "整新套餐", item_name: "9999 內外超值整新", unit_price: 1500, qty: 1 },
-      { quote_id: quoteId, category: "玻璃系列", item_name: "玻璃油膜處理", unit_price: 800, qty: 1 },
-      { quote_id: quoteId, category: "內裝系列", item_name: "寵物異味加強", unit_price: 1000, qty: 1 },
-      { quote_id: quoteId, category: "贈品", item_name: "雨季玻璃檢查", unit_price: 0, qty: 1 }
+      { quote_id: quoteId, category: "\u6574\u65b0\u5957\u9910", item_name: "9999 \u5167\u5916\u8d85\u503c\u6574\u65b0", unit_price: 1500, qty: 1 },
+      { quote_id: quoteId, category: "\u73bb\u7483\u7cfb\u5217", item_name: "\u73bb\u7483\u6cb9\u819c\u8655\u7406", unit_price: 800, qty: 1 },
+      { quote_id: quoteId, category: "\u5167\u88dd\u7cfb\u5217", item_name: "\u5bf5\u7269\u7570\u5473\u52a0\u5f37", unit_price: 1000, qty: 1 },
+      { quote_id: quoteId, category: "\u8d08\u54c1", item_name: "\u96e8\u5b63\u73bb\u7483\u6aa2\u67e5", unit_price: 0, qty: 1 }
     ];
   }
 
-  function seedServiceDict(data) {
-    const menu = data.menus || data.packages || [];
-    const fromMenu = menu.map((item, index) => ({
-      service_code: item.id || `S${index + 1}`,
-      name: item.name || item.title || "未命名服務",
-      category: item.category || "套餐",
-      price: Number(item.price || item.salePrice || 0)
-    }));
-    return fromMenu.length ? fromMenu : [
-      { service_code: "PKG-9999", name: "9999 內外超值整新", category: "整新套餐", price: 9999 },
-      { service_code: "ADD-GLASS", name: "玻璃油膜處理", category: "玻璃系列", price: 800 },
-      { service_code: "ADD-PET", name: "寵物異味加強", category: "內裝系列", price: 1000 }
-    ];
+  function getQuote(id) {
+    return readDb().quoteEstimates.filter(function (q) { return q.quote_id === id; })[0];
   }
 
-  function getQuote(quoteId) {
-    return db().quoteEstimates.find((quote) => quote.quote_id === quoteId);
+  function getItems(id) {
+    return readDb().quoteEstimateItems.filter(function (item) { return item.quote_id === id; });
   }
 
-  function getItems(quoteId) {
-    return db().quoteEstimateItems.filter((item) => item.quote_id === quoteId);
+  function canExport() {
+    var role = readDb().currentRole || readDb().role || "SUPER_ADMIN";
+    return ["TECHNICIAN", "EMPLOYEE", "\u6280\u5e2b"].indexOf(role) === -1;
   }
 
-  function groupedItems(quoteId) {
-    return getItems(quoteId).reduce((groups, item) => {
-      const key = item.category || "其他系列";
-      groups[key] ||= [];
-      groups[key].push(item);
-      return groups;
-    }, {});
+  function total(q) {
+    return Number(q.package_total || 0) + Number(q.addon_total || 0) - Number(q.discount_amount || 0);
   }
 
-  function total(quote) {
-    return Number(quote.package_total || 0) + Number(quote.addon_total || 0) - Number(quote.discount_amount || 0);
+  function quotePaper(q) {
+    var rows = getItems(q.quote_id).map(function (item) {
+      return "<tr><td>" + esc(item.category) + "</td><td>" + esc(item.item_name) + "</td><td>" + money(item.unit_price) + "</td><td>" + esc(item.qty || 1) + "</td><td>" + money(Number(item.unit_price || 0) * Number(item.qty || 1)) + "</td></tr>";
+    }).join("");
+    return "<article class=\"quote-paper\">" +
+      "<header class=\"quote-header\"><div class=\"quote-logo\">" + T.carLogo + "</div><div><h2>" + esc(q.store_name) + "</h2><p>" + T.quoteNo + "\uff1a" + esc(q.quote_id) + " / " + new Date(q.created_at).toLocaleString("zh-TW") + "</p></div></header>" +
+      "<div class=\"quote-info\"><span>\u8eca\u4e3b\uff1a" + esc(q.customer_name) + "</span><span>\u96fb\u8a71\uff1a" + esc(q.phone) + "</span><span>\u8eca\u724c\uff1a" + esc(q.plate) + "</span><span>\u8eca\u578b\uff1a" + esc(q.car_model) + "</span><span>\u5e74\u4efd\uff1a" + esc(q.car_year) + "</span><span>\u9810\u7d04\uff1a" + esc(q.appointment_date) + "</span></div>" +
+      "<section class=\"quote-section\"><h3>" + T.serviceItems + "</h3><table><thead><tr><th>\u5206\u985e</th><th>\u9805\u76ee</th><th>\u55ae\u50f9</th><th>\u6578\u91cf</th><th>\u5c0f\u8a08</th></tr></thead><tbody>" + rows + "</tbody></table></section>" +
+      "<section class=\"quote-total\"><p>" + T.packageTotal + "<b>" + money(q.package_total) + "</b></p><p>" + T.addonTotal + "<b>" + money(q.addon_total) + "</b></p><p>" + T.discount + "<b>-" + money(q.discount_amount) + "</b></p><p class=\"quote-payable\">" + T.payable + "<b>" + money(total(q)) + "</b></p><p>" + T.deposit + "<b>" + money(q.deposit_amount) + "</b></p></section>" +
+      "<p class=\"quote-note\">" + T.note + "\uff1a" + esc(q.remark || T.footer) + "</p><footer class=\"quote-sign\"><span>" + T.storeSign + "\uff1a________________</span><span>" + T.customerSign + "\uff1a________________</span></footer></article>";
   }
 
-  function quoteHtml(quote) {
-    const groups = groupedItems(quote.quote_id);
-    const itemRows = Object.entries(groups).map(([category, items]) => `
-      <section class="quote-section">
-        <h3>${esc(category)}</h3>
-        <table>
-          <thead><tr><th>項目</th><th>單價</th><th>數量</th><th>小計</th></tr></thead>
-          <tbody>
-            ${items.map((item) => `
-              <tr>
-                <td>${esc(item.item_name)}</td>
-                <td>${money(item.unit_price)}</td>
-                <td>${esc(item.qty || 1)}</td>
-                <td>${money(Number(item.unit_price || 0) * Number(item.qty || 1))}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </section>
-    `).join("");
-
-    return `
-      <article class="quote-paper">
-        <header class="quote-header">
-          <div class="quote-logo">汽</div>
-          <div>
-            <h2>${esc(quote.store_name || "汽車美容門市")}</h2>
-            <p>報價單編號：${esc(quote.quote_id)}　建立時間：${new Date(quote.created_at || Date.now()).toLocaleString("zh-TW")}</p>
-          </div>
-        </header>
-        <div class="quote-info">
-          <span>車主：${esc(quote.customer_name)}</span>
-          <span>電話：${esc(quote.phone)}</span>
-          <span>車牌：${esc(quote.plate)}</span>
-          <span>車型：${esc(quote.car_model)}</span>
-          <span>年份：${esc(quote.car_year)}</span>
-          <span>預約：${esc(quote.appointment_date)}</span>
-        </div>
-        ${itemRows}
-        <section class="quote-total">
-          <p>基礎套餐合計 <b>${money(quote.package_total)}</b></p>
-          <p>加購項目合計 <b>${money(quote.addon_total)}</b></p>
-          <p>優惠折扣 <b>-${money(quote.discount_amount)}</b></p>
-          <p class="quote-payable">最終應付總價 <b>${money(total(quote))}</b></p>
-          <p>已收訂金 <b>${money(quote.deposit_amount)}</b></p>
-        </section>
-        <p class="quote-note">備註：${esc(quote.remark || "轎車車型以上或車輛過髒等會另外酌收清潔費")}</p>
-        <footer class="quote-sign">
-          <span>門店確認簽名：________________</span>
-          <span>客戶確認簽名：________________</span>
-        </footer>
-      </article>
-    `;
-  }
-
-  function textForPdf(quote) {
-    const items = getItems(quote.quote_id)
-      .map((item) => `${item.category} / ${item.item_name} / ${money(item.unit_price)} x ${item.qty || 1}`)
-      .join("\n");
-    return [
-      `${quote.store_name} 報價單`,
-      `報價單編號：${quote.quote_id}`,
-      `車主：${quote.customer_name}`,
-      `電話：${quote.phone}`,
-      `車牌：${quote.plate}`,
-      `車型：${quote.car_model}`,
-      `年份：${quote.car_year}`,
-      "",
-      items,
-      "",
-      `基礎套餐合計：${money(quote.package_total)}`,
-      `加購項目合計：${money(quote.addon_total)}`,
-      `優惠折扣：-${money(quote.discount_amount)}`,
-      `最終應付總價：${money(total(quote))}`,
-      `已收訂金：${money(quote.deposit_amount)}`,
-      "",
-      "轎車車型以上或車輛過髒等會另外酌收清潔費",
-      "門店確認簽名：________________",
-      "客戶確認簽名：________________"
-    ].join("\n");
+  function textForPdf(q) {
+    var lines = [q.store_name + " " + T.quoteNo, T.quoteNo + "\uff1a" + q.quote_id, "\u8eca\u4e3b\uff1a" + q.customer_name, "\u96fb\u8a71\uff1a" + q.phone, "\u8eca\u724c\uff1a" + q.plate, "\u8eca\u578b\uff1a" + q.car_model, ""];
+    getItems(q.quote_id).forEach(function (item) { lines.push(item.category + " / " + item.item_name + " / " + money(item.unit_price)); });
+    lines.push("", T.payable + "\uff1a" + money(total(q)), T.deposit + "\uff1a" + money(q.deposit_amount), T.footer);
+    return lines.join("\n");
   }
 
   function makePdfBlob(text) {
-    const safe = text.replace(/[^\x20-\x7E\n]/g, "?").split("\n");
-    const body = safe.map((line, index) => `BT /F1 12 Tf 50 ${760 - index * 18} Td (${line.replace(/[()\\]/g, "\\$&")}) Tj ET`).join("\n");
-    const objects = [
+    var safe = text.replace(/[^\x20-\x7E\n]/g, "?").split("\n");
+    var body = safe.map(function (line, index) {
+      return "BT /F1 12 Tf 50 " + (760 - index * 18) + " Td (" + line.replace(/[()\\]/g, "\\$&") + ") Tj ET";
+    }).join("\n");
+    var objects = [
       "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
       "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
       "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
       "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-      `5 0 obj << /Length ${body.length} >> stream\n${body}\nendstream endobj`
+      "5 0 obj << /Length " + body.length + " >> stream\n" + body + "\nendstream endobj"
     ];
-    const header = "%PDF-1.4\n";
-    let offset = header.length;
-    const xref = ["0000000000 65535 f "];
-    const content = objects.map((object) => {
+    var header = "%PDF-1.4\n";
+    var offset = header.length;
+    var xref = ["0000000000 65535 f "];
+    var content = objects.map(function (object) {
       xref.push(String(offset).padStart(10, "0") + " 00000 n ");
       offset += object.length + 1;
       return object;
     }).join("\n");
-    const tableAt = header.length + content.length + 1;
-    const pdf = `${header}${content}\nxref\n0 ${objects.length + 1}\n${xref.join("\n")}\ntrailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${tableAt}\n%%EOF`;
+    var tableAt = header.length + content.length + 1;
+    var pdf = header + content + "\nxref\n0 " + (objects.length + 1) + "\n" + xref.join("\n") + "\ntrailer << /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n" + tableAt + "\n%%EOF";
     return new Blob([pdf], { type: "application/pdf" });
   }
 
-  function svgForQuote(quote) {
-    const rows = getItems(quote.quote_id).map((item, index) => `
-      <text x="70" y="${510 + index * 44}" font-size="24" fill="#0f172a">${esc(item.category)}｜${esc(item.item_name)}</text>
-      <text x="900" y="${510 + index * 44}" font-size="24" fill="#0f172a">${money(Number(item.unit_price || 0) * Number(item.qty || 1))}</text>
-    `).join("");
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600">
-        <rect width="1200" height="1600" fill="#f7fbff"/>
-        <rect x="48" y="48" width="1104" height="1504" rx="34" fill="#ffffff" stroke="#d8e8f7"/>
-        <circle cx="135" cy="138" r="48" fill="#1684e5"/>
-        <text x="116" y="154" font-size="40" font-weight="700" fill="#fff">汽</text>
-        <text x="210" y="130" font-size="42" font-weight="800" fill="#0f172a">${esc(quote.store_name)}</text>
-        <text x="210" y="178" font-size="24" fill="#64748b">報價單 ${esc(quote.quote_id)}</text>
-        <rect x="70" y="250" width="1060" height="180" rx="24" fill="#eef7ff"/>
-        <text x="105" y="308" font-size="28" fill="#0f172a">車主：${esc(quote.customer_name)}　電話：${esc(quote.phone)}</text>
-        <text x="105" y="362" font-size="28" fill="#0f172a">車牌：${esc(quote.plate)}　車型：${esc(quote.car_model)}　年份：${esc(quote.car_year)}</text>
-        <text x="70" y="475" font-size="32" font-weight="800" fill="#1684e5">服務明細</text>
-        ${rows}
-        <rect x="70" y="1060" width="1060" height="260" rx="24" fill="#f8fafc"/>
-        <text x="105" y="1125" font-size="28" fill="#0f172a">基礎套餐合計：${money(quote.package_total)}</text>
-        <text x="105" y="1178" font-size="28" fill="#0f172a">加購項目合計：${money(quote.addon_total)}</text>
-        <text x="105" y="1231" font-size="28" fill="#0f172a">優惠折扣：-${money(quote.discount_amount)}</text>
-        <text x="105" y="1292" font-size="38" font-weight="900" fill="#1684e5">最終應付：${money(total(quote))}</text>
-        <text x="70" y="1405" font-size="22" fill="#64748b">轎車車型以上或車輛過髒等會另外酌收清潔費</text>
-        <text x="70" y="1485" font-size="24" fill="#0f172a">門店確認簽名：________________　客戶確認簽名：________________</text>
-      </svg>
-    `;
-  }
-
   function downloadBlob(blob, filename) {
-    const link = document.createElement("a");
+    var link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-    setTimeout(() => {
-      URL.revokeObjectURL(link.href);
-      link.remove();
-    }, 1000);
+    setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 1000);
   }
 
-  function exportPdf(quoteId) {
-    const quote = getQuote(quoteId);
-    if (!quote) return alert("找不到報價單");
-    if (!canExport()) return alert("目前角色沒有匯出報價單權限");
-    if (quote.status === QUOTE_STATUS.VOID) return alert("已作廢報價單禁止匯出");
-    downloadBlob(makePdfBlob(textForPdf(quote)), `報價單_${quote.quote_id}_${quote.plate}.pdf`);
-    quote.pdf_file_path = `local-cache/quotes/${quote.quote_id}.pdf`;
-    save();
+  function svgForQuote(q) {
+    var rows = getItems(q.quote_id).map(function (item, i) {
+      return "<text x=\"70\" y=\"" + (510 + i * 44) + "\" font-size=\"24\" fill=\"#0f172a\">" + esc(item.category + " | " + item.item_name) + "</text><text x=\"900\" y=\"" + (510 + i * 44) + "\" font-size=\"24\" fill=\"#0f172a\">" + money(item.unit_price) + "</text>";
+    }).join("");
+    return "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\" height=\"1600\"><rect width=\"1200\" height=\"1600\" fill=\"#f7fbff\"/><rect x=\"48\" y=\"48\" width=\"1104\" height=\"1504\" rx=\"34\" fill=\"#fff\" stroke=\"#d8e8f7\"/><circle cx=\"135\" cy=\"138\" r=\"48\" fill=\"#1684e5\"/><text x=\"116\" y=\"154\" font-size=\"40\" font-weight=\"700\" fill=\"#fff\">" + T.carLogo + "</text><text x=\"210\" y=\"130\" font-size=\"42\" font-weight=\"800\" fill=\"#0f172a\">" + esc(q.store_name) + "</text><text x=\"210\" y=\"178\" font-size=\"24\" fill=\"#64748b\">" + esc(q.quote_id) + "</text><rect x=\"70\" y=\"250\" width=\"1060\" height=\"180\" rx=\"24\" fill=\"#eef7ff\"/><text x=\"105\" y=\"318\" font-size=\"28\" fill=\"#0f172a\">" + esc(q.customer_name + " / " + q.phone) + "</text><text x=\"105\" y=\"372\" font-size=\"28\" fill=\"#0f172a\">" + esc(q.plate + " / " + q.car_model) + "</text><text x=\"70\" y=\"475\" font-size=\"32\" font-weight=\"800\" fill=\"#1684e5\">" + T.serviceItems + "</text>" + rows + "<rect x=\"70\" y=\"1060\" width=\"1060\" height=\"260\" rx=\"24\" fill=\"#f8fafc\"/><text x=\"105\" y=\"1130\" font-size=\"30\" fill=\"#0f172a\">" + T.packageTotal + "\uff1a" + money(q.package_total) + "</text><text x=\"105\" y=\"1190\" font-size=\"30\" fill=\"#0f172a\">" + T.addonTotal + "\uff1a" + money(q.addon_total) + "</text><text x=\"105\" y=\"1270\" font-size=\"40\" font-weight=\"900\" fill=\"#1684e5\">" + T.payable + "\uff1a" + money(total(q)) + "</text><text x=\"70\" y=\"1420\" font-size=\"22\" fill=\"#64748b\">" + T.footer + "</text></svg>";
   }
 
-  function exportImage(quoteId) {
-    const quote = getQuote(quoteId);
-    if (!quote) return alert("找不到報價單");
-    if (!canExport()) return alert("目前角色沒有匯出報價單權限");
-    if (quote.status === QUOTE_STATUS.VOID) return alert("已作廢報價單禁止匯出");
+  function exportPdf(id) {
+    var q = getQuote(id);
+    if (!q) return alert(T.noQuote);
+    if (!canExport()) return alert(T.noPermission);
+    downloadBlob(makePdfBlob(textForPdf(q)), "quote_" + q.quote_id + "_" + q.plate + ".pdf");
+    q.pdf_file_path = "local-cache/quotes/" + q.quote_id + ".pdf";
+    saveDb();
+  }
 
-    const img = new Image();
-    const url = URL.createObjectURL(new Blob([svgForQuote(quote)], { type: "image/svg+xml;charset=utf-8" }));
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
+  function exportImage(id) {
+    var q = getQuote(id);
+    if (!q) return alert(T.noQuote);
+    if (!canExport()) return alert(T.noPermission);
+    var img = new Image();
+    var url = URL.createObjectURL(new Blob([svgForQuote(q)], { type: "image/svg+xml;charset=utf-8" }));
+    img.onload = function () {
+      var canvas = document.createElement("canvas");
       canvas.width = 1200;
       canvas.height = 1600;
       canvas.getContext("2d").drawImage(img, 0, 0);
-      canvas.toBlob((blob) => downloadBlob(blob, `報價單_${quote.quote_id}_${quote.plate}.png`), "image/png");
+      canvas.toBlob(function (blob) { downloadBlob(blob, "quote_" + q.quote_id + "_" + q.plate + ".png"); }, "image/png");
       URL.revokeObjectURL(url);
-      quote.img_file_path = `local-cache/quotes/${quote.quote_id}.png`;
-      save();
+      q.img_file_path = "local-cache/quotes/" + q.quote_id + ".png";
+      saveDb();
     };
-    img.onerror = () => alert("圖片匯出失敗，請重新整理後再試一次");
     img.src = url;
   }
 
-  function convertToWorkOrder(quoteId) {
-    const data = db();
-    const quote = getQuote(quoteId);
-    if (!quote) return alert("找不到報價單");
-    quote.status = QUOTE_STATUS.CONVERTED;
-    data.quoteWorkOrders.push({
-      work_order_id: `WO${Date.now()}`,
-      bind_quote_id: quote.quote_id,
-      customer_name: quote.customer_name,
-      plate: quote.plate,
-      store_name: quote.store_name,
-      status: "待施工",
-      created_at: new Date().toISOString()
-    });
-    save();
-    alert("已轉成工單，可從工單追溯原始報價單。");
-    quoteListPage();
-  }
-
   function setMain(title, html) {
-    const app = document.getElementById("app") || document.body;
-    app.innerHTML = `
-      <div class="quote-export-page">
-        <header class="topbar"><div class="brand"><div class="logo">汽</div><div><h1>${title}</h1><small>報價匯出與工單追溯</small></div></div><button class="ghost-btn" onclick="history.back()">返回上一頁</button></header>
-        ${html}
-      </div>
-    `;
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    var app = document.getElementById("app");
+    if (!app) return;
+    app.innerHTML = "<div class=\"quote-export-page\"><header class=\"topbar\"><div class=\"brand\"><div class=\"logo\">" + T.carLogo + "</div><div><h1>" + title + "</h1><small>\u5831\u50f9\u532f\u51fa\u8207\u5de5\u55ae\u8ffd\u6eaf</small></div></div><button class=\"ghost-btn\" data-quote-back>" + T.back + "</button></header>" + html + "</div>";
+    window.scrollTo(0, 0);
   }
 
   function quoteListPage() {
-    const rows = db().quoteEstimates.map((quote) => `
-      <tr>
-        <td>${esc(quote.quote_id)}</td>
-        <td>${esc(quote.customer_name)}<br><small>${esc(quote.phone)}</small></td>
-        <td>${esc(quote.plate)}<br><small>${esc(quote.car_model)}</small></td>
-        <td>${esc(quote.store_name)}</td>
-        <td>${money(total(quote))}</td>
-        <td><span class="quote-status">${esc(quote.status)}</span></td>
-        <td class="quote-row-actions">
-          <button data-quote-detail="${esc(quote.quote_id)}">詳情</button>
-          ${canExport() ? `<button data-quote-pdf="${esc(quote.quote_id)}">下載PDF報價單</button><button data-quote-img="${esc(quote.quote_id)}">匯出圖片傳送客戶</button>` : ""}
-          <button data-quote-convert="${esc(quote.quote_id)}">轉工單</button>
-        </td>
-      </tr>
-    `).join("");
-    setMain("報價單管理", `
-      <section class="glass-card table-wrap">
-        <table><thead><tr><th>報價單</th><th>客戶</th><th>車輛</th><th>門市</th><th>金額</th><th>狀態</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>
-      </section>
-    `);
+    var rows = readDb().quoteEstimates.map(function (q) {
+      return "<tr><td>" + esc(q.quote_id) + "</td><td>" + esc(q.customer_name) + "<br><small>" + esc(q.phone) + "</small></td><td>" + esc(q.plate) + "<br><small>" + esc(q.car_model) + "</small></td><td>" + esc(q.store_name) + "</td><td>" + money(total(q)) + "</td><td><span class=\"quote-status\">" + esc(q.status) + "</span></td><td class=\"quote-row-actions\"><button data-quote-detail=\"" + esc(q.quote_id) + "\">" + T.detail + "</button><button data-quote-pdf=\"" + esc(q.quote_id) + "\">" + T.pdf + "</button><button data-quote-img=\"" + esc(q.quote_id) + "\">" + T.image + "</button><button data-quote-convert=\"" + esc(q.quote_id) + "\">" + T.convert + "</button></td></tr>";
+    }).join("");
+    setMain(T.quoteList, "<section class=\"glass-card table-wrap\"><table><thead><tr><th>" + T.quoteNo + "</th><th>" + T.customer + "</th><th>" + T.vehicle + "</th><th>\u9580\u5e97</th><th>" + T.amount + "</th><th>" + T.status + "</th><th>" + T.action + "</th></tr></thead><tbody>" + rows + "</tbody></table></section>");
   }
 
-  function quoteDetailPage(quoteId) {
-    const quote = getQuote(quoteId);
-    if (!quote) return alert("找不到報價單");
-    setMain("報價單詳情", `
-      <div class="quote-actions">
-        <button data-quote-list>回列表</button>
-        ${canExport() ? `<button data-quote-pdf="${esc(quote.quote_id)}">下載PDF報價單</button><button data-quote-img="${esc(quote.quote_id)}">匯出圖片傳送客戶</button>` : ""}
-        <button data-quote-convert="${esc(quote.quote_id)}">轉工單</button>
-      </div>
-      ${quoteHtml(quote)}
-    `);
+  function quoteDetailPage(id) {
+    var q = getQuote(id);
+    if (!q) return alert(T.noQuote);
+    setMain(T.detail, "<div class=\"quote-actions\"><button data-quote-list>" + T.listBack + "</button><button data-quote-pdf=\"" + esc(q.quote_id) + "\">" + T.pdf + "</button><button data-quote-img=\"" + esc(q.quote_id) + "\">" + T.image + "</button><button data-quote-convert=\"" + esc(q.quote_id) + "\">" + T.convert + "</button></div>" + quotePaper(q));
   }
 
-  function quoteWorkOrderPage() {
-    const rows = db().quoteWorkOrders.map((order) => `
-      <tr>
-        <td>${esc(order.work_order_id)}</td>
-        <td>${esc(order.customer_name)}</td>
-        <td>${esc(order.plate)}</td>
-        <td>${esc(order.status)}</td>
-        <td><button data-quote-detail="${esc(order.bind_quote_id)}">查看原始報價單</button></td>
-      </tr>
-    `).join("") || `<tr><td colspan="5">尚無報價轉工單紀錄。</td></tr>`;
-    setMain("工單追溯", `
-      <section class="glass-card table-wrap">
-        <table><thead><tr><th>工單</th><th>客戶</th><th>車牌</th><th>狀態</th><th>原始報價</th></tr></thead><tbody>${rows}</tbody></table>
-      </section>
-    `);
+  function convertToWorkOrder(id) {
+    var data = readDb();
+    var q = getQuote(id);
+    if (!q) return alert(T.noQuote);
+    q.status = T.statusConverted;
+    data.quoteWorkOrders.push({ work_order_id: "WO" + Date.now(), bind_quote_id: q.quote_id, customer_name: q.customer_name, plate: q.plate, status: "\u5f85\u65bd\u5de5" });
+    saveDb();
+    alert(T.doneWork);
+    quoteListPage();
+  }
+
+  function latestOrderLike() {
+    var data = readDb();
+    var orders = data.orders || data.reservations || [];
+    return orders.length ? orders[orders.length - 1] : {};
+  }
+
+  function makeQuoteFromCurrent() {
+    var data = readDb();
+    var base = latestOrderLike();
+    var quoteId = "Q" + Date.now();
+    var quote = {
+      quote_id: quoteId,
+      store_code: base.store || base.branch || "\u4e09\u91cd",
+      store_name: (base.store || base.branch || "\u4e09\u91cd") + "\u6c7d\u8eca\u7f8e\u5bb9",
+      customer_name: base.name || base.customer_name || "\u65b0\u5ba2\u6236",
+      phone: base.phone || "",
+      plate: base.plate || "",
+      car_model: base.car || base.carModel || base.model || "",
+      car_year: base.year || base.carYear || "",
+      package_total: Number(base.total || base.price || 0),
+      addon_total: Number(base.addonTotal || 0),
+      discount_amount: 0,
+      deposit_amount: Number(base.deposit || 0),
+      appointment_date: base.date || base.appointmentDate || "",
+      remark: base.note || T.footer,
+      status: "\u5f85\u5ba2\u6236\u78ba\u8a8d",
+      created_by: "front",
+      created_at: new Date().toISOString(),
+      pdf_file_path: "",
+      img_file_path: ""
+    };
+    data.quoteEstimates.push(quote);
+    data.quoteEstimateItems.push({
+      quote_id: quoteId,
+      category: "\u9810\u7d04\u65b9\u6848",
+      item_name: base.plan || base.packageName || "\u5ba2\u6236\u9078\u64c7\u65b9\u6848",
+      unit_price: quote.package_total,
+      qty: 1
+    });
+    saveDb();
+    quoteCreatedModal(quoteId);
+  }
+
+  function quoteCreatedModal(id) {
+    var q = getQuote(id);
+    if (!q) return;
+    var old = document.querySelector("[data-quote-created-modal]");
+    if (old) old.remove();
+    document.body.insertAdjacentHTML("beforeend", "<div class=\"quote-modal\" data-quote-created-modal><div class=\"quote-modal-card\"><h2>" + T.makeQuote + "</h2><p>" + T.quoteNo + "\uff1a" + esc(id) + "</p><button data-quote-pdf=\"" + esc(id) + "\">" + T.pdf + "</button><button data-quote-img=\"" + esc(id) + "\">" + T.image + "</button><button data-quote-detail=\"" + esc(id) + "\">" + T.detail + "</button><button data-quote-modal-close>\u95dc\u9589</button></div></div>");
+  }
+
+  function markWorkOrderDone(orderId) {
+    var data = readDb();
+    var order = data.quoteWorkOrders.filter(function (o) { return o.work_order_id === orderId; })[0];
+    if (!order) return;
+    order.status = T.statusDone;
+    order.completed_at = new Date().toISOString();
+    saveDb();
+    workOrderPage();
+  }
+
+  function completionText(order) {
+    var q = getQuote(order.bind_quote_id) || {};
+    return [
+      "\u8eca\u8f1b\u5b8c\u5de5\u78ba\u8a8d\u65bd\u5de5\u55ae",
+      "\u5de5\u55ae\u7de8\u865f\uff1a" + order.work_order_id,
+      "\u539f\u59cb\u5831\u50f9\uff1a" + (order.bind_quote_id || ""),
+      "\u5ba2\u6236\uff1a" + (order.customer_name || q.customer_name || ""),
+      "\u8eca\u724c\uff1a" + (order.plate || q.plate || ""),
+      "\u5b8c\u5de5\u6642\u9593\uff1a" + (order.completed_at || new Date().toISOString()),
+      "",
+      "\u539f\u59cb\u5831\u50f9\u660e\u7d30",
+      textForPdf(q),
+      "",
+      "\u65bd\u5de5\u5099\u8a3b\uff1a________________",
+      "\u6280\u5e2b\u7c3d\u540d\uff1a________________",
+      "\u5ba2\u6236\u53d6\u8eca\u7c3d\u540d\uff1a________________"
+    ].join("\n");
+  }
+
+  function exportCompletionPdf(orderId) {
+    var order = readDb().quoteWorkOrders.filter(function (o) { return o.work_order_id === orderId; })[0];
+    if (!order) return alert("\u627e\u4e0d\u5230\u5de5\u55ae");
+    if (order.status !== T.statusDone) return alert("\u5de5\u55ae\u5c1a\u672a\u5b8c\u5de5\uff0c\u4e0d\u80fd\u7522\u51fa\u65bd\u5de5\u55ae");
+    downloadBlob(makePdfBlob(completionText(order)), "completion_" + order.work_order_id + "_" + order.plate + ".pdf");
+    order.completion_file_path = "local-cache/workorders/" + order.work_order_id + ".pdf";
+    saveDb();
+  }
+
+  function exportCompletionImage(orderId) {
+    var order = readDb().quoteWorkOrders.filter(function (o) { return o.work_order_id === orderId; })[0];
+    if (!order) return alert("\u627e\u4e0d\u5230\u5de5\u55ae");
+    if (order.status !== T.statusDone) return alert("\u5de5\u55ae\u5c1a\u672a\u5b8c\u5de5\uff0c\u4e0d\u80fd\u7522\u51fa\u65bd\u5de5\u55ae");
+    var q = getQuote(order.bind_quote_id) || {};
+    var img = new Image();
+    var svg = svgForQuote(q).replace(T.serviceItems, "\u8eca\u8f1b\u5b8c\u5de5\u78ba\u8a8d\u65bd\u5de5\u55ae");
+    var url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+    img.onload = function () {
+      var canvas = document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 1600;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      canvas.toBlob(function (blob) { downloadBlob(blob, "completion_" + order.work_order_id + "_" + order.plate + ".png"); }, "image/png");
+      URL.revokeObjectURL(url);
+      order.completion_img_path = "local-cache/workorders/" + order.work_order_id + ".png";
+      saveDb();
+    };
+    img.src = url;
+  }
+
+  function workOrderPage() {
+    var rows = readDb().quoteWorkOrders.map(function (o) {
+      var doneButtons = o.status === T.statusDone ? "<button data-completion-pdf=\"" + esc(o.work_order_id) + "\">PDF</button><button data-completion-img=\"" + esc(o.work_order_id) + "\">PNG</button>" : "<button data-workorder-done=\"" + esc(o.work_order_id) + "\">" + T.markDone + "</button>";
+      return "<tr><td>" + esc(o.work_order_id) + "</td><td>" + esc(o.customer_name) + "</td><td>" + esc(o.plate) + "</td><td>" + esc(o.status) + "</td><td class=\"quote-row-actions\"><button data-quote-detail=\"" + esc(o.bind_quote_id) + "\">" + T.sourceQuote + "</button>" + doneButtons + "</td></tr>";
+    }).join("") || "<tr><td colspan=\"5\">\u5c1a\u7121\u5831\u50f9\u8f49\u5de5\u55ae\u7d00\u9304</td></tr>";
+    setMain(T.workTrace, "<section class=\"glass-card table-wrap\"><table><thead><tr><th>\u5de5\u55ae</th><th>" + T.customer + "</th><th>\u8eca\u724c</th><th>" + T.status + "</th><th>" + T.quoteNo + "</th></tr></thead><tbody>" + rows + "</tbody></table></section>");
   }
 
   function addEntrances() {
-    const cards = document.querySelectorAll(".module-card, .portal-card, .tool-card");
-    const operationCard = [...cards].find((card) => card.textContent.includes("營運管理") || card.textContent.includes("訂單"));
-    if (!operationCard || operationCard.dataset.quoteInjected) return;
-    operationCard.dataset.quoteInjected = "1";
-    const box = operationCard.querySelector(".module-card-actions, .portal-actions, .quick-actions") || operationCard;
-    box.insertAdjacentHTML("beforeend", `
-      <button class="quote-entry-btn" data-quote-page>報價單匯出</button>
-      <button class="quote-entry-btn" data-quote-workorders>工單追溯</button>
-    `);
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".module-category-card, .module-card, .portal-card, .tool-card"));
+    var target = cards.filter(function (card) { return /(\u904b\u71df|\u8a02\u55ae|\u7ba1\u7406\u7e3d\u89bd)/.test(card.textContent); })[0];
+    if (!target || target.getAttribute("data-quote-injected")) return;
+    target.setAttribute("data-quote-injected", "1");
+    var box = target.querySelector(".module-card-actions, .module-category-body, .portal-actions, .quick-actions") || target;
+    box.insertAdjacentHTML("beforeend", "<button class=\"quote-entry-btn\" data-quote-page>" + T.quoteList + "</button><button class=\"quote-entry-btn\" data-quote-workorders>" + T.workTrace + "</button>");
   }
 
-  document.addEventListener("click", (event) => {
-    const target = event.target.closest("button");
-    if (!target) return;
-    if (target.dataset.quotePage !== undefined) quoteListPage();
-    if (target.dataset.quoteWorkorders !== undefined) quoteWorkOrderPage();
-    if (target.dataset.quoteList !== undefined) quoteListPage();
-    if (target.dataset.quoteDetail) quoteDetailPage(target.dataset.quoteDetail);
-    if (target.dataset.quotePdf) exportPdf(target.dataset.quotePdf);
-    if (target.dataset.quoteImg) exportImage(target.dataset.quoteImg);
-    if (target.dataset.quoteConvert) convertToWorkOrder(target.dataset.quoteConvert);
+  function addFrontQuoteButton() {
+    if (document.querySelector("[data-make-quote-front]")) return;
+    var buttons = Array.prototype.slice.call(document.querySelectorAll("button, .tool-card, .portal-card"));
+    var anchor = buttons.filter(function (node) { return /(\u8cbc\u4e0a\u586b\u55ae|\u9810\u7d04|\u50f9\u76ee)/.test(node.textContent); })[0];
+    var container = anchor && (anchor.parentElement || anchor);
+    if (!container) return;
+    container.insertAdjacentHTML("beforeend", "<button class=\"quote-entry-btn\" data-make-quote-front>" + T.makeQuote + "</button>");
+  }
+
+  document.addEventListener("click", function (event) {
+    var b = event.target.closest && event.target.closest("button");
+    if (!b) return;
+    if (b.hasAttribute("data-quote-page")) quoteListPage();
+    if (b.hasAttribute("data-quote-workorders")) workOrderPage();
+    if (b.hasAttribute("data-quote-list")) quoteListPage();
+    if (b.hasAttribute("data-quote-back")) window.history.back();
+    if (b.hasAttribute("data-quote-modal-close")) {
+      var modal = document.querySelector("[data-quote-created-modal]");
+      if (modal) modal.remove();
+    }
+    if (b.hasAttribute("data-make-quote-front")) makeQuoteFromCurrent();
+    if (b.getAttribute("data-quote-detail")) quoteDetailPage(b.getAttribute("data-quote-detail"));
+    if (b.getAttribute("data-quote-pdf")) exportPdf(b.getAttribute("data-quote-pdf"));
+    if (b.getAttribute("data-quote-img")) exportImage(b.getAttribute("data-quote-img"));
+    if (b.getAttribute("data-quote-convert")) convertToWorkOrder(b.getAttribute("data-quote-convert"));
+    if (b.getAttribute("data-workorder-done")) markWorkOrderDone(b.getAttribute("data-workorder-done"));
+    if (b.getAttribute("data-completion-pdf")) exportCompletionPdf(b.getAttribute("data-completion-pdf"));
+    if (b.getAttribute("data-completion-img")) exportCompletionImage(b.getAttribute("data-completion-img"));
   });
 
-  window.quoteExportModule = { quoteListPage, quoteDetailPage, quoteWorkOrderPage, exportPdf, exportImage };
-  document.addEventListener("DOMContentLoaded", () => setTimeout(addEntrances, 300));
-  document.addEventListener("ui:stabilize", () => setTimeout(addEntrances, 300));
+  window.quoteExportModule = {
+    quoteListPage: quoteListPage,
+    quoteDetailPage: quoteDetailPage,
+    workOrderPage: workOrderPage,
+    exportPdf: exportPdf,
+    exportImage: exportImage,
+    makeQuoteFromCurrent: makeQuoteFromCurrent,
+    exportCompletionPdf: exportCompletionPdf,
+    exportCompletionImage: exportCompletionImage,
+    addEntrances: addEntrances
+  };
+
+  document.addEventListener("DOMContentLoaded", function () { setTimeout(function () { addEntrances(); addFrontQuoteButton(); }, 300); });
+  document.addEventListener("ui:stabilize", function () { setTimeout(function () { addEntrances(); addFrontQuoteButton(); }, 300); });
+  setInterval(function () { addEntrances(); addFrontQuoteButton(); }, 1200);
 })();

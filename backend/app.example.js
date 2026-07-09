@@ -8,6 +8,7 @@ const financeRoutes = require("./modules/finance/routes");
 const operationRoutes = require("./modules/operation/routes");
 const systemRoutes = require("./modules/system/routes");
 const quoteRoutes = require("./modules/quote/routes");
+const workorderRoutes = require("./modules/workorder/routes");
 
 function authMiddleware(jwtSecret) {
   return (req, res, next) => {
@@ -35,6 +36,7 @@ function createApp(db, options = {}) {
   app.use("/api/operation", operationRoutes(db));
   app.use("/api/system", systemRoutes(db));
   app.use("/api/quote", quoteRoutes(db));
+  app.use("/api/workorder", workorderRoutes(db));
   return app;
 }
 
