@@ -363,12 +363,15 @@
   }
 
   function addFrontQuoteButton() {
-    if (document.querySelector("[data-make-quote-front]")) return;
+    if (!document.querySelector("[data-quote-floating-tools]")) {
+      document.body.insertAdjacentHTML("beforeend", "<div class=\"quote-floating-tools\" data-quote-floating-tools><strong>\u5831\u50f9\u5de5\u5177</strong><button data-make-quote-front>" + T.makeQuote + "</button><button data-quote-page>" + T.quoteList + "</button><button data-quote-workorders>" + T.workTrace + "</button></div>");
+    }
+    if (document.querySelector("[data-inline-make-quote]")) return;
     var buttons = Array.prototype.slice.call(document.querySelectorAll("button, .tool-card, .portal-card"));
     var anchor = buttons.filter(function (node) { return /(\u8cbc\u4e0a\u586b\u55ae|\u9810\u7d04|\u50f9\u76ee)/.test(node.textContent); })[0];
     var container = anchor && (anchor.parentElement || anchor);
     if (!container) return;
-    container.insertAdjacentHTML("beforeend", "<button class=\"quote-entry-btn\" data-make-quote-front>" + T.makeQuote + "</button>");
+    container.insertAdjacentHTML("beforeend", "<button class=\"quote-entry-btn\" data-inline-make-quote data-make-quote-front>" + T.makeQuote + "</button>");
   }
 
   document.addEventListener("click", function (event) {

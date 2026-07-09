@@ -151,6 +151,49 @@
   margin-top: 10px;
 }
 
+.quote-floating-tools {
+  position: fixed;
+  right: 18px;
+  bottom: 92px;
+  z-index: 9998;
+  display: grid;
+  gap: 8px;
+  width: 156px;
+  padding: 12px;
+  border: 1px solid #d8e8f7;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 18px 46px rgba(15, 23, 42, .18);
+  backdrop-filter: blur(14px);
+}
+
+.quote-floating-tools strong {
+  color: #0f66c9;
+  font-size: 13px;
+  text-align: center;
+}
+
+.quote-floating-tools button {
+  min-height: 40px;
+  min-width: 0;
+  border-radius: 13px;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .quote-floating-tools {
+    left: 12px;
+    right: 12px;
+    bottom: 78px;
+    grid-template-columns: repeat(3, 1fr);
+    width: auto;
+  }
+
+  .quote-floating-tools strong {
+    grid-column: 1 / -1;
+  }
+}
+
 .quote-header {
   display: flex;
   align-items: center;
