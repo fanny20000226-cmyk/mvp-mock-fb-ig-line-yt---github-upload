@@ -248,6 +248,140 @@
   margin-top: 28px;
 }
 
+.quote-builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+  gap: 18px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.quote-form-card h2 {
+  margin-bottom: 16px;
+  font-size: 20px;
+}
+
+.quote-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quote-field {
+  display: grid;
+  gap: 7px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.quote-field-wide {
+  grid-column: 1 / -1;
+}
+
+.quote-field input,
+.quote-field textarea,
+.quote-custom-line input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #d8e8f7;
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: #0f172a;
+  background: #fbfdff;
+  box-sizing: border-box;
+}
+
+.quote-service-list {
+  display: grid;
+  gap: 10px;
+}
+
+.quote-service-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px;
+  border: 1px solid #d8e8f7;
+  border-radius: 18px;
+  background: #fbfdff;
+}
+
+.quote-service-option input {
+  width: 20px;
+  height: 20px;
+}
+
+.quote-service-option span {
+  display: grid;
+  gap: 2px;
+}
+
+.quote-service-option small {
+  margin: 0;
+  font-size: 12px;
+}
+
+.quote-service-option strong {
+  color: #0f66c9;
+}
+
+.quote-custom-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.quote-custom-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quote-custom-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  color: #0f66c9;
+  background: #eef7ff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.quote-custom-pill button {
+  width: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 999px;
+}
+
+.quote-live-total {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.quote-live-total p {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.quote-live-total button {
+  width: 100%;
+  margin-top: 8px;
+}
+
 @media (max-width: 760px) {
   .quote-export-page {
     padding: 16px;
@@ -266,6 +400,12 @@
   .quote-actions,
   .quote-row-actions {
     flex-direction: column;
+  }
+
+  .quote-builder-grid,
+  .quote-form-grid,
+  .quote-custom-line {
+    grid-template-columns: 1fr;
   }
 
   .quote-export-page button,
