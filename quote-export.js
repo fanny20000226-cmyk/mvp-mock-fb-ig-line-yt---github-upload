@@ -141,35 +141,35 @@
   function cleanZoneBase(carType) {
     var zones = {
       sedan5: [
-        { code: "C1", x: 224, y: 170, w: 92, h: 78 }, { code: "C2", x: 356, y: 170, w: 92, h: 78 },
-        { code: "C3", x: 218, y: 306, w: 112, h: 78 }, { code: "C4", x: 342, y: 306, w: 112, h: 78 },
-        { code: "S1", x: 218, y: 92, w: 104, h: 76 }, { code: "S2", x: 350, y: 92, w: 104, h: 76 },
-        { code: "S3", x: 218, y: 386, w: 236, h: 58 }, { code: "A1", x: 324, y: 166, w: 30, h: 214 },
-        { code: "T1", x: 518, y: 126, w: 126, h: 262 }, { code: "SP1", x: 540, y: 398, w: 80, h: 34 }
+        { code: "C1", x: 330, y: 210, w: 118, h: 104 }, { code: "C2", x: 472, y: 205, w: 116, h: 104 },
+        { code: "C3", x: 382, y: 342, w: 132, h: 88 }, { code: "C4", x: 526, y: 328, w: 120, h: 110 },
+        { code: "S1", x: 386, y: 210, w: 92, h: 110 }, { code: "S2", x: 505, y: 178, w: 96, h: 110 },
+        { code: "S3", x: 390, y: 338, w: 150, h: 82 }, { code: "A1", x: 514, y: 242, w: 84, h: 174 },
+        { code: "T1", x: 840, y: 170, w: 250, h: 270 }, { code: "SP1", x: 916, y: 392, w: 132, h: 54 }
       ],
       suv5: [
-        { code: "C1", x: 220, y: 166, w: 96, h: 82 }, { code: "C2", x: 360, y: 166, w: 96, h: 82 },
-        { code: "C3", x: 212, y: 304, w: 118, h: 82 }, { code: "C4", x: 346, y: 304, w: 118, h: 82 },
-        { code: "S1", x: 214, y: 88, w: 110, h: 78 }, { code: "S2", x: 354, y: 88, w: 110, h: 78 },
-        { code: "S3", x: 214, y: 388, w: 250, h: 60 }, { code: "A1", x: 326, y: 164, w: 32, h: 220 },
-        { code: "T1", x: 520, y: 112, w: 146, h: 292 }, { code: "SP1", x: 550, y: 414, w: 88, h: 34 }
+        { code: "C1", x: 694, y: 204, w: 126, h: 118 }, { code: "C2", x: 840, y: 204, w: 126, h: 118 },
+        { code: "C3", x: 700, y: 344, w: 132, h: 116 }, { code: "C4", x: 844, y: 344, w: 132, h: 116 },
+        { code: "S1", x: 692, y: 184, w: 112, h: 122 }, { code: "S2", x: 830, y: 174, w: 112, h: 122 },
+        { code: "S3", x: 690, y: 330, w: 246, h: 102 }, { code: "A1", x: 790, y: 234, w: 92, h: 202 },
+        { code: "T1", x: 968, y: 178, w: 174, h: 280 }, { code: "SP1", x: 1004, y: 382, w: 98, h: 58 }
       ],
       mpv7: [
-        { code: "C1", x: 172, y: 166, w: 84, h: 76 }, { code: "C2", x: 294, y: 166, w: 84, h: 76 },
-        { code: "C3", x: 170, y: 300, w: 96, h: 82 }, { code: "C4", x: 288, y: 300, w: 96, h: 82 },
-        { code: "S1", x: 168, y: 90, w: 96, h: 74 }, { code: "S2", x: 288, y: 90, w: 96, h: 74 },
-        { code: "S3", x: 166, y: 388, w: 220, h: 58 }, { code: "A1", x: 266, y: 164, w: 26, h: 218 },
-        { code: "S4", x: 456, y: 116, w: 92, h: 86 }, { code: "S5", x: 456, y: 294, w: 92, h: 86 },
-        { code: "T1", x: 598, y: 126, w: 88, h: 256 }, { code: "SP1", x: 612, y: 392, w: 60, h: 34 }
+        { code: "C1", x: 328, y: 828, w: 112, h: 112 }, { code: "C2", x: 454, y: 828, w: 112, h: 112 },
+        { code: "C3", x: 360, y: 982, w: 130, h: 116 }, { code: "C4", x: 500, y: 980, w: 120, h: 116 },
+        { code: "S1", x: 346, y: 800, w: 106, h: 130 }, { code: "S2", x: 462, y: 800, w: 106, h: 130 },
+        { code: "S3", x: 374, y: 1000, w: 156, h: 86 }, { code: "A1", x: 512, y: 830, w: 96, h: 240 },
+        { code: "S4", x: 556, y: 792, w: 106, h: 142 }, { code: "S5", x: 556, y: 968, w: 106, h: 142 },
+        { code: "T1", x: 650, y: 842, w: 104, h: 244 }, { code: "SP1", x: 664, y: 1090, w: 78, h: 56 }
       ],
       van9: [
-        { code: "C1", x: 138, y: 162, w: 78, h: 74 }, { code: "C2", x: 242, y: 162, w: 78, h: 74 },
-        { code: "C3", x: 136, y: 294, w: 88, h: 82 }, { code: "C4", x: 236, y: 294, w: 88, h: 82 },
-        { code: "S1", x: 132, y: 88, w: 90, h: 72 }, { code: "S2", x: 236, y: 88, w: 90, h: 72 },
-        { code: "S3", x: 132, y: 386, w: 194, h: 58 }, { code: "A1", x: 222, y: 162, w: 24, h: 214 },
-        { code: "S6", x: 400, y: 82, w: 70, h: 78 }, { code: "S7", x: 400, y: 202, w: 70, h: 78 },
-        { code: "S8", x: 400, y: 322, w: 70, h: 78 }, { code: "S9", x: 522, y: 134, w: 92, h: 212 },
-        { code: "T1", x: 652, y: 142, w: 66, h: 214 }, { code: "SP1", x: 656, y: 366, w: 58, h: 34 }
+        { code: "C1", x: 694, y: 830, w: 110, h: 112 }, { code: "C2", x: 812, y: 830, w: 110, h: 112 },
+        { code: "C3", x: 696, y: 982, w: 114, h: 112 }, { code: "C4", x: 816, y: 982, w: 114, h: 112 },
+        { code: "S1", x: 690, y: 804, w: 110, h: 126 }, { code: "S2", x: 810, y: 804, w: 110, h: 126 },
+        { code: "S3", x: 694, y: 992, w: 220, h: 86 }, { code: "A1", x: 786, y: 830, w: 92, h: 240 },
+        { code: "S6", x: 890, y: 786, w: 100, h: 128 }, { code: "S7", x: 1000, y: 786, w: 100, h: 128 },
+        { code: "S8", x: 998, y: 958, w: 102, h: 128 }, { code: "S9", x: 1044, y: 1000, w: 150, h: 92 },
+        { code: "T1", x: 1088, y: 830, w: 112, h: 220 }, { code: "SP1", x: 1096, y: 1082, w: 92, h: 54 }
       ]
     }[carType] || [];
     return zones.map(function (zone) {
@@ -205,47 +205,9 @@
   }
 
   function svgCarInterior(carType, car) {
-    var longBody = carType === "mpv7" || carType === "van9";
-    var shell = longBody
-      ? "M88 116 C130 70 690 70 738 116 L764 168 L752 356 C706 430 132 430 74 356 L62 168 Z"
-      : "M96 116 C144 74 626 76 686 118 L718 172 L704 352 C642 420 142 420 82 352 L72 172 Z";
-    var cabinX = longBody ? 128 : 166;
-    var cabinW = longBody ? 520 : 364;
-    var cargoX = longBody ? 650 : 534;
-    var cargoW = longBody ? 78 : 138;
-    var seats = "";
-    if (carType === "van9") {
-      seats = svgSeat(132, 88, 90, 72, "1") + svgSeat(236, 88, 90, 72, "2") + svgBench(132, 386, 194, 58, "3") +
-        svgSeat(400, 82, 70, 78, "6") + svgSeat(400, 202, 70, 78, "7") + svgSeat(400, 322, 70, 78, "8") + svgBench(522, 134, 92, 212, "9");
-    } else if (carType === "mpv7") {
-      seats = svgSeat(168, 90, 96, 74, "1") + svgSeat(288, 90, 96, 74, "2") + svgBench(166, 388, 220, 58, "3") +
-        svgSeat(456, 116, 92, 86, "4") + svgSeat(456, 294, 92, 86, "5");
-    } else {
-      seats = svgSeat(carType === "suv5" ? 214 : 218, carType === "suv5" ? 88 : 92, carType === "suv5" ? 110 : 104, carType === "suv5" ? 78 : 76, "1") +
-        svgSeat(carType === "suv5" ? 354 : 350, carType === "suv5" ? 88 : 92, carType === "suv5" ? 110 : 104, carType === "suv5" ? 78 : 76, "2") +
-        svgBench(carType === "suv5" ? 214 : 218, carType === "suv5" ? 388 : 386, carType === "suv5" ? 250 : 236, carType === "suv5" ? 60 : 58, "3");
-    }
-    return "<defs><linearGradient id=\"carPaint\" x1=\"0\" x2=\"1\"><stop offset=\"0\" stop-color=\"#f8fdff\"></stop><stop offset=\".5\" stop-color=\"#e4f6ff\"></stop><stop offset=\"1\" stop-color=\"#f9fdff\"></stop></linearGradient></defs>" +
-      "<rect x=\"28\" y=\"38\" width=\"764\" height=\"438\" rx=\"34\" class=\"car-stage\"></rect>" +
-      "<text x=\"58\" y=\"54\" class=\"clean-svg-title\">" + esc(car.name) + "</text>" +
-      "<path d=\"M86 78 H742 M86 456 H742\" class=\"car-dimension\"></path><text x=\"414\" y=\"82\" class=\"car-dimension-text\">Floor Plan</text>" +
-      "<path d=\"" + shell + "\" class=\"car-shell refined\"></path>" +
-      svgWheel(84, 126) + svgWheel(84, 324) + svgWheel(714, 126) + svgWheel(714, 324) +
-      "<path d=\"M78 180 C118 154 154 142 196 136 L190 382 C146 374 104 358 78 330 Z\" class=\"car-hood refined\"></path>" +
-      "<rect x=\"" + cabinX + "\" y=\"86\" width=\"" + cabinW + "\" height=\"350\" rx=\"46\" class=\"car-cabin refined\"></rect>" +
-      "<rect x=\"" + cargoX + "\" y=\"128\" width=\"" + cargoW + "\" height=\"254\" rx=\"28\" class=\"car-trunk refined\"></rect>" +
-      "<path d=\"M176 122 C270 96 506 96 638 122\" class=\"car-glass\"></path>" +
-      "<path d=\"M176 398 C270 424 506 424 638 398\" class=\"car-glass\"></path>" +
-      svgDoor(228, 104, true) + svgDoor(370, 104, true) + svgDoor(228, 416, false) + svgDoor(370, 416, false) +
-      "<rect x=\"" + (cabinX + 34) + "\" y=\"150\" width=\"" + (cabinW - 68) + "\" height=\"92\" rx=\"24\" class=\"car-floor blue\"></rect>" +
-      "<rect x=\"" + (cabinX + 34) + "\" y=\"288\" width=\"" + (cabinW - 68) + "\" height=\"98\" rx=\"24\" class=\"car-floor green\"></rect>" +
-      (longBody ? "<rect x=\"430\" y=\"112\" width=\"154\" height=\"278\" rx=\"28\" class=\"car-floor rose\"></rect>" : "") +
-      "<path d=\"M" + (cabinX + cabinW / 2) + " 112 V408\" class=\"car-center\"></path>" +
-      "<rect x=\"" + (cargoX + 16) + "\" y=\"150\" width=\"" + Math.max(42, cargoW - 32) + "\" height=\"210\" rx=\"22\" class=\"car-floor cargo\"></rect>" +
-      seats +
-      "<text x=\"" + (cargoX + cargoW / 2) + "\" y=\"260\" class=\"car-zone-label\">T1</text>" +
-      "<text x=\"132\" y=\"252\" class=\"car-side-label\">\u99d5\u99db\u5ea7\u5730\u6bef</text>" +
-      "<text x=\"132\" y=\"288\" class=\"car-side-label\">\u526f\u99d5\u5ea7\u5730\u6bef</text>";
+    return "<image class=\"clean-floorplan-image\" href=\"./quote-car-floorplan.jpg?v=1\" x=\"0\" y=\"0\" width=\"1280\" height=\"1280\" preserveAspectRatio=\"xMidYMid meet\"></image>" +
+      "<rect class=\"clean-type-frame\" x=\"12\" y=\"12\" width=\"1256\" height=\"1256\" rx=\"22\"></rect>" +
+      "<text x=\"44\" y=\"48\" class=\"clean-svg-title\">" + esc(car.name) + "</text>";
   }
 
   function selectedCleanCodes() {
@@ -292,7 +254,7 @@
     }).join("");
     var quickSelect = document.getElementById("cleanZoneCarType");
     if (quickSelect && quickSelect.value !== carType) quickSelect.value = carType;
-    box.innerHTML = "<svg class=\"clean-car-svg\" viewBox=\"0 0 820 520\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
+    box.innerHTML = "<svg class=\"clean-car-svg clean-photo-svg\" viewBox=\"0 0 1280 1280\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
       svgCarInterior(carType, car) + zoneRects + zoneLabels + "</svg>";
     renderCleanZoneList();
   }

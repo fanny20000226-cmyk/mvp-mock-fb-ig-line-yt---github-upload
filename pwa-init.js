@@ -1,5 +1,5 @@
 (() => {
-  const APP_VERSION = "v57";
+  const APP_VERSION = "v58";
 
   async function refreshOldAppCache() {
     const key = "beauty-crm-app-version";

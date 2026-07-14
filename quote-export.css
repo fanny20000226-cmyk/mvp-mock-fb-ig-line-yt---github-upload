@@ -750,6 +750,22 @@ body[data-quote-active="1"] .quote-floating-tools {
   box-shadow: inset 0 0 0 1px rgba(125, 177, 211, .22);
 }
 
+.clean-photo-svg {
+  max-width: 900px;
+  background: #f5fbff;
+}
+
+.clean-floorplan-image {
+  pointer-events: none;
+}
+
+.clean-type-frame {
+  fill: none;
+  stroke: rgba(15, 102, 201, .28);
+  stroke-width: 7;
+  pointer-events: none;
+}
+
 .car-stage {
   fill: rgba(219, 241, 255, .55);
 }
@@ -896,8 +912,8 @@ body[data-quote-active="1"] .quote-floating-tools {
 }
 
 .clean-zone-hotspot rect {
-  fill: rgba(255, 255, 255, .02);
-  stroke: transparent;
+  fill: rgba(255, 255, 255, .04);
+  stroke: rgba(15, 102, 201, .12);
   cursor: pointer;
   transition: fill .16s ease, stroke .16s ease;
 }
