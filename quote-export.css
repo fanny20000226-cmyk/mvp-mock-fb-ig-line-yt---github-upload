@@ -57,6 +57,14 @@
   gap: 10px;
 }
 
+.quote-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .quote-export-page button,
 .quote-entry-btn {
   min-width: 112px;
@@ -427,6 +435,10 @@
   font-size: 12px;
 }
 
+body[data-quote-active="1"] .quote-floating-tools {
+  display: none;
+}
+
 @media (max-width: 760px) {
   .quote-floating-tools {
     left: 12px;
@@ -684,7 +696,8 @@
 
   .quote-sign,
   .quote-actions,
-  .quote-row-actions {
+  .quote-row-actions,
+  .quote-top-actions {
     flex-direction: column;
   }
 

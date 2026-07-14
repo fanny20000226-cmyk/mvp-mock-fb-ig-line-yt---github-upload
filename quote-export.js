@@ -295,23 +295,58 @@
   function setMain(title, html) {
     var app = document.getElementById("app");
     if (!app) return;
-    app.innerHTML = "<div class=\"quote-export-page\"><header class=\"topbar\"><div class=\"brand\"><div class=\"logo\">" + T.carLogo + "</div><div><h1>" + title + "</h1><small>\u5831\u50f9\u532f\u51fa\u8207\u5de5\u55ae\u8ffd\u6eaf</small></div></div><button class=\"ghost-btn\" data-quote-back>" + T.back + "</button></header>" + html + "</div>";
+    app.innerHTML = "<div class=\"quote-export-page\"><header class=\"topbar\"><div class=\"brand\"><div class=\"logo\">" + T.carLogo + "</div><div><h1>" + title + "</h1><small>\u5831\u50f9\u532f\u51fa\u8207\u5de5\u55ae\u8ffd\u6eaf</small></div></div><div class=\"quote-top-actions\"><button class=\"ghost-btn\" data-quote-back>" + T.back + "</button><button class=\"ghost-btn\" data-quote-home>\u56de\u5de5\u4f5c\u53f0</button></div></header>" + html + "</div>";
+    document.body.setAttribute("data-quote-active", "1");
+    if (!history.state || !history.state.quotePage) {
+      try { history.pushState({ quotePage: true }, "", location.href); } catch (e) {}
+    }
     window.scrollTo(0, 0);
   }
 
   function rememberQuoteReturn() {
     var data = readDb();
-    if (data.view) data.quoteReturnView = data.view;
+    var app = document.getElementById("app");
+    if (app && !app.querySelector(".quote-export-page")) {
+      try {
+        sessionStorage.setItem("beauty-crm-quote-return-html", app.innerHTML);
+        sessionStorage.setItem("beauty-crm-quote-return-view", data.view || "");
+      } catch (e) {}
+    }
+    if (data.view && !document.querySelector(".quote-export-page")) data.quoteReturnView = data.view;
     saveDb();
   }
 
   function quoteBack() {
     var data = readDb();
-    var target = data.quoteReturnView || (data.authed ? "adminHome" : "home");
+    var app = document.getElementById("app");
+    var savedHtml = "";
+    var savedView = "";
+    try {
+      savedHtml = sessionStorage.getItem("beauty-crm-quote-return-html") || "";
+      savedView = sessionStorage.getItem("beauty-crm-quote-return-view") || "";
+      sessionStorage.removeItem("beauty-crm-quote-return-html");
+      sessionStorage.removeItem("beauty-crm-quote-return-view");
+    } catch (e) {}
+    document.body.removeAttribute("data-quote-active");
+    delete data.quoteReturnView;
+    if (savedView) data.view = savedView;
+    saveDb();
+    if (app && savedHtml) {
+      app.innerHTML = savedHtml;
+      document.dispatchEvent(new CustomEvent("ui:stabilize"));
+      window.scrollTo(0, 0);
+      return;
+    }
+    quoteHome();
+  }
+
+  function quoteHome() {
+    var data = readDb();
+    document.body.removeAttribute("data-quote-active");
     delete data.quoteReturnView;
     saveDb();
-    if (typeof window.go === "function") window.go(target);
-    else window.history.back();
+    if (typeof window.go === "function") window.go(data.authed ? "adminHome" : "home");
+    else location.href = location.pathname + "?fresh=home";
   }
 
   function quoteListPage() {
@@ -628,6 +663,7 @@
     }
     if (b.hasAttribute("data-quote-list")) quoteListPage();
     if (b.hasAttribute("data-quote-back")) quoteBack();
+    if (b.hasAttribute("data-quote-home")) quoteHome();
     if (b.hasAttribute("data-quote-modal-close")) {
       var modal = document.querySelector("[data-quote-created-modal]");
       if (modal) modal.remove();
@@ -677,6 +713,10 @@
 
   document.addEventListener("change", function (event) {
     if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbPackageSelect")) refreshBuilderTotal();
+  });
+
+  window.addEventListener("popstate", function () {
+    if (document.body.getAttribute("data-quote-active") === "1") quoteBack();
   });
 
   window.quoteExportModule = {
