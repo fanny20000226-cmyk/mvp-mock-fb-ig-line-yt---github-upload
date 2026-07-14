@@ -680,6 +680,122 @@ body[data-quote-active="1"] .quote-floating-tools {
   margin-top: 8px;
 }
 
+.clean-zone-card {
+  grid-column: 1 / -1;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #d8e8f7;
+  border-radius: 22px;
+  background: #fbfdff;
+}
+
+.clean-zone-head h2 {
+  margin-bottom: 6px;
+}
+
+.clean-zone-head p {
+  margin: 0 0 12px;
+  color: #64748b;
+}
+
+.clean-zone-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.clean-zone-toolbar button {
+  min-width: 118px;
+  min-height: 38px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.clean-car-svg {
+  display: block;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  border-radius: 20px;
+  background: #f7fbff;
+}
+
+.car-body {
+  fill: #dff2ff;
+}
+
+.car-shell {
+  fill: #ffffff;
+  stroke: #102033;
+  stroke-width: 6;
+}
+
+.car-hood,
+.car-trunk,
+.car-cabin {
+  fill: #eaf7ff;
+  stroke: #7fb6d8;
+  stroke-width: 2;
+}
+
+.car-seat {
+  fill: #fff7f2;
+  stroke: #a8c5d8;
+  stroke-width: 2;
+}
+
+.car-center {
+  stroke: #9db8ca;
+  stroke-dasharray: 8 8;
+  stroke-width: 2;
+}
+
+.clean-svg-title {
+  fill: #0f172a;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.clean-zone-hotspot rect {
+  fill: transparent;
+  stroke: transparent;
+  cursor: pointer;
+  transition: fill .16s ease, stroke .16s ease;
+}
+
+.clean-zone-hotspot:hover rect {
+  fill: rgba(31, 139, 234, .16);
+  stroke: rgba(31, 139, 234, .72);
+  stroke-width: 3;
+}
+
+.clean-zone-hotspot.is-selected rect {
+  fill: rgba(31, 139, 234, .34);
+  stroke: #0f66c9;
+  stroke-width: 4;
+}
+
+.clean-zone-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  color: #64748b;
+}
+
+.clean-zone-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #0f66c9;
+  background: #eef7ff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 @media (max-width: 760px) {
   .quote-export-page {
     padding: 16px;
@@ -726,6 +842,11 @@ body[data-quote-active="1"] .quote-floating-tools {
   .quote-export-page button,
   .quote-entry-btn {
     width: 100%;
+  }
+
+  .clean-zone-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 

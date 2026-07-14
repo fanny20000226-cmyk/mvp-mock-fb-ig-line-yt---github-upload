@@ -118,6 +118,131 @@
     return Number(q.package_total || 0) + Number(q.addon_total || 0) - Number(q.discount_amount || 0);
   }
 
+  var CAR_TYPES = [
+    { id: "sedan5", name: "\u4e00\u822c\u8f4e\u8eca\uff085\u4eba\u5ea7\uff09", seats: 5 },
+    { id: "suv5", name: "\u5927\u578b\u4f11\u65c5\u8eca\uff085\u4eba\u5ea7\uff09", seats: 5 },
+    { id: "mpv7", name: "\u4e03\u4eba\u5ea7\uff082-3-2\uff09", seats: 7 },
+    { id: "van9", name: "\u4e5d\u4eba\u5ea7/\u5546\u52d9\u8eca\uff082-3-2-2\uff09", seats: 9 }
+  ];
+
+  var CLEAN_ZONE_PRICE = {
+    C1: 600, C2: 600, C3: 600, C4: 600,
+    S1: 800, S2: 800, S3: 1200, S4: 900, S5: 900, S6: 900, S7: 900, S8: 900, S9: 900,
+    A1: 700, T1: 900, SP1: 500
+  };
+
+  var CLEAN_ZONE_NAMES = {
+    C1: "\u99d5\u99db\u5ea7\u5730\u6bef", C2: "\u526f\u99d5\u5ea7\u5730\u6bef", C3: "\u5f8c\u6392\u5de6\u5074\u5730\u6bef", C4: "\u5f8c\u6392\u53f3\u5074\u5730\u6bef",
+    S1: "\u99d5\u99db\u5ea7\u6905", S2: "\u526f\u99d5\u5ea7\u6905", S3: "\u5f8c\u6392\u5ea7\u6905", S4: "\u7b2c\u4e09\u6392\u5de6\u5ea7\u6905", S5: "\u7b2c\u4e09\u6392\u53f3\u5ea7\u6905",
+    S6: "\u4e2d\u6392\u5de6\u5ea7\u6905", S7: "\u4e2d\u6392\u4e2d\u5ea7\u6905", S8: "\u4e2d\u6392\u53f3\u5ea7\u6905", S9: "\u6700\u5f8c\u6392\u5ea7\u6905",
+    A1: "\u8eca\u5167\u4e2d\u592e\u901a\u9053", T1: "\u884c\u674e\u7bb1", SP1: "\u5099\u80ce\u53e3"
+  };
+
+  function cleanZoneBase(carType) {
+    var zones = [
+      { code: "C1", x: 168, y: 166, w: 84, h: 72 }, { code: "C2", x: 308, y: 166, w: 84, h: 72 },
+      { code: "C3", x: 168, y: 274, w: 84, h: 72 }, { code: "C4", x: 308, y: 274, w: 84, h: 72 },
+      { code: "S1", x: 168, y: 94, w: 84, h: 62 }, { code: "S2", x: 308, y: 94, w: 84, h: 62 },
+      { code: "S3", x: 176, y: 356, w: 208, h: 58 }, { code: "A1", x: 260, y: 162, w: 38, h: 190 },
+      { code: "T1", x: 438, y: 110, w: 124, h: 246 }, { code: "SP1", x: 466, y: 372, w: 74, h: 40 }
+    ];
+    if (carType === "mpv7") {
+      zones = zones.concat([{ code: "S4", x: 430, y: 132, w: 66, h: 78 }, { code: "S5", x: 430, y: 250, w: 66, h: 78 }]);
+    }
+    if (carType === "van9") {
+      zones = zones.concat([
+        { code: "S6", x: 408, y: 90, w: 56, h: 66 }, { code: "S7", x: 408, y: 196, w: 56, h: 66 },
+        { code: "S8", x: 408, y: 304, w: 56, h: 66 }, { code: "S9", x: 500, y: 156, w: 52, h: 154 }
+      ]);
+    }
+    return zones.map(function (zone) {
+      return Object.assign({}, zone, { name: CLEAN_ZONE_NAMES[zone.code], price: CLEAN_ZONE_PRICE[zone.code] || 0 });
+    });
+  }
+
+  function selectedCleanCodes() {
+    var raw = document.getElementById("qbCleanZones");
+    try { return raw && raw.value ? JSON.parse(raw.value) : []; } catch (e) { return []; }
+  }
+
+  function setSelectedCleanCodes(codes) {
+    var unique = [];
+    codes.forEach(function (code) { if (unique.indexOf(code) === -1) unique.push(code); });
+    var raw = document.getElementById("qbCleanZones");
+    if (raw) raw.value = JSON.stringify(unique);
+  }
+
+  function cleanZonePayload() {
+    var carType = builderValue("qbCarType") || "sedan5";
+    var zones = cleanZoneBase(carType);
+    var selected = selectedCleanCodes();
+    return selected.map(function (code) {
+      var zone = zones.filter(function (item) { return item.code === code; })[0] || {};
+      return {
+        code: code,
+        name: zone.name || CLEAN_ZONE_NAMES[code] || code,
+        price: Number(zone.price || CLEAN_ZONE_PRICE[code] || 0),
+        selectedAt: new Date().toISOString(),
+        operator: readDb().currentRole || readDb().role || "front"
+      };
+    });
+  }
+
+  function renderCleanZoneMap() {
+    var box = document.getElementById("cleanZoneMap");
+    if (!box) return;
+    var carType = builderValue("qbCarType") || "sedan5";
+    var car = CAR_TYPES.filter(function (item) { return item.id === carType; })[0] || CAR_TYPES[0];
+    var selected = selectedCleanCodes();
+    var zones = cleanZoneBase(carType);
+    var zoneRects = zones.map(function (zone) {
+      var active = selected.indexOf(zone.code) > -1;
+      return "<g class=\"clean-zone-hotspot " + (active ? "is-selected" : "") + "\" data-clean-zone=\"" + esc(zone.code) + "\"><rect x=\"" + zone.x + "\" y=\"" + zone.y + "\" width=\"" + zone.w + "\" height=\"" + zone.h + "\" rx=\"14\"></rect><title>" + esc(zone.name) + " " + money(zone.price) + "</title></g>";
+    }).join("");
+    box.innerHTML = "<svg class=\"clean-car-svg\" viewBox=\"0 0 640 500\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
+      "<rect x=\"70\" y=\"52\" width=\"500\" height=\"396\" rx=\"94\" class=\"car-body\"></rect>" +
+      "<path d=\"M95 112 C132 74 498 74 545 112 L562 152 L552 348 C510 416 130 416 88 348 L80 150 Z\" class=\"car-shell\"></path>" +
+      "<path d=\"M92 150 L168 150 L168 350 L92 350\" class=\"car-hood\"></path>" +
+      "<path d=\"M420 118 L554 138 L552 362 L420 382 Z\" class=\"car-trunk\"></path>" +
+      "<rect x=\"188\" y=\"88\" width=\"250\" height=\"318\" rx=\"42\" class=\"car-cabin\"></rect>" +
+      "<rect x=\"178\" y=\"78\" width=\"70\" height=\"88\" rx=\"24\" class=\"car-seat\"></rect><rect x=\"312\" y=\"78\" width=\"70\" height=\"88\" rx=\"24\" class=\"car-seat\"></rect>" +
+      "<rect x=\"178\" y=\"350\" width=\"202\" height=\"54\" rx=\"20\" class=\"car-seat\"></rect>" +
+      (car.seats > 5 ? "<rect x=\"420\" y=\"126\" width=\"78\" height=\"82\" rx=\"22\" class=\"car-seat\"></rect><rect x=\"420\" y=\"250\" width=\"78\" height=\"82\" rx=\"22\" class=\"car-seat\"></rect>" : "") +
+      (car.seats > 7 ? "<rect x=\"404\" y=\"84\" width=\"64\" height=\"76\" rx=\"20\" class=\"car-seat\"></rect><rect x=\"404\" y=\"300\" width=\"64\" height=\"76\" rx=\"20\" class=\"car-seat\"></rect><rect x=\"496\" y=\"158\" width=\"60\" height=\"150\" rx=\"20\" class=\"car-seat\"></rect>" : "") +
+      "<line x1=\"280\" y1=\"108\" x2=\"280\" y2=\"390\" class=\"car-center\"></line><text x=\"84\" y=\"36\" class=\"clean-svg-title\">" + esc(car.name) + "</text>" + zoneRects + "</svg>";
+    renderCleanZoneList();
+  }
+
+  function renderCleanZoneList() {
+    var list = document.getElementById("cleanZoneList");
+    if (!list) return;
+    var zones = cleanZonePayload();
+    list.innerHTML = zones.length ? zones.map(function (zone) {
+      return "<span class=\"clean-zone-pill\">" + esc(zone.code) + " " + esc(zone.name) + " " + money(zone.price) + "</span>";
+    }).join("") : "\u5c1a\u672a\u9078\u53d6";
+  }
+
+  function toggleCleanZone(code) {
+    var selected = selectedCleanCodes();
+    var index = selected.indexOf(code);
+    if (index >= 0) selected.splice(index, 1);
+    else selected.push(code);
+    setSelectedCleanCodes(selected);
+    renderCleanZoneMap();
+    refreshBuilderTotal();
+  }
+
+  function toggleCleanGroup(group) {
+    var selected = selectedCleanCodes();
+    var groupCodes = group === "G1" ? ["C1", "C2"] : group === "G2" ? ["C3", "C4"] : ["C1", "C2", "C3", "C4"];
+    var allSelected = groupCodes.every(function (code) { return selected.indexOf(code) > -1; });
+    if (allSelected) selected = selected.filter(function (code) { return groupCodes.indexOf(code) === -1; });
+    else groupCodes.forEach(function (code) { if (selected.indexOf(code) === -1) selected.push(code); });
+    setSelectedCleanCodes(selected);
+    renderCleanZoneMap();
+    refreshBuilderTotal();
+  }
+
   function quoteCategory(q) {
     return q.quote_category || q.category || q.service_category || (getItems(q.quote_id)[0] || {}).category || "\u57fa\u790e\u4fdd\u990a";
   }
@@ -208,17 +333,29 @@
     var rows = getItems(q.quote_id).map(function (item) {
       return "<tr><td>" + esc(item.category) + "</td><td>" + esc(item.item_name) + "</td><td>" + money(item.unit_price) + "</td><td>" + esc(item.qty || 1) + "</td><td>" + money(Number(item.unit_price || 0) * Number(item.qty || 1)) + "</td></tr>";
     }).join("");
+    var cleanRows = cleanZoneRows(q);
     return "<article class=\"quote-paper\">" +
       "<header class=\"quote-header\"><div class=\"quote-logo\">" + T.carLogo + "</div><div><h2>" + esc(q.store_name) + "</h2><p>" + T.quoteNo + "\uff1a" + esc(q.quote_id) + " / " + new Date(q.created_at).toLocaleString("zh-TW") + "</p></div></header>" +
       "<div class=\"quote-info\"><span>\u8eca\u4e3b\uff1a" + esc(q.customer_name) + "</span><span>\u96fb\u8a71\uff1a" + esc(q.phone) + "</span><span>\u8eca\u724c\uff1a" + esc(q.plate) + "</span><span>\u8eca\u578b\uff1a" + esc(q.car_model) + "</span><span>\u5e74\u4efd\uff1a" + esc(q.car_year) + "</span><span>\u9810\u7d04\uff1a" + esc(q.appointment_date) + "</span></div>" +
       "<section class=\"quote-section\"><h3>" + T.serviceItems + "</h3><table><thead><tr><th>\u5206\u985e</th><th>\u9805\u76ee</th><th>\u55ae\u50f9</th><th>\u6578\u91cf</th><th>\u5c0f\u8a08</th></tr></thead><tbody>" + rows + "</tbody></table></section>" +
+      "<section class=\"quote-section\"><h3>\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d\u660e\u7d30</h3><table><thead><tr><th>\u7de8\u78bc</th><th>\u90e8\u4f4d</th><th>\u55ae\u50f9</th></tr></thead><tbody>" + cleanRows + "</tbody></table></section>" +
       "<section class=\"quote-total\"><p>" + T.packageTotal + "<b>" + money(q.package_total) + "</b></p><p>" + T.addonTotal + "<b>" + money(q.addon_total) + "</b></p><p>" + T.discount + "<b>-" + money(q.discount_amount) + "</b></p><p class=\"quote-payable\">" + T.payable + "<b>" + money(total(q)) + "</b></p><p>" + T.deposit + "<b>" + money(q.deposit_amount) + "</b></p></section>" +
       "<p class=\"quote-note\">" + T.note + "\uff1a" + esc(q.remark || T.footer) + "</p><footer class=\"quote-sign\"><span>" + T.storeSign + "\uff1a________________</span><span>" + T.customerSign + "\uff1a________________</span></footer></article>";
+  }
+
+  function cleanZoneRows(q) {
+    var zones = q.clean_selected_zones || [];
+    return zones.length ? zones.map(function (zone) {
+      return "<tr><td>" + esc(zone.code) + "</td><td>" + esc(zone.name) + "</td><td>" + money(zone.price) + "</td></tr>";
+    }).join("") : "<tr><td colspan=\"3\">\u672a\u9078\u53d6\u8eca\u5167\u6e05\u6f54\u90e8\u4f4d</td></tr>";
   }
 
   function textForPdf(q) {
     var lines = [q.store_name + " " + T.quoteNo, T.quoteNo + "\uff1a" + q.quote_id, "\u8eca\u4e3b\uff1a" + q.customer_name, "\u96fb\u8a71\uff1a" + q.phone, "\u8eca\u724c\uff1a" + q.plate, "\u8eca\u578b\uff1a" + q.car_model, ""];
     getItems(q.quote_id).forEach(function (item) { lines.push(item.category + " / " + item.item_name + " / " + money(item.unit_price)); });
+    lines.push("", "\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d\u660e\u7d30");
+    (q.clean_selected_zones || []).forEach(function (zone) { lines.push(zone.code + " / " + zone.name + " / " + money(zone.price)); });
+    if (!(q.clean_selected_zones || []).length) lines.push("\u672a\u9078\u53d6");
     lines.push("", T.payable + "\uff1a" + money(total(q)), T.deposit + "\uff1a" + money(q.deposit_amount), T.footer);
     return lines.join("\n");
   }
@@ -419,6 +556,13 @@
     return "<label class=\"quote-select-field\"><span>" + label + "</span><select id=\"" + id + "\">" + opts + "</select></label>";
   }
 
+  function simpleSelect(id, label, items, selected) {
+    var opts = items.map(function (item) {
+      return "<option value=\"" + esc(item.id) + "\" " + (item.id === selected ? "selected" : "") + ">" + esc(item.name) + "</option>";
+    }).join("");
+    return "<label class=\"quote-select-field\"><span>" + label + "</span><select id=\"" + id + "\">" + opts + "</select></label>";
+  }
+
   function optionById(id) {
     return quoteServiceOptions().filter(function (item) { return item.id === id; })[0];
   }
@@ -434,17 +578,19 @@
       quoteField("qbPhone", "\u806f\u7d61\u96fb\u8a71", base.phone || "") +
       quoteField("qbPlate", "\u8eca\u724c", base.plate || "") +
       quoteField("qbCar", "\u8eca\u578b", base.car || base.carModel || base.model || "") +
+      simpleSelect("qbCarType", "\u8eca\u5167\u5e73\u9762\u5716\u8eca\u578b", CAR_TYPES, "sedan5") +
       quoteField("qbYear", "\u5e74\u4efd", base.year || base.carYear || "") +
       quoteField("qbStore", "\u9580\u5e02", base.store || base.branch || "\u4e09\u91cd") +
       quoteField("qbDate", "\u9810\u7d04\u65e5\u671f / \u6642\u9593", base.date || base.appointmentDate || "") +
       quoteField("qbDeposit", "\u5df2\u6536\u8a02\u91d1", base.deposit || "0", "number") +
       quoteField("qbDiscount", "\u512a\u60e0\u6298\u6263", "0", "number") +
-      "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div></section>" +
+      "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div><input type=\"hidden\" id=\"qbCleanZones\" value=\"[]\"><section class=\"clean-zone-card\"><div class=\"clean-zone-head\"><h2>\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d</h2><p>\u9ede\u9078\u5340\u584a\u5f8c\u6703\u81ea\u52d5\u52a0\u5165\u5831\u50f9\u8207\u8ffd\u6eaf\u65e5\u8a8c</p></div><div class=\"clean-zone-toolbar\"><button data-clean-zone-group=\"G1\">G1 \u524d\u6392\u5730\u6bef</button><button data-clean-zone-group=\"G2\">G2 \u5f8c\u6392\u5730\u6bef</button><button data-clean-zone-group=\"ALL-C\">ALL-C \u5168\u8eca\u5730\u6bef</button></div><div id=\"cleanZoneMap\"></div><div id=\"cleanZoneList\" class=\"clean-zone-list\">\u5c1a\u672a\u9078\u53d6</div></section></section>" +
       "<section class=\"glass-card quote-form-card\"><h2>\u9078\u64c7\u5957\u9910 / \u52a0\u8cfc / \u8d08\u9001</h2><div class=\"quote-dropdown-stack\">" +
       quoteSelect("qbPackageSelect", "\u5957\u9910", packages, "\u8acb\u9078\u64c7\u5957\u9910") +
       "<div class=\"quote-dropdown-add\">" + quoteSelect("qbAddonSelect", "\u52a0\u8cfc", addons, "\u8acb\u9078\u64c7\u52a0\u8cfc\u9805\u76ee") + "<button data-add-dropdown-quote-item=\"qbAddonSelect\">\u52a0\u5165\u52a0\u8cfc</button></div>" +
       "<div class=\"quote-dropdown-add\">" + quoteSelect("qbGiftSelect", "\u8d08\u9001", gifts, "\u8acb\u9078\u64c7\u8d08\u9001\u9805\u76ee") + "<button data-add-dropdown-quote-item=\"qbGiftSelect\">\u52a0\u5165\u8d08\u9001</button></div>" +
       "</div><div id=\"qbSelectedItems\" class=\"quote-custom-items\"></div><div class=\"quote-custom-line\"><input id=\"qbCustomName\" placeholder=\"\u81ea\u8a02\u9805\u76ee\u540d\u7a31\"><input id=\"qbCustomPrice\" type=\"number\" placeholder=\"\u91d1\u984d\"><button data-add-custom-quote-item>\u52a0\u5165\u81ea\u8a02\u9805\u76ee</button></div><div id=\"qbCustomItems\" class=\"quote-custom-items\"></div><aside class=\"quote-live-total\"><p>\u5957\u9910/\u52a0\u8cfc\u5408\u8a08 <b id=\"qbSubtotal\">$0</b></p><p>\u512a\u60e0\u6298\u6263 <b id=\"qbDiscountView\">-$0</b></p><p class=\"quote-payable\">\u6700\u7d42\u5831\u50f9 <b id=\"qbFinal\">$0</b></p><button data-create-quote-from-builder>" + T.createQuote + "</button></aside></section></main>");
+    renderCleanZoneMap();
     refreshBuilderTotal();
   }
 
@@ -461,6 +607,9 @@
     var items = [];
     var packageItem = optionById(builderValue("qbPackageSelect"));
     if (packageItem) items.push({ category: packageItem.category, item_name: packageItem.name, unit_price: Number(packageItem.price || 0), qty: 1 });
+    cleanZonePayload().forEach(function (zone) {
+      items.push({ category: "\u52a0\u8cfc", item_name: "\u8eca\u5167\u6e05\u6f54-" + zone.name, unit_price: Number(zone.price || 0), qty: 1, clean_code: zone.code });
+    });
     Array.prototype.slice.call(document.querySelectorAll("[data-selected-quote-item]")).forEach(function (node) {
       items.push({
         category: node.getAttribute("data-category") || "\u52a0\u8cfc",
@@ -519,6 +668,7 @@
     if (!items.length) return alert("\u8acb\u81f3\u5c11\u9078\u64c7\u4e00\u500b\u5957\u9910\u6216\u52a0\u8cfc\u9805\u76ee");
     var packageTotal = items.reduce(function (sum, item) { return sum + Number(item.unit_price || 0); }, 0);
     var discount = Number(builderValue("qbDiscount") || 0);
+    var cleanZones = cleanZonePayload();
     var quote = {
       quote_id: quoteId,
       store_code: builderValue("qbStore") || "\u4e09\u91cd",
@@ -527,6 +677,8 @@
       phone: builderValue("qbPhone"),
       plate: builderValue("qbPlate"),
       car_model: builderValue("qbCar"),
+      car_type: builderValue("qbCarType") || "sedan5",
+      clean_selected_zones: cleanZones,
       car_year: builderValue("qbYear"),
       package_total: packageTotal,
       addon_total: 0,
@@ -537,6 +689,15 @@
       status: "\u5f85\u5ba2\u6236\u78ba\u8a8d",
       created_by: "front",
       created_at: new Date().toISOString(),
+      trace_logs: [{
+        action: "\u5efa\u7acb\u5831\u50f9",
+        user: "front",
+        time: new Date().toISOString()
+      }, {
+        action: "\u9078\u53d6\u8eca\u5167\u6e05\u6f54\u5340\u57df\uff1a" + (cleanZones.length ? cleanZones.map(function (zone) { return zone.code + " " + zone.name; }).join("\u3001") : "\u7121"),
+        user: "front",
+        time: new Date().toISOString()
+      }],
       pdf_file_path: "",
       img_file_path: ""
     };
@@ -547,7 +708,8 @@
         category: item.category,
         item_name: item.item_name,
         unit_price: item.unit_price,
-        qty: item.qty || 1
+        qty: item.qty || 1,
+        clean_code: item.clean_code || ""
       });
     });
     saveDb();
@@ -673,6 +835,7 @@
       quoteBuilderPage();
     }
     if (b.getAttribute("data-add-dropdown-quote-item")) addDropdownBuilderItem(b.getAttribute("data-add-dropdown-quote-item"));
+    if (b.getAttribute("data-clean-zone-group")) toggleCleanGroup(b.getAttribute("data-clean-zone-group"));
     if (b.hasAttribute("data-add-custom-quote-item")) addCustomBuilderItem();
     if (b.hasAttribute("data-remove-custom-quote-item")) {
       var custom = b.closest("[data-custom-quote-item]");
@@ -713,6 +876,18 @@
 
   document.addEventListener("change", function (event) {
     if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbPackageSelect")) refreshBuilderTotal();
+    if (event.target && event.target.id === "qbCarType") {
+      var valid = cleanZoneBase(event.target.value).map(function (zone) { return zone.code; });
+      setSelectedCleanCodes(selectedCleanCodes().filter(function (code) { return valid.indexOf(code) > -1; }));
+      renderCleanZoneMap();
+      refreshBuilderTotal();
+    }
+  });
+
+  document.addEventListener("click", function (event) {
+    var zone = event.target.closest && event.target.closest("[data-clean-zone]");
+    if (!zone) return;
+    toggleCleanZone(zone.getAttribute("data-clean-zone"));
   });
 
   window.addEventListener("popstate", function () {
