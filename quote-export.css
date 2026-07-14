@@ -544,6 +544,45 @@
   gap: 10px;
 }
 
+.quote-dropdown-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.quote-select-field {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.quote-select-field select {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #d8e8f7;
+  border-radius: 16px;
+  padding: 10px 13px;
+  color: #0f172a;
+  background: #fbfdff;
+  box-sizing: border-box;
+  font-weight: 800;
+}
+
+.quote-dropdown-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: end;
+  gap: 10px;
+}
+
+.quote-dropdown-add button {
+  min-width: 132px;
+  min-height: 50px;
+  border-radius: 16px;
+}
+
 .quote-service-option {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -651,7 +690,8 @@
 
   .quote-builder-grid,
   .quote-form-grid,
-  .quote-custom-line {
+  .quote-custom-line,
+  .quote-dropdown-add {
     grid-template-columns: 1fr;
   }
 

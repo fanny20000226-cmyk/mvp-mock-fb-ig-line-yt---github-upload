@@ -335,23 +335,50 @@
   }
 
   function quoteServiceOptions() {
+    var data = readDb();
+    var options = [];
+    (data.cfg && data.cfg.plans || []).forEach(function (item) {
+      options.push({ id: "plan:" + item.id, type: "package", category: item.category || "\u57fa\u790e\u4fdd\u990a", name: item.name, price: Number(item.price || item.amount || 0) });
+    });
+    (data.cfg && data.cfg.addons || []).forEach(function (item) {
+      options.push({ id: "addon:" + item.id, type: "addon", category: item.category || "\u52a0\u8cfc", name: item.name, price: Number(item.price || item.amount || 0) });
+    });
+    (data.menu || []).filter(function (item) { return item.online !== false && !item.deleted; }).forEach(function (item) {
+      var category = item.category || "\u52a0\u8cfc";
+      var type = /(\u8d08|\u8d08\u9001|\u8d08\u54c1)/.test(category) ? "gift" : /(\u5957\u9910|\u57fa\u790e|\u55ae\u9805|\u65b9\u6848)/.test(category) ? "package" : "addon";
+      options.push({ id: "menu:" + item.id, type: type, category: category, name: item.name, price: Number(item.amount || item.price || 0) });
+    });
+    if (options.length) return options;
     return [
-      { id: "pkg9999", category: "\u6574\u65b0\u5957\u9910", name: "9999 \u5167\u5916\u8d85\u503c", price: 9999 },
-      { id: "deepclean", category: "\u5167\u88dd\u5957\u9910", name: "\u5167\u88dd\u6df1\u5c64\u62c6\u6d17", price: 6800 },
-      { id: "coating", category: "\u934d\u819c\u5957\u9910", name: "\u5916\u89c0\u934d\u819c", price: 12800 },
-      { id: "glass", category: "\u73bb\u7483\u7cfb\u5217", name: "\u73bb\u7483\u6cb9\u819c\u934d\u819c", price: 1800 },
-      { id: "chassis", category: "\u5176\u4ed6\u7cfb\u5217", name: "\u5e95\u76e4\u6e05\u6d17", price: 2200 },
-      { id: "smoke", category: "\u5167\u88dd\u52a0\u8cfc", name: "\u7159\u5473\u8655\u7406", price: 1500 },
-      { id: "mold", category: "\u5167\u88dd\u52a0\u8cfc", name: "\u767c\u9709\u8655\u7406", price: 2500 },
-      { id: "pet", category: "\u5167\u88dd\u52a0\u8cfc", name: "\u5bf5\u7269\u7570\u5473", price: 1800 }
+      { id: "pkg9999", type: "package", category: "\u6574\u65b0\u5957\u9910", name: "9999 \u5167\u5916\u8d85\u503c", price: 9999 },
+      { id: "deepclean", type: "package", category: "\u5167\u88dd\u5957\u9910", name: "\u5167\u88dd\u6df1\u5c64\u62c6\u6d17", price: 6800 },
+      { id: "coating", type: "package", category: "\u934d\u819c\u5957\u9910", name: "\u5916\u89c0\u934d\u819c", price: 12800 },
+      { id: "glass", type: "addon", category: "\u73bb\u7483\u7cfb\u5217", name: "\u73bb\u7483\u6cb9\u819c\u934d\u819c", price: 1800 },
+      { id: "chassis", type: "addon", category: "\u5176\u4ed6\u7cfb\u5217", name: "\u5e95\u76e4\u6e05\u6d17", price: 2200 },
+      { id: "smoke", type: "addon", category: "\u5167\u88dd\u52a0\u8cfc", name: "\u7159\u5473\u8655\u7406", price: 1500 },
+      { id: "mold", type: "addon", category: "\u5167\u88dd\u52a0\u8cfc", name: "\u767c\u9709\u8655\u7406", price: 2500 },
+      { id: "pet", type: "addon", category: "\u5167\u88dd\u52a0\u8cfc", name: "\u5bf5\u7269\u7570\u5473", price: 1800 },
+      { id: "giftGlass", type: "gift", category: "\u8d08\u9001", name: "\u96e8\u5b63\u73bb\u7483\u6aa2\u67e5", price: 0 }
     ];
+  }
+
+  function quoteSelect(id, label, items, placeholder) {
+    var opts = "<option value=\"\">" + placeholder + "</option>" + items.map(function (item) {
+      return "<option value=\"" + esc(item.id) + "\">" + esc(item.name) + " / " + esc(item.category) + " / " + money(item.price) + "</option>";
+    }).join("");
+    return "<label class=\"quote-select-field\"><span>" + label + "</span><select id=\"" + id + "\">" + opts + "</select></label>";
+  }
+
+  function optionById(id) {
+    return quoteServiceOptions().filter(function (item) { return item.id === id; })[0];
   }
 
   function quoteBuilderPage() {
     var base = latestOrderLike();
-    var serviceCards = quoteServiceOptions().map(function (item) {
-      return "<label class=\"quote-service-option\"><input type=\"checkbox\" data-quote-service value=\"" + esc(item.id) + "\" data-price=\"" + esc(item.price) + "\" data-name=\"" + esc(item.name) + "\" data-category=\"" + esc(item.category) + "\"><span><b>" + esc(item.name) + "</b><small>" + esc(item.category) + "</small></span><strong>" + money(item.price) + "</strong></label>";
-    }).join("");
+    var services = quoteServiceOptions();
+    var packages = services.filter(function (item) { return item.type === "package"; });
+    var addons = services.filter(function (item) { return item.type === "addon"; });
+    var gifts = services.filter(function (item) { return item.type === "gift"; });
     setMain(T.quoteBuilder, "<main class=\"quote-builder-grid\"><section class=\"glass-card quote-form-card\"><h2>\u5ba2\u6236\u8207\u8eca\u8f1b\u8cc7\u6599</h2><div class=\"quote-form-grid\">" +
       quoteField("qbName", "\u7a31\u547c", base.name || base.customer_name || "") +
       quoteField("qbPhone", "\u806f\u7d61\u96fb\u8a71", base.phone || "") +
@@ -363,7 +390,11 @@
       quoteField("qbDeposit", "\u5df2\u6536\u8a02\u91d1", base.deposit || "0", "number") +
       quoteField("qbDiscount", "\u512a\u60e0\u6298\u6263", "0", "number") +
       "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div></section>" +
-      "<section class=\"glass-card quote-form-card\"><h2>\u9078\u64c7\u5957\u9910 / \u52a0\u8cfc</h2><div class=\"quote-service-list\">" + serviceCards + "</div><div class=\"quote-custom-line\"><input id=\"qbCustomName\" placeholder=\"\u81ea\u8a02\u9805\u76ee\u540d\u7a31\"><input id=\"qbCustomPrice\" type=\"number\" placeholder=\"\u91d1\u984d\"><button data-add-custom-quote-item>\u52a0\u5165\u81ea\u8a02\u9805\u76ee</button></div><div id=\"qbCustomItems\" class=\"quote-custom-items\"></div><aside class=\"quote-live-total\"><p>\u5957\u9910/\u52a0\u8cfc\u5408\u8a08 <b id=\"qbSubtotal\">$0</b></p><p>\u512a\u60e0\u6298\u6263 <b id=\"qbDiscountView\">-$0</b></p><p class=\"quote-payable\">\u6700\u7d42\u5831\u50f9 <b id=\"qbFinal\">$0</b></p><button data-create-quote-from-builder>" + T.createQuote + "</button></aside></section></main>");
+      "<section class=\"glass-card quote-form-card\"><h2>\u9078\u64c7\u5957\u9910 / \u52a0\u8cfc / \u8d08\u9001</h2><div class=\"quote-dropdown-stack\">" +
+      quoteSelect("qbPackageSelect", "\u5957\u9910", packages, "\u8acb\u9078\u64c7\u5957\u9910") +
+      "<div class=\"quote-dropdown-add\">" + quoteSelect("qbAddonSelect", "\u52a0\u8cfc", addons, "\u8acb\u9078\u64c7\u52a0\u8cfc\u9805\u76ee") + "<button data-add-dropdown-quote-item=\"qbAddonSelect\">\u52a0\u5165\u52a0\u8cfc</button></div>" +
+      "<div class=\"quote-dropdown-add\">" + quoteSelect("qbGiftSelect", "\u8d08\u9001", gifts, "\u8acb\u9078\u64c7\u8d08\u9001\u9805\u76ee") + "<button data-add-dropdown-quote-item=\"qbGiftSelect\">\u52a0\u5165\u8d08\u9001</button></div>" +
+      "</div><div id=\"qbSelectedItems\" class=\"quote-custom-items\"></div><div class=\"quote-custom-line\"><input id=\"qbCustomName\" placeholder=\"\u81ea\u8a02\u9805\u76ee\u540d\u7a31\"><input id=\"qbCustomPrice\" type=\"number\" placeholder=\"\u91d1\u984d\"><button data-add-custom-quote-item>\u52a0\u5165\u81ea\u8a02\u9805\u76ee</button></div><div id=\"qbCustomItems\" class=\"quote-custom-items\"></div><aside class=\"quote-live-total\"><p>\u5957\u9910/\u52a0\u8cfc\u5408\u8a08 <b id=\"qbSubtotal\">$0</b></p><p>\u512a\u60e0\u6298\u6263 <b id=\"qbDiscountView\">-$0</b></p><p class=\"quote-payable\">\u6700\u7d42\u5831\u50f9 <b id=\"qbFinal\">$0</b></p><button data-create-quote-from-builder>" + T.createQuote + "</button></aside></section></main>");
     refreshBuilderTotal();
   }
 
@@ -377,17 +408,20 @@
   }
 
   function selectedBuilderItems() {
-    var items = Array.prototype.slice.call(document.querySelectorAll("[data-quote-service]:checked")).map(function (input) {
-      return {
-        category: input.getAttribute("data-category") || "\u5176\u4ed6",
-        item_name: input.getAttribute("data-name") || "",
-        unit_price: Number(input.getAttribute("data-price") || 0),
+    var items = [];
+    var packageItem = optionById(builderValue("qbPackageSelect"));
+    if (packageItem) items.push({ category: packageItem.category, item_name: packageItem.name, unit_price: Number(packageItem.price || 0), qty: 1 });
+    Array.prototype.slice.call(document.querySelectorAll("[data-selected-quote-item]")).forEach(function (node) {
+      items.push({
+        category: node.getAttribute("data-category") || "\u52a0\u8cfc",
+        item_name: node.getAttribute("data-name") || "",
+        unit_price: Number(node.getAttribute("data-price") || 0),
         qty: 1
-      };
+      });
     });
     Array.prototype.slice.call(document.querySelectorAll("[data-custom-quote-item]")).forEach(function (node) {
       items.push({
-        category: "\u81ea\u8a02\u9805\u76ee",
+        category: node.getAttribute("data-category") || "\u81ea\u8a02\u9805\u76ee",
         item_name: node.getAttribute("data-name") || "",
         unit_price: Number(node.getAttribute("data-price") || 0),
         qty: 1
@@ -407,13 +441,21 @@
     if (finalNode) finalNode.textContent = money(Math.max(0, subtotal - discount));
   }
 
+  function addDropdownBuilderItem(selectId) {
+    var item = optionById(builderValue(selectId));
+    var box = document.getElementById("qbSelectedItems");
+    if (!item || !box) return alert("\u8acb\u5148\u9078\u64c7\u9805\u76ee");
+    box.insertAdjacentHTML("beforeend", "<span class=\"quote-custom-pill\" data-selected-quote-item data-category=\"" + esc(item.category) + "\" data-name=\"" + esc(item.name) + "\" data-price=\"" + esc(item.price) + "\">" + esc(item.category) + " / " + esc(item.name) + " " + money(item.price) + "<button data-remove-selected-quote-item>\u00d7</button></span>");
+    refreshBuilderTotal();
+  }
+
   function addCustomBuilderItem() {
     var name = builderValue("qbCustomName");
     var price = Number(builderValue("qbCustomPrice") || 0);
     if (!name || !price) return alert("\u8acb\u586b\u5beb\u81ea\u8a02\u9805\u76ee\u540d\u7a31\u8207\u91d1\u984d");
     var box = document.getElementById("qbCustomItems");
     if (!box) return;
-    box.insertAdjacentHTML("beforeend", "<span class=\"quote-custom-pill\" data-custom-quote-item data-name=\"" + esc(name) + "\" data-price=\"" + esc(price) + "\">" + esc(name) + " " + money(price) + "<button data-remove-custom-quote-item>\u00d7</button></span>");
+    box.insertAdjacentHTML("beforeend", "<span class=\"quote-custom-pill\" data-custom-quote-item data-category=\"\u81ea\u8a02\u9805\u76ee\" data-name=\"" + esc(name) + "\" data-price=\"" + esc(price) + "\">" + esc(name) + " " + money(price) + "<button data-remove-custom-quote-item>\u00d7</button></span>");
     document.getElementById("qbCustomName").value = "";
     document.getElementById("qbCustomPrice").value = "";
     refreshBuilderTotal();
@@ -570,10 +612,16 @@
       if (modal) modal.remove();
     }
     if (b.hasAttribute("data-make-quote-front")) quoteBuilderPage();
+    if (b.getAttribute("data-add-dropdown-quote-item")) addDropdownBuilderItem(b.getAttribute("data-add-dropdown-quote-item"));
     if (b.hasAttribute("data-add-custom-quote-item")) addCustomBuilderItem();
     if (b.hasAttribute("data-remove-custom-quote-item")) {
       var custom = b.closest("[data-custom-quote-item]");
       if (custom) custom.remove();
+      refreshBuilderTotal();
+    }
+    if (b.hasAttribute("data-remove-selected-quote-item")) {
+      var selected = b.closest("[data-selected-quote-item]");
+      if (selected) selected.remove();
       refreshBuilderTotal();
     }
     if (b.hasAttribute("data-create-quote-from-builder")) createQuoteFromBuilder();
@@ -591,7 +639,7 @@
   });
 
   document.addEventListener("input", function (event) {
-    if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbDiscount")) refreshBuilderTotal();
+    if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbDiscount" || event.target.id === "qbPackageSelect")) refreshBuilderTotal();
     if (event.target && event.target.id === "quoteSearchInput") {
       var keyword = event.target.value.trim().toLowerCase();
       Array.prototype.slice.call(document.querySelectorAll(".quote-summary-row")).forEach(function (row) {
@@ -604,7 +652,7 @@
   });
 
   document.addEventListener("change", function (event) {
-    if (event.target && event.target.matches("[data-quote-service]")) refreshBuilderTotal();
+    if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbPackageSelect")) refreshBuilderTotal();
   });
 
   window.quoteExportModule = {
