@@ -1,13 +1,15 @@
 (() => {
-  const APP_VERSION = "v61";
+  const APP_VERSION = "v62";
 
   async function refreshOldAppCache() {
     const key = "beauty-crm-app-version";
     const reloadedKey = "beauty-crm-version-reloaded";
+    const params = new URLSearchParams(location.search);
+    const forceReset = params.has("reset") || params.has("nocache");
     const current = localStorage.getItem(key);
-    if (current === APP_VERSION) return;
+    if (!forceReset && current === APP_VERSION) return;
     localStorage.setItem(key, APP_VERSION);
-    if (sessionStorage.getItem(reloadedKey) === APP_VERSION) return;
+    if (!forceReset && sessionStorage.getItem(reloadedKey) === APP_VERSION) return;
     sessionStorage.setItem(reloadedKey, APP_VERSION);
     try {
       if ("caches" in window) {
@@ -18,7 +20,7 @@
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map((reg) => reg.unregister()));
       }
-      location.replace(`${location.pathname}?fresh=${APP_VERSION}`);
+      location.replace(`${location.pathname}?fresh=${APP_VERSION}&t=${Date.now()}`);
     } catch (error) {
       // If cache clearing is blocked, the app should still continue normally.
     }

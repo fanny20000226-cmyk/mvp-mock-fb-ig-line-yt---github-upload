@@ -1,4 +1,4 @@
-const CACHE = "car-beauty-pwa-v61";
+const CACHE = "car-beauty-pwa-v62";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,7 @@ const ASSETS = [
   "./screen-layout-manager.css?v=6",
   "./finance-reconciliation.css?v=2",
   "./module-permission-dashboard.css?v=5",
-  "./quote-export.css?v=13",
+  "./quote-export.css?v=14",
   "./quote-car-floorplan.jpg",
   "./quote-seat-guide.jpg",
   "./app-v10.js?v=5",
@@ -28,8 +28,8 @@ const ASSETS = [
   "./screen-layout-manager.js?v=10",
   "./finance-reconciliation.js?v=3",
   "./module-permission-dashboard.js?v=10",
-  "./quote-export.js?v=12",
-  "./pwa-init.js?v=27",
+  "./quote-export.js?v=13",
+  "./pwa-init.js?v=28",
   "./employee-mobile/",
   "./employee-mobile/index.html",
   "./employee-mobile/style.css",
@@ -50,6 +50,24 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  const url = new URL(event.request.url);
+  const accept = event.request.headers.get("accept") || "";
+  const forceFresh = url.searchParams.has("fresh") || url.searchParams.has("reset") || url.searchParams.has("nocache");
+  const isPage = event.request.mode === "navigate" || accept.includes("text/html");
+
+  if (forceFresh || isPage) {
+    event.respondWith(
+      fetch(new Request(event.request, { cache: "reload" }))
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request).then((response) => {
