@@ -118,6 +118,92 @@
     return Number(q.package_total || 0) + Number(q.addon_total || 0) - Number(q.discount_amount || 0);
   }
 
+  function quoteCategory(q) {
+    return q.quote_category || q.category || q.service_category || (getItems(q.quote_id)[0] || {}).category || "\u57fa\u790e\u4fdd\u990a";
+  }
+
+  function quoteStatus(q) {
+    return q.status || T.statusDraft;
+  }
+
+  function daysBetween(dateText) {
+    var time = dateText ? new Date(dateText).getTime() : 0;
+    if (!time || isNaN(time)) return 0;
+    return Math.floor((Date.now() - time) / 86400000);
+  }
+
+  function quoteStats(quotes) {
+    var sum = quotes.reduce(function (n, q) { return n + total(q); }, 0);
+    var pending = quotes.filter(function (q) { return /(\u5f85|\u78ba\u8a8d|\u5ba2\u6236)/.test(quoteStatus(q)); }).length;
+    var overdue = quotes.filter(function (q) { return /(\u5f85|\u78ba\u8a8d|\u5ba2\u6236)/.test(quoteStatus(q)) && daysBetween(q.updated_at || q.created_at) > 7; }).length;
+    return { count: quotes.length, sum: sum, pending: pending, overdue: overdue };
+  }
+
+  function categoryCounts(quotes) {
+    var base = {
+      "\u57fa\u790e\u4fdd\u990a": 0,
+      "\u52a0\u8cfc": 0,
+      "\u8d08\u9001": 0,
+      "\u5916\u5305": 0,
+      "\u5176\u4ed6\u5099\u8a3b": 0
+    };
+    quotes.forEach(function (q) {
+      var category = quoteCategory(q);
+      if (!base[category]) base[category] = 0;
+      base[category] += 1;
+    });
+    return base;
+  }
+
+  function quoteTraceLogs(q) {
+    var logs = q.trace_logs || q.logs || [];
+    if (!logs.length) {
+      logs = [
+        { action: "\u5efa\u7acb\u5831\u50f9", user: q.created_by || "front", time: q.created_at || new Date().toISOString() },
+        { action: quoteStatus(q), user: q.updated_by || q.created_by || "system", time: q.updated_at || q.created_at || new Date().toISOString() }
+      ];
+    }
+    return logs.map(function (log) {
+      return "<li><b>" + esc(log.action || "\u64cd\u4f5c\u7d00\u9304") + "</b><span>" + esc(log.user || "-") + " / " + esc(new Date(log.time || Date.now()).toLocaleString("zh-TW")) + "</span></li>";
+    }).join("");
+  }
+
+  function statCard(label, value, tone) {
+    return "<article class=\"quote-stat-card " + (tone || "") + "\"><span>" + label + "</span><strong>" + value + "</strong><i></i></article>";
+  }
+
+  function parameterModule() {
+    var fields = ["\u8eca\u8f1b\u5ee0\u724c\u578b\u865f", "\u51fa\u5ee0\u5e74\u4efd", "\u884c\u99db\u91cc\u7a0b", "\u8eca\u724c\u865f\u78bc", "\u8eca\u8eab\u984f\u8272", "\u7dad\u4fee\u8017\u6750\u578b\u865f", "\u5099\u6848\u5099\u8a3b", "\u4ea4\u8eca\u9810\u5b9a\u65e5\u671f"];
+    return fields.map(function (name, index) {
+      return "<label class=\"quote-toggle-chip\"><input type=\"checkbox\" " + (index < 5 ? "checked" : "") + "><span>" + name + "</span></label>";
+    }).join("");
+  }
+
+  function categoryModule(counts) {
+    var totalCount = Object.keys(counts).reduce(function (sum, key) { return sum + counts[key]; }, 0) || 1;
+    var colors = ["#1684e5", "#49a8ff", "#79c7ff", "#9bd8ff", "#c7eaff", "#e8f6ff"];
+    var offset = 0;
+    var segments = Object.keys(counts).map(function (key, index) {
+      var pct = counts[key] / totalCount * 100;
+      var start = offset;
+      offset += pct;
+      return colors[index % colors.length] + " " + start + "% " + offset + "%";
+    }).join(", ");
+    var legend = Object.keys(counts).map(function (key, index) {
+      return "<span><i style=\"background:" + colors[index % colors.length] + "\"></i>" + key + " " + counts[key] + "</span>";
+    }).join("");
+    return "<div class=\"quote-donut\" style=\"background: conic-gradient(" + segments + ")\"><b>" + totalCount + "</b><small>\u672c\u6708</small></div><div class=\"quote-legend\">" + legend + "</div>";
+  }
+
+  function quoteRow(q) {
+    var items = getItems(q.quote_id);
+    var details = items.map(function (item) {
+      return "<li><span>" + esc(item.category) + " / " + esc(item.item_name) + "</span><b>" + money(Number(item.unit_price || 0) * Number(item.qty || 1)) + "</b></li>";
+    }).join("");
+    return "<tr class=\"quote-summary-row\"><td>" + esc(q.customer_name) + "<small>" + esc(q.phone || "") + "</small></td><td>" + esc(q.plate) + "<small>" + esc(q.car_model || "") + "</small></td><td>" + esc(quoteCategory(q)) + "</td><td><b>" + money(total(q)) + "</b></td><td><span class=\"quote-status\">" + esc(quoteStatus(q)) + "</span><div class=\"quote-row-actions\"><button data-quote-toggle-detail=\"" + esc(q.quote_id) + "\">\u5c55\u958b\u660e\u7d30</button><button data-quote-detail=\"" + esc(q.quote_id) + "\">" + T.detail + "</button><button data-quote-pdf=\"" + esc(q.quote_id) + "\">PDF</button><button data-quote-img=\"" + esc(q.quote_id) + "\">PNG</button><button data-quote-convert=\"" + esc(q.quote_id) + "\">" + T.convert + "</button></div></td></tr>" +
+      "<tr class=\"quote-detail-row\" data-quote-detail-row=\"" + esc(q.quote_id) + "\" hidden><td colspan=\"5\"><div class=\"quote-detail-panel\"><section><h4>\u7dad\u4fee\u9805\u76ee\u660e\u7d30</h4><ul>" + details + "</ul></section><section><h4>\u5831\u50f9\u5168\u6b77\u7a0b\u8ffd\u6eaf\u65e5\u8a8c</h4><ol>" + quoteTraceLogs(q) + "</ol></section><section><h4>\u5099\u8a3b</h4><p>" + esc(q.remark || T.footer) + "</p></section></div></td></tr>";
+  }
+
   function quotePaper(q) {
     var rows = getItems(q.quote_id).map(function (item) {
       return "<tr><td>" + esc(item.category) + "</td><td>" + esc(item.item_name) + "</td><td>" + money(item.unit_price) + "</td><td>" + esc(item.qty || 1) + "</td><td>" + money(Number(item.unit_price || 0) * Number(item.qty || 1)) + "</td></tr>";
@@ -214,10 +300,15 @@
   }
 
   function quoteListPage() {
-    var rows = readDb().quoteEstimates.map(function (q) {
-      return "<tr><td>" + esc(q.quote_id) + "</td><td>" + esc(q.customer_name) + "<br><small>" + esc(q.phone) + "</small></td><td>" + esc(q.plate) + "<br><small>" + esc(q.car_model) + "</small></td><td>" + esc(q.store_name) + "</td><td>" + money(total(q)) + "</td><td><span class=\"quote-status\">" + esc(q.status) + "</span></td><td class=\"quote-row-actions\"><button data-quote-detail=\"" + esc(q.quote_id) + "\">" + T.detail + "</button><button data-quote-pdf=\"" + esc(q.quote_id) + "\">" + T.pdf + "</button><button data-quote-img=\"" + esc(q.quote_id) + "\">" + T.image + "</button><button data-quote-convert=\"" + esc(q.quote_id) + "\">" + T.convert + "</button></td></tr>";
-    }).join("");
-    setMain(T.quoteList, "<section class=\"glass-card table-wrap\"><table><thead><tr><th>" + T.quoteNo + "</th><th>" + T.customer + "</th><th>" + T.vehicle + "</th><th>\u9580\u5e97</th><th>" + T.amount + "</th><th>" + T.status + "</th><th>" + T.action + "</th></tr></thead><tbody>" + rows + "</tbody></table></section>");
+    var quotes = readDb().quoteEstimates;
+    var stats = quoteStats(quotes);
+    var rows = quotes.map(quoteRow).join("") || "<tr><td colspan=\"5\">\u5c1a\u7121\u5831\u50f9\u55ae</td></tr>";
+    setMain("\u5831\u50f9", "<section class=\"quote-stat-grid\">" +
+      statCard("\u5831\u50f9\u55ae\u7e3d\u6578", stats.count + " \u5f35") +
+      statCard("\u7d2f\u8a08\u5831\u50f9\u7e3d\u91d1\u984d", money(stats.sum)) +
+      statCard("\u5f85\u5ba2\u6236\u78ba\u8a8d\u5831\u50f9\u6578", stats.pending + " \u5f35", "danger") +
+      statCard("\u903e\u671f\u672a\u8ddf\u9032\u5831\u50f9\u6578", stats.overdue + " \u5f35", "danger") +
+      "</section><main class=\"quote-workbench\"><aside class=\"quote-side-modules\"><section class=\"glass-card quote-module-card\"><h3>\u81ea\u5b9a\u7fa9\u5831\u50f9\u53c3\u6578\u6a19\u7c64</h3><p>\u5e38\u7528\u8eca\u8f1b\u8207\u9580\u5e97\u8a18\u9304\u6b04\u4f4d\uff0c\u53ef\u958b\u555f / \u96b1\u85cf\u8f14\u52a9\u5831\u50f9\u3002</p><div class=\"quote-toggle-list\">" + parameterModule() + "</div></section><section class=\"glass-card quote-module-card\"><h3>\u5831\u50f9\u5206\u985e\u7ba1\u7406</h3><p>\u9810\u8a2d\uff1a\u57fa\u790e\u4fdd\u990a\u3001\u52a0\u8cfc\u3001\u8d08\u9001\u3001\u5916\u5305\u3001\u5176\u4ed6\u5099\u8a3b</p>" + categoryModule(categoryCounts(quotes)) + "</section><section class=\"glass-card quote-module-card\"><h3>\u5831\u50f9\u5168\u6b77\u7a0b\u8ffd\u6eaf\u65e5\u8a8c</h3><p>\u8a18\u9304\u5efa\u7acb\u3001\u4fee\u6539\u3001\u5ba2\u6236\u78ba\u8a8d\u3001\u8f49\u65bd\u5de5\u55ae\u3001\u4f5c\u5ee2\u8207\u6536\u6b3e\u5099\u8a3b\u3002</p><ul class=\"quote-mini-log\"><li>\u6c38\u4e45\u5b58\u6a94</li><li>\u4fdd\u7559\u64cd\u4f5c\u4eba</li><li>\u4fdd\u7559\u6642\u9593\u6233</li></ul></section></aside><section class=\"quote-list-panel glass-card\"><div class=\"quote-list-head\"><div><h2>\u5831\u50f9\u6e05\u55ae</h2><small>\u56fa\u5b9a\u6b04\u4f4d\uff1a\u5ba2\u6236\u59d3\u540d \u2192 \u8eca\u724c\u865f\u78bc \u2192 \u5831\u50f9\u5206\u985e \u2192 \u7e3d\u91d1\u984d \u2192 \u7576\u524d\u72c0\u614b</small></div><input id=\"quoteSearchInput\" class=\"quote-search\" placeholder=\"\u641c\u5c0b\u5ba2\u6236\u540d\u3001\u8eca\u724c\u3001\u5099\u8a3b\"></div><div class=\"table-wrap\"><table class=\"quote-modern-table\"><thead><tr><th>\u5ba2\u6236\u59d3\u540d</th><th>\u8eca\u724c\u865f\u78bc</th><th>\u5831\u50f9\u5206\u985e</th><th>\u7e3d\u91d1\u984d</th><th>\u7576\u524d\u72c0\u614b</th></tr></thead><tbody>" + rows + "</tbody></table></div></section></main>");
   }
 
   function quoteDetailPage(id) {
@@ -490,6 +581,10 @@
     if (b.getAttribute("data-quote-pdf")) exportPdf(b.getAttribute("data-quote-pdf"));
     if (b.getAttribute("data-quote-img")) exportImage(b.getAttribute("data-quote-img"));
     if (b.getAttribute("data-quote-convert")) convertToWorkOrder(b.getAttribute("data-quote-convert"));
+    if (b.getAttribute("data-quote-toggle-detail")) {
+      var row = document.querySelector("[data-quote-detail-row=\"" + b.getAttribute("data-quote-toggle-detail") + "\"]");
+      if (row) row.hidden = !row.hidden;
+    }
     if (b.getAttribute("data-workorder-done")) markWorkOrderDone(b.getAttribute("data-workorder-done"));
     if (b.getAttribute("data-completion-pdf")) exportCompletionPdf(b.getAttribute("data-completion-pdf"));
     if (b.getAttribute("data-completion-img")) exportCompletionImage(b.getAttribute("data-completion-img"));
@@ -497,6 +592,15 @@
 
   document.addEventListener("input", function (event) {
     if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbDiscount")) refreshBuilderTotal();
+    if (event.target && event.target.id === "quoteSearchInput") {
+      var keyword = event.target.value.trim().toLowerCase();
+      Array.prototype.slice.call(document.querySelectorAll(".quote-summary-row")).forEach(function (row) {
+        var detail = row.nextElementSibling;
+        var show = !keyword || row.textContent.toLowerCase().indexOf(keyword) > -1 || (detail && detail.textContent.toLowerCase().indexOf(keyword) > -1);
+        row.style.display = show ? "" : "none";
+        if (detail) detail.style.display = show ? "" : "none";
+      });
+    }
   });
 
   document.addEventListener("change", function (event) {
