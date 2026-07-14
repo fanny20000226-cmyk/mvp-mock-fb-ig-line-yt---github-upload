@@ -687,6 +687,7 @@ body[data-quote-active="1"] .quote-floating-tools {
   border: 1px solid #d8e8f7;
   border-radius: 22px;
   background: #fbfdff;
+  overflow: hidden;
 }
 
 .clean-zone-head h2 {
@@ -743,15 +744,22 @@ body[data-quote-active="1"] .quote-floating-tools {
 .clean-car-svg {
   display: block;
   width: 100%;
-  max-width: 860px;
+  max-width: 1120px;
   margin: 0 auto;
   border-radius: 20px;
   background: linear-gradient(135deg, #f7fbff 0%, #eef8ff 54%, #fbfdff 100%);
   box-shadow: inset 0 0 0 1px rgba(125, 177, 211, .22);
 }
 
+.clean-zone-card #cleanZoneMap {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  -webkit-overflow-scrolling: touch;
+}
+
 .clean-photo-svg {
-  max-width: 900px;
+  max-width: 1120px;
   background: #f5fbff;
 }
 
@@ -1001,6 +1009,15 @@ body[data-quote-active="1"] .quote-floating-tools {
   .clean-zone-toolbar {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .clean-zone-card {
+    padding: 12px;
+  }
+
+  .clean-photo-svg {
+    width: 760px;
+    max-width: none;
   }
 
   .clean-zone-head-row {
