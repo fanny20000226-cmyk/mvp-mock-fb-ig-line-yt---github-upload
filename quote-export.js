@@ -200,6 +200,10 @@
     return "<path d=\"" + d + "\" class=\"car-door\"></path>";
   }
 
+  function svgWheel(x, y) {
+    return "<g class=\"car-wheel\"><rect x=\"" + x + "\" y=\"" + y + "\" width=\"24\" height=\"70\" rx=\"12\"></rect><line x1=\"" + (x + 12) + "\" y1=\"" + (y + 14) + "\" x2=\"" + (x + 12) + "\" y2=\"" + (y + 56) + "\"></line></g>";
+  }
+
   function svgCarInterior(carType, car) {
     var longBody = carType === "mpv7" || carType === "van9";
     var shell = longBody
@@ -224,7 +228,9 @@
     return "<defs><linearGradient id=\"carPaint\" x1=\"0\" x2=\"1\"><stop offset=\"0\" stop-color=\"#f8fdff\"></stop><stop offset=\".5\" stop-color=\"#e4f6ff\"></stop><stop offset=\"1\" stop-color=\"#f9fdff\"></stop></linearGradient></defs>" +
       "<rect x=\"28\" y=\"38\" width=\"764\" height=\"438\" rx=\"34\" class=\"car-stage\"></rect>" +
       "<text x=\"58\" y=\"54\" class=\"clean-svg-title\">" + esc(car.name) + "</text>" +
+      "<path d=\"M86 78 H742 M86 456 H742\" class=\"car-dimension\"></path><text x=\"414\" y=\"82\" class=\"car-dimension-text\">Floor Plan</text>" +
       "<path d=\"" + shell + "\" class=\"car-shell refined\"></path>" +
+      svgWheel(84, 126) + svgWheel(84, 324) + svgWheel(714, 126) + svgWheel(714, 324) +
       "<path d=\"M78 180 C118 154 154 142 196 136 L190 382 C146 374 104 358 78 330 Z\" class=\"car-hood refined\"></path>" +
       "<rect x=\"" + cabinX + "\" y=\"86\" width=\"" + cabinW + "\" height=\"350\" rx=\"46\" class=\"car-cabin refined\"></rect>" +
       "<rect x=\"" + cargoX + "\" y=\"128\" width=\"" + cargoW + "\" height=\"254\" rx=\"28\" class=\"car-trunk refined\"></rect>" +
@@ -237,7 +243,9 @@
       "<path d=\"M" + (cabinX + cabinW / 2) + " 112 V408\" class=\"car-center\"></path>" +
       "<rect x=\"" + (cargoX + 16) + "\" y=\"150\" width=\"" + Math.max(42, cargoW - 32) + "\" height=\"210\" rx=\"22\" class=\"car-floor cargo\"></rect>" +
       seats +
-      "<text x=\"" + (cargoX + cargoW / 2) + "\" y=\"260\" class=\"car-zone-label\">T1</text>";
+      "<text x=\"" + (cargoX + cargoW / 2) + "\" y=\"260\" class=\"car-zone-label\">T1</text>" +
+      "<text x=\"132\" y=\"252\" class=\"car-side-label\">\u99d5\u99db\u5ea7\u5730\u6bef</text>" +
+      "<text x=\"132\" y=\"288\" class=\"car-side-label\">\u526f\u99d5\u5ea7\u5730\u6bef</text>";
   }
 
   function selectedCleanCodes() {
@@ -279,8 +287,13 @@
       var active = selected.indexOf(zone.code) > -1;
       return "<g class=\"clean-zone-hotspot " + (active ? "is-selected" : "") + "\" data-clean-zone=\"" + esc(zone.code) + "\"><rect x=\"" + zone.x + "\" y=\"" + zone.y + "\" width=\"" + zone.w + "\" height=\"" + zone.h + "\" rx=\"14\"></rect><title>" + esc(zone.name) + " " + money(zone.price) + "</title></g>";
     }).join("");
+    var zoneLabels = zones.map(function (zone) {
+      return "<text x=\"" + (zone.x + zone.w / 2) + "\" y=\"" + (zone.y + zone.h / 2 + 5) + "\" class=\"clean-zone-code\">" + esc(zone.code) + "</text>";
+    }).join("");
+    var quickSelect = document.getElementById("cleanZoneCarType");
+    if (quickSelect && quickSelect.value !== carType) quickSelect.value = carType;
     box.innerHTML = "<svg class=\"clean-car-svg\" viewBox=\"0 0 820 520\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
-      svgCarInterior(carType, car) + zoneRects + "</svg>";
+      svgCarInterior(carType, car) + zoneRects + zoneLabels + "</svg>";
     renderCleanZoneList();
   }
 
@@ -310,6 +323,17 @@
     if (allSelected) selected = selected.filter(function (code) { return groupCodes.indexOf(code) === -1; });
     else groupCodes.forEach(function (code) { if (selected.indexOf(code) === -1) selected.push(code); });
     setSelectedCleanCodes(selected);
+    renderCleanZoneMap();
+    refreshBuilderTotal();
+  }
+
+  function applyCleanCarType(value) {
+    var mainSelect = document.getElementById("qbCarType");
+    var quickSelect = document.getElementById("cleanZoneCarType");
+    if (mainSelect && mainSelect.value !== value) mainSelect.value = value;
+    if (quickSelect && quickSelect.value !== value) quickSelect.value = value;
+    var valid = cleanZoneBase(value).map(function (zone) { return zone.code; });
+    setSelectedCleanCodes(selectedCleanCodes().filter(function (code) { return valid.indexOf(code) > -1; }));
     renderCleanZoneMap();
     refreshBuilderTotal();
   }
@@ -634,6 +658,13 @@
     return "<label class=\"quote-select-field\"><span>" + label + "</span><select id=\"" + id + "\">" + opts + "</select></label>";
   }
 
+  function cleanCarTypeSelect(selected) {
+    var opts = CAR_TYPES.map(function (item) {
+      return "<option value=\"" + esc(item.id) + "\" " + (item.id === selected ? "selected" : "") + ">" + esc(item.name) + "</option>";
+    }).join("");
+    return "<label class=\"clean-zone-type-select\"><span>\u8eca\u578b\u5716\u5207\u63db</span><select id=\"cleanZoneCarType\">" + opts + "</select></label>";
+  }
+
   function optionById(id) {
     return quoteServiceOptions().filter(function (item) { return item.id === id; })[0];
   }
@@ -655,7 +686,7 @@
       quoteField("qbDate", "\u9810\u7d04\u65e5\u671f / \u6642\u9593", base.date || base.appointmentDate || "") +
       quoteField("qbDeposit", "\u5df2\u6536\u8a02\u91d1", base.deposit || "0", "number") +
       quoteField("qbDiscount", "\u512a\u60e0\u6298\u6263", "0", "number") +
-      "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div><input type=\"hidden\" id=\"qbCleanZones\" value=\"[]\"><section class=\"clean-zone-card\"><div class=\"clean-zone-head\"><h2>\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d</h2><p>\u9ede\u9078\u5340\u584a\u5f8c\u6703\u81ea\u52d5\u52a0\u5165\u5831\u50f9\u8207\u8ffd\u6eaf\u65e5\u8a8c</p></div><div class=\"clean-zone-toolbar\"><button data-clean-zone-group=\"G1\">G1 \u524d\u6392\u5730\u6bef</button><button data-clean-zone-group=\"G2\">G2 \u5f8c\u6392\u5730\u6bef</button><button data-clean-zone-group=\"ALL-C\">ALL-C \u5168\u8eca\u5730\u6bef</button></div><div id=\"cleanZoneMap\"></div><div id=\"cleanZoneList\" class=\"clean-zone-list\">\u5c1a\u672a\u9078\u53d6</div></section></section>" +
+      "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div><input type=\"hidden\" id=\"qbCleanZones\" value=\"[]\"><section class=\"clean-zone-card\"><div class=\"clean-zone-head clean-zone-head-row\"><div><h2>\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d</h2><p>\u9ede\u9078\u5340\u584a\u5f8c\u6703\u81ea\u52d5\u52a0\u5165\u5831\u50f9\u8207\u8ffd\u6eaf\u65e5\u8a8c</p></div>" + cleanCarTypeSelect("sedan5") + "</div><div class=\"clean-zone-toolbar\"><button data-clean-zone-group=\"G1\">G1 \u524d\u6392\u5730\u6bef</button><button data-clean-zone-group=\"G2\">G2 \u5f8c\u6392\u5730\u6bef</button><button data-clean-zone-group=\"ALL-C\">ALL-C \u5168\u8eca\u5730\u6bef</button></div><div id=\"cleanZoneMap\"></div><div id=\"cleanZoneList\" class=\"clean-zone-list\">\u5c1a\u672a\u9078\u53d6</div></section></section>" +
       "<section class=\"glass-card quote-form-card\"><h2>\u9078\u64c7\u5957\u9910 / \u52a0\u8cfc / \u8d08\u9001</h2><div class=\"quote-dropdown-stack\">" +
       quoteSelect("qbPackageSelect", "\u5957\u9910", packages, "\u8acb\u9078\u64c7\u5957\u9910") +
       "<div class=\"quote-dropdown-add\">" + quoteSelect("qbAddonSelect", "\u52a0\u8cfc", addons, "\u8acb\u9078\u64c7\u52a0\u8cfc\u9805\u76ee") + "<button data-add-dropdown-quote-item=\"qbAddonSelect\">\u52a0\u5165\u52a0\u8cfc</button></div>" +
@@ -948,10 +979,10 @@
   document.addEventListener("change", function (event) {
     if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbPackageSelect")) refreshBuilderTotal();
     if (event.target && event.target.id === "qbCarType") {
-      var valid = cleanZoneBase(event.target.value).map(function (zone) { return zone.code; });
-      setSelectedCleanCodes(selectedCleanCodes().filter(function (code) { return valid.indexOf(code) > -1; }));
-      renderCleanZoneMap();
-      refreshBuilderTotal();
+      applyCleanCarType(event.target.value);
+    }
+    if (event.target && event.target.id === "cleanZoneCarType") {
+      applyCleanCarType(event.target.value);
     }
   });
 

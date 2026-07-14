@@ -693,9 +693,37 @@ body[data-quote-active="1"] .quote-floating-tools {
   margin-bottom: 6px;
 }
 
+.clean-zone-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
 .clean-zone-head p {
   margin: 0 0 12px;
   color: #64748b;
+}
+
+.clean-zone-type-select {
+  display: grid;
+  gap: 6px;
+  min-width: 220px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.clean-zone-type-select select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #cfe1f3;
+  border-radius: 14px;
+  padding: 0 14px;
+  color: #0f172a;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .clean-zone-toolbar {
@@ -767,6 +795,34 @@ body[data-quote-active="1"] .quote-floating-tools {
   stroke-width: 2;
 }
 
+.car-wheel rect {
+  fill: #173047;
+}
+
+.car-wheel line {
+  stroke: rgba(255, 255, 255, .55);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.car-dimension {
+  fill: none;
+  stroke: rgba(42, 67, 88, .34);
+  stroke-width: 2;
+  stroke-dasharray: 9 7;
+}
+
+.car-dimension-text,
+.car-side-label {
+  fill: rgba(23, 32, 51, .68);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.car-side-label {
+  text-anchor: middle;
+}
+
 .car-floor {
   stroke: rgba(103, 150, 177, .32);
   stroke-width: 1.5;
@@ -814,6 +870,17 @@ body[data-quote-active="1"] .quote-floating-tools {
 .car-zone-label {
   fill: rgba(28, 65, 91, .65);
   font-size: 20px;
+}
+
+.clean-zone-code {
+  fill: #0f66c9;
+  font-size: 16px;
+  font-weight: 1000;
+  text-anchor: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, .82);
+  stroke-width: 5px;
 }
 
 .car-center {
@@ -918,6 +985,14 @@ body[data-quote-active="1"] .quote-floating-tools {
   .clean-zone-toolbar {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .clean-zone-head-row {
+    display: grid;
+  }
+
+  .clean-zone-type-select {
+    min-width: 0;
   }
 }
 
