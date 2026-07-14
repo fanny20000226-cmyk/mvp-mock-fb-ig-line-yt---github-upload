@@ -299,6 +299,21 @@
     window.scrollTo(0, 0);
   }
 
+  function rememberQuoteReturn() {
+    var data = readDb();
+    if (data.view) data.quoteReturnView = data.view;
+    saveDb();
+  }
+
+  function quoteBack() {
+    var data = readDb();
+    var target = data.quoteReturnView || (data.authed ? "adminHome" : "home");
+    delete data.quoteReturnView;
+    saveDb();
+    if (typeof window.go === "function") window.go(target);
+    else window.history.back();
+  }
+
   function quoteListPage() {
     var quotes = readDb().quoteEstimates;
     var stats = quoteStats(quotes);
@@ -603,15 +618,24 @@
   document.addEventListener("click", function (event) {
     var b = event.target.closest && event.target.closest("button");
     if (!b) return;
-    if (b.hasAttribute("data-quote-page")) quoteListPage();
-    if (b.hasAttribute("data-quote-workorders")) workOrderPage();
+    if (b.hasAttribute("data-quote-page")) {
+      rememberQuoteReturn();
+      quoteListPage();
+    }
+    if (b.hasAttribute("data-quote-workorders")) {
+      rememberQuoteReturn();
+      workOrderPage();
+    }
     if (b.hasAttribute("data-quote-list")) quoteListPage();
-    if (b.hasAttribute("data-quote-back")) window.history.back();
+    if (b.hasAttribute("data-quote-back")) quoteBack();
     if (b.hasAttribute("data-quote-modal-close")) {
       var modal = document.querySelector("[data-quote-created-modal]");
       if (modal) modal.remove();
     }
-    if (b.hasAttribute("data-make-quote-front")) quoteBuilderPage();
+    if (b.hasAttribute("data-make-quote-front")) {
+      rememberQuoteReturn();
+      quoteBuilderPage();
+    }
     if (b.getAttribute("data-add-dropdown-quote-item")) addDropdownBuilderItem(b.getAttribute("data-add-dropdown-quote-item"));
     if (b.hasAttribute("data-add-custom-quote-item")) addCustomBuilderItem();
     if (b.hasAttribute("data-remove-custom-quote-item")) {
