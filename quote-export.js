@@ -115,6 +115,7 @@
   }
 
   function total(q) {
+    if (q.final_price !== undefined && q.final_price !== null && q.final_price !== "") return Number(q.final_price || 0);
     return Number(q.package_total || 0) + Number(q.addon_total || 0) - Number(q.discount_amount || 0);
   }
 
@@ -128,14 +129,21 @@
   var CLEAN_ZONE_PRICE = {
     C1: 600, C2: 600, C3: 600, C4: 600,
     S1: 800, S2: 800, S3: 1200, S4: 900, S5: 900, S6: 900, S7: 900, S8: 900, S9: 900,
-    A1: 700, T1: 900, SP1: 500
+    M: 700, B: 900, O: 500, A1: 700, T1: 900, SP1: 500
   };
 
   var CLEAN_ZONE_NAMES = {
     C1: "\u99d5\u99db\u5ea7\u5730\u6bef", C2: "\u526f\u99d5\u5ea7\u5730\u6bef", C3: "\u5f8c\u6392\u5de6\u5074\u5730\u6bef", C4: "\u5f8c\u6392\u53f3\u5074\u5730\u6bef",
     S1: "\u99d5\u99db\u5ea7\u6905", S2: "\u526f\u99d5\u5ea7\u6905", S3: "\u5f8c\u6392\u5ea7\u6905", S4: "\u7b2c\u4e09\u6392\u5de6\u5ea7\u6905", S5: "\u7b2c\u4e09\u6392\u53f3\u5ea7\u6905",
     S6: "\u4e2d\u6392\u5de6\u5ea7\u6905", S7: "\u4e2d\u6392\u4e2d\u5ea7\u6905", S8: "\u4e2d\u6392\u53f3\u5ea7\u6905", S9: "\u6700\u5f8c\u6392\u5ea7\u6905",
+    M: "\u4e2d\u592e\u901a\u9053", B: "\u5f8c\u884c\u674e\u7bb1", O: "\u5099\u80ce\u53e3",
     A1: "\u8eca\u5167\u4e2d\u592e\u901a\u9053", T1: "\u884c\u674e\u7bb1", SP1: "\u5099\u80ce\u53e3"
+  };
+
+  var CLEAN_ZONE_CATEGORY = {
+    C1: "carpet", C2: "carpet", C3: "carpet", C4: "carpet",
+    S1: "seat", S2: "seat", S3: "seat", S4: "seat", S5: "seat", S6: "seat", S7: "seat", S8: "seat", S9: "seat",
+    M: "space", B: "space", O: "space", A1: "space", T1: "space", SP1: "space"
   };
 
   function cleanZoneBase(carType) {
@@ -144,32 +152,32 @@
         { code: "C1", x: 330, y: 210, w: 118, h: 104 }, { code: "C2", x: 472, y: 205, w: 116, h: 104 },
         { code: "C3", x: 382, y: 342, w: 132, h: 88 }, { code: "C4", x: 526, y: 328, w: 120, h: 110 },
         { code: "S1", x: 386, y: 210, w: 92, h: 110 }, { code: "S2", x: 505, y: 178, w: 96, h: 110 },
-        { code: "S3", x: 390, y: 338, w: 150, h: 82 }, { code: "A1", x: 514, y: 242, w: 84, h: 174 },
-        { code: "T1", x: 840, y: 170, w: 250, h: 270 }, { code: "SP1", x: 916, y: 392, w: 132, h: 54 }
+        { code: "S3", x: 390, y: 338, w: 150, h: 82 }, { code: "M", x: 514, y: 242, w: 84, h: 174 },
+        { code: "B", x: 840, y: 170, w: 250, h: 270 }, { code: "O", x: 916, y: 392, w: 132, h: 54 }
       ],
       suv5: [
         { code: "C1", x: 694, y: 204, w: 126, h: 118 }, { code: "C2", x: 840, y: 204, w: 126, h: 118 },
         { code: "C3", x: 700, y: 344, w: 132, h: 116 }, { code: "C4", x: 844, y: 344, w: 132, h: 116 },
         { code: "S1", x: 692, y: 184, w: 112, h: 122 }, { code: "S2", x: 830, y: 174, w: 112, h: 122 },
-        { code: "S3", x: 690, y: 330, w: 246, h: 102 }, { code: "A1", x: 790, y: 234, w: 92, h: 202 },
-        { code: "T1", x: 968, y: 178, w: 174, h: 280 }, { code: "SP1", x: 1004, y: 382, w: 98, h: 58 }
+        { code: "S3", x: 690, y: 330, w: 246, h: 102 }, { code: "M", x: 790, y: 234, w: 92, h: 202 },
+        { code: "B", x: 968, y: 178, w: 174, h: 280 }, { code: "O", x: 1004, y: 382, w: 98, h: 58 }
       ],
       mpv7: [
         { code: "C1", x: 328, y: 828, w: 112, h: 112 }, { code: "C2", x: 454, y: 828, w: 112, h: 112 },
         { code: "C3", x: 360, y: 982, w: 130, h: 116 }, { code: "C4", x: 500, y: 980, w: 120, h: 116 },
         { code: "S1", x: 346, y: 800, w: 106, h: 130 }, { code: "S2", x: 462, y: 800, w: 106, h: 130 },
-        { code: "S3", x: 374, y: 1000, w: 156, h: 86 }, { code: "A1", x: 512, y: 830, w: 96, h: 240 },
+        { code: "S3", x: 374, y: 1000, w: 156, h: 86 }, { code: "M", x: 512, y: 830, w: 96, h: 240 },
         { code: "S4", x: 556, y: 792, w: 106, h: 142 }, { code: "S5", x: 556, y: 968, w: 106, h: 142 },
-        { code: "T1", x: 650, y: 842, w: 104, h: 244 }, { code: "SP1", x: 664, y: 1090, w: 78, h: 56 }
+        { code: "B", x: 650, y: 842, w: 104, h: 244 }, { code: "O", x: 664, y: 1090, w: 78, h: 56 }
       ],
       van9: [
         { code: "C1", x: 694, y: 830, w: 110, h: 112 }, { code: "C2", x: 812, y: 830, w: 110, h: 112 },
         { code: "C3", x: 696, y: 982, w: 114, h: 112 }, { code: "C4", x: 816, y: 982, w: 114, h: 112 },
         { code: "S1", x: 690, y: 804, w: 110, h: 126 }, { code: "S2", x: 810, y: 804, w: 110, h: 126 },
-        { code: "S3", x: 694, y: 992, w: 220, h: 86 }, { code: "A1", x: 786, y: 830, w: 92, h: 240 },
+        { code: "S3", x: 694, y: 992, w: 220, h: 86 }, { code: "M", x: 786, y: 830, w: 92, h: 240 },
         { code: "S6", x: 890, y: 786, w: 100, h: 128 }, { code: "S7", x: 1000, y: 786, w: 100, h: 128 },
         { code: "S8", x: 998, y: 958, w: 102, h: 128 }, { code: "S9", x: 1044, y: 1000, w: 150, h: 92 },
-        { code: "T1", x: 1088, y: 830, w: 112, h: 220 }, { code: "SP1", x: 1096, y: 1082, w: 92, h: 54 }
+        { code: "B", x: 1088, y: 830, w: 112, h: 220 }, { code: "O", x: 1096, y: 1082, w: 92, h: 54 }
       ]
     }[carType] || [];
     return zones.map(function (zone) {
@@ -231,11 +239,27 @@
       return {
         code: code,
         name: zone.name || CLEAN_ZONE_NAMES[code] || code,
+        category: CLEAN_ZONE_CATEGORY[code] || "space",
         price: Number(zone.price || CLEAN_ZONE_PRICE[code] || 0),
         selectedAt: new Date().toISOString(),
         operator: readDb().currentRole || readDb().role || "front"
       };
     });
+  }
+
+  function cleanCategoryLabel(category) {
+    return category === "carpet" ? "\u5730\u6bef" : category === "seat" ? "\u5ea7\u6905" : "\u7a7a\u9593";
+  }
+
+  function cleanSelectedAreaSnapshot() {
+    var zones = cleanZonePayload();
+    return {
+      carpet: zones.filter(function (zone) { return zone.category === "carpet"; }),
+      seat: zones.filter(function (zone) { return zone.category === "seat"; }),
+      space: zones.filter(function (zone) { return zone.category === "space"; }),
+      total: zones.reduce(function (sum, zone) { return sum + Number(zone.price || 0); }, 0),
+      savedAt: new Date().toISOString()
+    };
   }
 
   function renderCleanZoneMap() {
@@ -263,8 +287,16 @@
     var list = document.getElementById("cleanZoneList");
     if (!list) return;
     var zones = cleanZonePayload();
-    list.innerHTML = zones.length ? zones.map(function (zone) {
-      return "<span class=\"clean-zone-pill\">" + esc(zone.code) + " " + esc(zone.name) + " " + money(zone.price) + "</span>";
+    var groups = [
+      { key: "carpet", title: "\u5df2\u9078\u5730\u6bef\u6e05\u55ae" },
+      { key: "seat", title: "\u5df2\u9078\u5ea7\u6905\u6e05\u55ae" },
+      { key: "space", title: "\u5df2\u9078\u7a7a\u9593\u6e05\u55ae" }
+    ];
+    list.innerHTML = zones.length ? groups.map(function (group) {
+      var items = zones.filter(function (zone) { return zone.category === group.key; });
+      return "<div class=\"clean-zone-selected-group\"><b>" + group.title + "</b><div>" + (items.length ? items.map(function (zone) {
+        return "<span class=\"clean-zone-pill\">" + esc(zone.code) + " " + esc(zone.name) + " " + money(zone.price) + "</span>";
+      }).join("") : "<span class=\"clean-zone-empty\">\u672a\u9078\u53d6</span>") + "</div></div>";
     }).join("") : "\u5c1a\u672a\u9078\u53d6";
   }
 
@@ -280,7 +312,7 @@
 
   function toggleCleanGroup(group) {
     var selected = selectedCleanCodes();
-    var groupCodes = group === "G1" ? ["C1", "C2"] : group === "G2" ? ["C3", "C4"] : ["C1", "C2", "C3", "C4"];
+    var groupCodes = group === "G1" ? ["C1", "C2"] : group === "G2" ? ["C3", "C4"] : group === "S3" ? ["S3"] : ["C1", "C2", "C3", "C4"];
     var allSelected = groupCodes.every(function (code) { return selected.indexOf(code) > -1; });
     if (allSelected) selected = selected.filter(function (code) { return groupCodes.indexOf(code) === -1; });
     else groupCodes.forEach(function (code) { if (selected.indexOf(code) === -1) selected.push(code); });
@@ -391,11 +423,13 @@
       return "<tr><td>" + esc(item.category) + "</td><td>" + esc(item.item_name) + "</td><td>" + money(item.unit_price) + "</td><td>" + esc(item.qty || 1) + "</td><td>" + money(Number(item.unit_price || 0) * Number(item.qty || 1)) + "</td></tr>";
     }).join("");
     var cleanRows = cleanZoneRows(q);
+    var planImages = (q.plan_images || []).map(function (src) { return "<img src=\"" + esc(src) + "\" alt=\"plan image\">"; }).join("");
     return "<article class=\"quote-paper\">" +
       "<header class=\"quote-header\"><div class=\"quote-logo\">" + T.carLogo + "</div><div><h2>" + esc(q.store_name) + "</h2><p>" + T.quoteNo + "\uff1a" + esc(q.quote_id) + " / " + new Date(q.created_at).toLocaleString("zh-TW") + "</p></div></header>" +
       "<div class=\"quote-info\"><span>\u8eca\u4e3b\uff1a" + esc(q.customer_name) + "</span><span>\u96fb\u8a71\uff1a" + esc(q.phone) + "</span><span>\u8eca\u724c\uff1a" + esc(q.plate) + "</span><span>\u8eca\u578b\uff1a" + esc(q.car_model) + "</span><span>\u5e74\u4efd\uff1a" + esc(q.car_year) + "</span><span>\u9810\u7d04\uff1a" + esc(q.appointment_date) + "</span></div>" +
       "<section class=\"quote-section\"><h3>" + T.serviceItems + "</h3><table><thead><tr><th>\u5206\u985e</th><th>\u9805\u76ee</th><th>\u55ae\u50f9</th><th>\u6578\u91cf</th><th>\u5c0f\u8a08</th></tr></thead><tbody>" + rows + "</tbody></table></section>" +
-      "<section class=\"quote-section\"><h3>\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d\u660e\u7d30</h3><table><thead><tr><th>\u7de8\u78bc</th><th>\u90e8\u4f4d</th><th>\u55ae\u50f9</th></tr></thead><tbody>" + cleanRows + "</tbody></table></section>" +
+      "<section class=\"quote-section\"><h3>\u6253\u7ffb\u8a55\u4f30\u9078\u53d6\u660e\u7d30</h3><table><thead><tr><th>\u5206\u985e</th><th>\u7de8\u78bc</th><th>\u90e8\u4f4d</th><th>\u55ae\u50f9</th></tr></thead><tbody>" + cleanRows + "</tbody></table></section>" +
+      "<section class=\"quote-section\"><h3>\u65bd\u4f5c\u65b9\u5f0f / \u5efa\u8b70\u65b9\u6848</h3><p>\u65bd\u4f5c\u65b9\u5f0f\uff1a" + esc(q.construct_method || "\u672a\u6307\u5b9a") + "</p><p>\u65bd\u4f5c\u5099\u8a3b\uff1a" + esc(q.construct_note || "") + "</p><p>\u5efa\u8b70\u65b9\u6848\uff1a" + esc(q.suggest_plan || "") + "</p><div class=\"quote-paper-images\">" + (planImages || "<span>\u672a\u9644\u5716</span>") + "</div></section>" +
       "<section class=\"quote-total\"><p>" + T.packageTotal + "<b>" + money(q.package_total) + "</b></p><p>" + T.addonTotal + "<b>" + money(q.addon_total) + "</b></p><p>" + T.discount + "<b>-" + money(q.discount_amount) + "</b></p><p class=\"quote-payable\">" + T.payable + "<b>" + money(total(q)) + "</b></p><p>" + T.deposit + "<b>" + money(q.deposit_amount) + "</b></p></section>" +
       "<p class=\"quote-note\">" + T.note + "\uff1a" + esc(q.remark || T.footer) + "</p><footer class=\"quote-sign\"><span>" + T.storeSign + "\uff1a________________</span><span>" + T.customerSign + "\uff1a________________</span></footer></article>";
   }
@@ -403,16 +437,19 @@
   function cleanZoneRows(q) {
     var zones = q.clean_selected_zones || [];
     return zones.length ? zones.map(function (zone) {
-      return "<tr><td>" + esc(zone.code) + "</td><td>" + esc(zone.name) + "</td><td>" + money(zone.price) + "</td></tr>";
-    }).join("") : "<tr><td colspan=\"3\">\u672a\u9078\u53d6\u8eca\u5167\u6e05\u6f54\u90e8\u4f4d</td></tr>";
+      return "<tr><td>" + esc(cleanCategoryLabel(zone.category)) + "</td><td>" + esc(zone.code) + "</td><td>" + esc(zone.name) + "</td><td>" + money(zone.price) + "</td></tr>";
+    }).join("") : "<tr><td colspan=\"4\">\u672a\u9078\u53d6\u6253\u7ffb\u8a55\u4f30\u90e8\u4f4d</td></tr>";
   }
 
   function textForPdf(q) {
     var lines = [q.store_name + " " + T.quoteNo, T.quoteNo + "\uff1a" + q.quote_id, "\u8eca\u4e3b\uff1a" + q.customer_name, "\u96fb\u8a71\uff1a" + q.phone, "\u8eca\u724c\uff1a" + q.plate, "\u8eca\u578b\uff1a" + q.car_model, ""];
     getItems(q.quote_id).forEach(function (item) { lines.push(item.category + " / " + item.item_name + " / " + money(item.unit_price)); });
     lines.push("", "\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d\u660e\u7d30");
-    (q.clean_selected_zones || []).forEach(function (zone) { lines.push(zone.code + " / " + zone.name + " / " + money(zone.price)); });
+    (q.clean_selected_zones || []).forEach(function (zone) { lines.push(cleanCategoryLabel(zone.category) + " / " + zone.code + " / " + zone.name + " / " + money(zone.price)); });
     if (!(q.clean_selected_zones || []).length) lines.push("\u672a\u9078\u53d6");
+    lines.push("", "\u65bd\u4f5c\u65b9\u5f0f\uff1a" + (q.construct_method || "\u672a\u6307\u5b9a"));
+    if (q.construct_note) lines.push("\u65bd\u4f5c\u5099\u8a3b\uff1a" + q.construct_note);
+    if (q.suggest_plan) lines.push("\u5efa\u8b70\u65b9\u6848\uff1a" + q.suggest_plan);
     lines.push("", T.payable + "\uff1a" + money(total(q)), T.deposit + "\uff1a" + money(q.deposit_amount), T.footer);
     return lines.join("\n");
   }
@@ -627,6 +664,58 @@
     return "<label class=\"clean-zone-type-select\"><span>\u8eca\u578b\u5716\u5207\u63db</span><select id=\"cleanZoneCarType\">" + opts + "</select></label>";
   }
 
+  function constructMethodOptions() {
+    var data = readDb();
+    if (!data.quoteConstructMethods) {
+      data.quoteConstructMethods = [
+        "\u5c40\u90e8\u6df1\u5c64\u6e05\u6f54",
+        "\u5168\u8eca\u5167\u88dd\u62c6\u6d17",
+        "\u84b8\u6c23\u6bba\u83cc+\u9664\u5473",
+        "\u6c61\u6f2c\u5f37\u5316\u8655\u7406"
+      ];
+    }
+    return data.quoteConstructMethods;
+  }
+
+  function cleanOptionButton(code, label) {
+    return "<button type=\"button\" data-clean-zone-button=\"" + esc(code) + "\"><span>" + esc(label || CLEAN_ZONE_NAMES[code] || code) + "</span><small>" + money(CLEAN_ZONE_PRICE[code] || 0) + "</small></button>";
+  }
+
+  function builderPlanImages() {
+    var raw = document.getElementById("qbPlanImagesData");
+    try { return raw && raw.value ? JSON.parse(raw.value) : []; } catch (e) { return []; }
+  }
+
+  function setBuilderPlanImages(images) {
+    var raw = document.getElementById("qbPlanImagesData");
+    if (raw) raw.value = JSON.stringify(images || []);
+  }
+
+  function renderPlanImagePreview() {
+    var box = document.getElementById("qbPlanImagePreview");
+    if (!box) return;
+    var images = builderPlanImages();
+    box.innerHTML = images.length ? images.map(function (src, index) {
+      return "<figure><img src=\"" + esc(src) + "\" alt=\"plan image " + index + "\"><button type=\"button\" data-remove-plan-image=\"" + index + "\">\u522a\u9664</button></figure>";
+    }).join("") : "<span>\u5c1a\u672a\u4e0a\u50b3\u5716\u7247</span>";
+  }
+
+  function handlePlanImages(files) {
+    var list = Array.prototype.slice.call(files || []).slice(0, 5);
+    if (!list.length) return;
+    Promise.all(list.map(function (file) {
+      return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(reader.result); };
+        reader.onerror = function () { resolve(""); };
+        reader.readAsDataURL(file);
+      });
+    })).then(function (images) {
+      setBuilderPlanImages(builderPlanImages().concat(images.filter(Boolean)).slice(0, 8));
+      renderPlanImagePreview();
+    });
+  }
+
   function optionById(id) {
     return quoteServiceOptions().filter(function (item) { return item.id === id; })[0];
   }
@@ -648,7 +737,7 @@
       quoteField("qbDate", "\u9810\u7d04\u65e5\u671f / \u6642\u9593", base.date || base.appointmentDate || "") +
       quoteField("qbDeposit", "\u5df2\u6536\u8a02\u91d1", base.deposit || "0", "number") +
       quoteField("qbDiscount", "\u512a\u60e0\u6298\u6263", "0", "number") +
-      "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div><input type=\"hidden\" id=\"qbCleanZones\" value=\"[]\"><section class=\"clean-zone-card\"><div class=\"clean-zone-head clean-zone-head-row\"><div><h2>\u8eca\u5167\u6e05\u6f54\u9078\u53d6\u90e8\u4f4d</h2><p>\u9ede\u9078\u5340\u584a\u5f8c\u6703\u81ea\u52d5\u52a0\u5165\u5831\u50f9\u8207\u8ffd\u6eaf\u65e5\u8a8c</p></div>" + cleanCarTypeSelect("sedan5") + "</div><div class=\"clean-zone-toolbar\"><button data-clean-zone-group=\"G1\">G1 \u524d\u6392\u5730\u6bef</button><button data-clean-zone-group=\"G2\">G2 \u5f8c\u6392\u5730\u6bef</button><button data-clean-zone-group=\"ALL-C\">ALL-C \u5168\u8eca\u5730\u6bef</button></div><div id=\"cleanZoneMap\"></div><div id=\"cleanZoneList\" class=\"clean-zone-list\">\u5c1a\u672a\u9078\u53d6</div></section></section>" +
+      "<label class=\"quote-field quote-field-wide\"><span>\u5099\u8a3b</span><textarea id=\"qbNote\" rows=\"4\">" + esc(base.note || "") + "</textarea></label></div><input type=\"hidden\" id=\"qbCleanZones\" value=\"[]\"><input type=\"hidden\" id=\"qbPlanImagesData\" value=\"[]\"><section class=\"clean-zone-card\"><div class=\"clean-zone-head clean-zone-head-row\"><div><h2>\u4f4d\u7f6e\u793a\u610f\u5716</h2><p>\u5148\u9078\u8eca\u578b\uff0c\u518d\u9ede\u9078\u5730\u6bef\u3001\u5ea7\u6905\u6216\u5716\u5167\u5340\u584a\u3002</p></div>" + cleanCarTypeSelect("sedan5") + "</div><div class=\"clean-zone-choice-grid\"><div class=\"clean-option-card\"><h3>\u5730\u6bef\u9078\u9805\u7d44</h3><div class=\"clean-zone-toolbar\">" + cleanOptionButton("C1") + cleanOptionButton("C2") + cleanOptionButton("C3") + cleanOptionButton("C4") + "<button type=\"button\" data-clean-zone-group=\"G1\"><span>\u524d\u6392\u5408\u4f75\u5730\u6bef</span><small>G1</small></button><button type=\"button\" data-clean-zone-group=\"G2\"><span>\u5f8c\u6392\u5408\u4f75\u5730\u6bef</span><small>G2</small></button><button type=\"button\" data-clean-zone-group=\"ALL-C\"><span>\u5168\u8eca\u5730\u6bef</span><small>ALL-C</small></button></div></div><div class=\"clean-option-card clean-seat-card\"><h3>\u5ea7\u6905\u9078\u9805\u7d44</h3><div class=\"clean-seat-buttons\">" + cleanOptionButton("S1") + cleanOptionButton("S2") + cleanOptionButton("S3") + "</div><img src=\"./quote-seat-guide.jpg?v=1\" alt=\"\u5ea7\u6905\u793a\u610f\u5716\"></div><div class=\"clean-option-card\"><h3>\u7a7a\u9593\u5340\u57df</h3><div class=\"clean-zone-toolbar\">" + cleanOptionButton("M") + cleanOptionButton("B") + cleanOptionButton("O") + "</div></div></div><div id=\"cleanZoneMap\"></div><div class=\"clean-range-panel\"><h3>\u7bc4\u570d\u793a\u610f\u5716 / \u5df2\u9078\u6e05\u55ae</h3><div id=\"cleanZoneList\" class=\"clean-zone-list\">\u5c1a\u672a\u9078\u53d6</div></div><div class=\"quote-eval-fields\"><label class=\"quote-field\"><span>\u65bd\u4f5c\u65b9\u5f0f</span><select id=\"qbConstructMethod\">" + constructMethodOptions().map(function (method) { return "<option value=\"" + esc(method) + "\">" + esc(method) + "</option>"; }).join("") + "</select></label><label class=\"quote-field quote-field-wide\"><span>\u65bd\u4f5c\u5099\u8a3b</span><textarea id=\"qbConstructNote\" rows=\"3\"></textarea></label><label class=\"quote-field quote-field-wide\"><span>\u5efa\u8b70\u505a\u6cd5 / \u65b9\u6848</span><textarea id=\"qbSuggestPlan\" rows=\"4\" placeholder=\"\u4f8b\uff1a\u5efa\u8b70\u5f8c\u5ea7\u9023\u540c\u5730\u6bef\u4e00\u8d77\u6df1\u5c64\u8655\u7406\"></textarea></label><label class=\"quote-field\"><span>\u5efa\u8b70\u65b9\u6848\u5716\u7247</span><input id=\"qbPlanImages\" type=\"file\" accept=\"image/*\" multiple></label><div id=\"qbPlanImagePreview\" class=\"quote-plan-preview\"><span>\u5c1a\u672a\u4e0a\u50b3\u5716\u7247</span></div><label class=\"quote-field\"><span>\u6700\u7d42\u5831\u50f9\uff08\u53ef\u624b\u52d5\u4fee\u6539\uff09</span><input id=\"qbFinalPrice\" type=\"number\" placeholder=\"\u7cfb\u7d71\u81ea\u52d5\u5e36\u5165\"></label></div></section></section>" +
       "<section class=\"glass-card quote-form-card\"><h2>\u9078\u64c7\u5957\u9910 / \u52a0\u8cfc / \u8d08\u9001</h2><div class=\"quote-dropdown-stack\">" +
       quoteSelect("qbPackageSelect", "\u5957\u9910", packages, "\u8acb\u9078\u64c7\u5957\u9910") +
       "<div class=\"quote-dropdown-add\">" + quoteSelect("qbAddonSelect", "\u52a0\u8cfc", addons, "\u8acb\u9078\u64c7\u52a0\u8cfc\u9805\u76ee") + "<button data-add-dropdown-quote-item=\"qbAddonSelect\">\u52a0\u5165\u52a0\u8cfc</button></div>" +
@@ -672,7 +761,7 @@
     var packageItem = optionById(builderValue("qbPackageSelect"));
     if (packageItem) items.push({ category: packageItem.category, item_name: packageItem.name, unit_price: Number(packageItem.price || 0), qty: 1 });
     cleanZonePayload().forEach(function (zone) {
-      items.push({ category: "\u52a0\u8cfc", item_name: "\u8eca\u5167\u6e05\u6f54-" + zone.name, unit_price: Number(zone.price || 0), qty: 1, clean_code: zone.code });
+      items.push({ category: "\u52a0\u8cfc-" + cleanCategoryLabel(zone.category), item_name: "\u6253\u7ffb\u8a55\u4f30-" + zone.name, unit_price: Number(zone.price || 0), qty: 1, clean_code: zone.code });
     });
     Array.prototype.slice.call(document.querySelectorAll("[data-selected-quote-item]")).forEach(function (node) {
       items.push({
@@ -696,12 +785,15 @@
   function refreshBuilderTotal() {
     var subtotal = selectedBuilderItems().reduce(function (sum, item) { return sum + Number(item.unit_price || 0); }, 0);
     var discount = Number(builderValue("qbDiscount") || 0);
+    var computedFinal = Math.max(0, subtotal - discount);
     var subtotalNode = document.getElementById("qbSubtotal");
     var discountNode = document.getElementById("qbDiscountView");
     var finalNode = document.getElementById("qbFinal");
+    var finalInput = document.getElementById("qbFinalPrice");
     if (subtotalNode) subtotalNode.textContent = money(subtotal);
     if (discountNode) discountNode.textContent = "-" + money(discount);
-    if (finalNode) finalNode.textContent = money(Math.max(0, subtotal - discount));
+    if (finalNode) finalNode.textContent = money(finalInput && finalInput.value ? Number(finalInput.value || 0) : computedFinal);
+    if (finalInput && !finalInput.getAttribute("data-manual-final")) finalInput.value = computedFinal;
   }
 
   function addDropdownBuilderItem(selectId) {
@@ -733,6 +825,8 @@
     var packageTotal = items.reduce(function (sum, item) { return sum + Number(item.unit_price || 0); }, 0);
     var discount = Number(builderValue("qbDiscount") || 0);
     var cleanZones = cleanZonePayload();
+    var selectedArea = cleanSelectedAreaSnapshot();
+    var finalPrice = Number(builderValue("qbFinalPrice") || Math.max(0, packageTotal - discount));
     var quote = {
       quote_id: quoteId,
       store_code: builderValue("qbStore") || "\u4e09\u91cd",
@@ -743,12 +837,18 @@
       car_model: builderValue("qbCar"),
       car_type: builderValue("qbCarType") || "sedan5",
       clean_selected_zones: cleanZones,
+      selected_area: selectedArea,
       car_year: builderValue("qbYear"),
       package_total: packageTotal,
       addon_total: 0,
       discount_amount: discount,
+      final_price: finalPrice,
       deposit_amount: Number(builderValue("qbDeposit") || 0),
       appointment_date: builderValue("qbDate"),
+      construct_method: builderValue("qbConstructMethod"),
+      construct_note: builderValue("qbConstructNote"),
+      suggest_plan: builderValue("qbSuggestPlan"),
+      plan_images: builderPlanImages(),
       remark: builderValue("qbNote") || T.footer,
       status: "\u5f85\u5ba2\u6236\u78ba\u8a8d",
       created_by: "front",
@@ -759,6 +859,10 @@
         time: new Date().toISOString()
       }, {
         action: "\u9078\u53d6\u8eca\u5167\u6e05\u6f54\u5340\u57df\uff1a" + (cleanZones.length ? cleanZones.map(function (zone) { return zone.code + " " + zone.name; }).join("\u3001") : "\u7121"),
+        user: "front",
+        time: new Date().toISOString()
+      }, {
+        action: "\u6253\u7ffb\u8a55\u4f30\u5831\u50f9\uff1a" + money(finalPrice) + "\uff0c\u65bd\u4f5c\u65b9\u5f0f\uff1a" + (builderValue("qbConstructMethod") || "\u672a\u6307\u5b9a"),
         user: "front",
         time: new Date().toISOString()
       }],
@@ -900,6 +1004,7 @@
     }
     if (b.getAttribute("data-add-dropdown-quote-item")) addDropdownBuilderItem(b.getAttribute("data-add-dropdown-quote-item"));
     if (b.getAttribute("data-clean-zone-group")) toggleCleanGroup(b.getAttribute("data-clean-zone-group"));
+    if (b.getAttribute("data-clean-zone-button")) toggleCleanZone(b.getAttribute("data-clean-zone-button"));
     if (b.hasAttribute("data-add-custom-quote-item")) addCustomBuilderItem();
     if (b.hasAttribute("data-remove-custom-quote-item")) {
       var custom = b.closest("[data-custom-quote-item]");
@@ -923,10 +1028,20 @@
     if (b.getAttribute("data-workorder-done")) markWorkOrderDone(b.getAttribute("data-workorder-done"));
     if (b.getAttribute("data-completion-pdf")) exportCompletionPdf(b.getAttribute("data-completion-pdf"));
     if (b.getAttribute("data-completion-img")) exportCompletionImage(b.getAttribute("data-completion-img"));
+    if (b.getAttribute("data-remove-plan-image")) {
+      var images = builderPlanImages();
+      images.splice(Number(b.getAttribute("data-remove-plan-image")), 1);
+      setBuilderPlanImages(images);
+      renderPlanImagePreview();
+    }
   });
 
   document.addEventListener("input", function (event) {
     if (event.target && (event.target.matches("[data-quote-service]") || event.target.id === "qbDiscount" || event.target.id === "qbPackageSelect")) refreshBuilderTotal();
+    if (event.target && event.target.id === "qbFinalPrice") {
+      event.target.setAttribute("data-manual-final", "1");
+      refreshBuilderTotal();
+    }
     if (event.target && event.target.id === "quoteSearchInput") {
       var keyword = event.target.value.trim().toLowerCase();
       Array.prototype.slice.call(document.querySelectorAll(".quote-summary-row")).forEach(function (row) {
@@ -945,6 +1060,10 @@
     }
     if (event.target && event.target.id === "cleanZoneCarType") {
       applyCleanCarType(event.target.value);
+    }
+    if (event.target && event.target.id === "qbPlanImages") {
+      handlePlanImages(event.target.files);
+      event.target.value = "";
     }
   });
 

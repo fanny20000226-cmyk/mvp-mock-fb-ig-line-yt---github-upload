@@ -741,6 +741,128 @@ body[data-quote-active="1"] .quote-floating-tools {
   font-size: 12px;
 }
 
+.clean-zone-choice-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 14px;
+  margin: 12px 0;
+}
+
+.clean-option-card {
+  padding: 14px;
+  border: 1px solid #d8e8f7;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(15, 45, 74, .06);
+}
+
+.clean-option-card h3,
+.clean-range-panel h3 {
+  margin: 0 0 10px;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.clean-option-card button,
+.clean-seat-buttons button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 54px;
+  border: 1px solid #126dca;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(180deg, #2f93ee, #0f66c9);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 8px 16px rgba(15,102,201,.18);
+  font-weight: 900;
+}
+
+.clean-option-card button small,
+.clean-seat-buttons button small {
+  color: rgba(255, 255, 255, .82);
+  font-size: 11px;
+}
+
+.clean-seat-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.clean-seat-card img {
+  display: block;
+  width: 100%;
+  max-height: 210px;
+  object-fit: cover;
+  object-position: center 58%;
+  margin-top: 12px;
+  border-radius: 14px;
+  border: 1px solid #d8e8f7;
+}
+
+.clean-range-panel {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #d8e8f7;
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.quote-eval-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.quote-plan-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  color: #64748b;
+}
+
+.quote-plan-preview figure {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  margin: 0;
+}
+
+.quote-plan-preview img,
+.quote-paper-images img {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #d8e8f7;
+}
+
+.quote-plan-preview button {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  min-height: 26px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.quote-paper-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.quote-paper-images img {
+  width: 110px;
+  height: 90px;
+}
+
 .clean-car-svg {
   display: block;
   width: 100%;
@@ -946,6 +1068,22 @@ body[data-quote-active="1"] .quote-floating-tools {
   color: #64748b;
 }
 
+.clean-zone-selected-group {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+}
+
+.clean-zone-selected-group b {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.clean-zone-empty {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
 .clean-zone-pill {
   display: inline-flex;
   align-items: center;
@@ -982,7 +1120,9 @@ body[data-quote-active="1"] .quote-floating-tools {
   .quote-builder-grid,
   .quote-form-grid,
   .quote-custom-line,
-  .quote-dropdown-add {
+  .quote-dropdown-add,
+  .clean-zone-choice-grid,
+  .quote-eval-fields {
     grid-template-columns: 1fr;
   }
 
@@ -1022,6 +1162,10 @@ body[data-quote-active="1"] .quote-floating-tools {
 
   .clean-zone-head-row {
     display: grid;
+  }
+
+  .clean-seat-buttons {
+    grid-template-columns: 1fr;
   }
 
   .clean-zone-type-select {
