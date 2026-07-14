@@ -119,10 +119,10 @@
   }
 
   var CAR_TYPES = [
-    { id: "sedan5", name: "\u4e00\u822c\u8f4e\u8eca\uff085\u4eba\u5ea7\uff09", seats: 5 },
-    { id: "suv5", name: "\u5927\u578b\u4f11\u65c5\u8eca\uff085\u4eba\u5ea7\uff09", seats: 5 },
-    { id: "mpv7", name: "\u4e03\u4eba\u5ea7\uff082-3-2\uff09", seats: 7 },
-    { id: "van9", name: "\u4e5d\u4eba\u5ea7/\u5546\u52d9\u8eca\uff082-3-2-2\uff09", seats: 9 }
+    { id: "sedan5", name: "\u4e00\u822c\u8f4e\u8eca 5 \u4eba\u5ea7", seats: 5 },
+    { id: "suv5", name: "\u5927\u578b\u4f11\u65c5 5 \u4eba\u5ea7", seats: 5 },
+    { id: "mpv7", name: "\u4e03\u4eba\u5ea7 2-3-2", seats: 7 },
+    { id: "van9", name: "\u4e5d\u4eba\u5ea7 / \u5546\u52d9\u8eca", seats: 9 }
   ];
 
   var CLEAN_ZONE_PRICE = {
@@ -139,25 +139,105 @@
   };
 
   function cleanZoneBase(carType) {
-    var zones = [
-      { code: "C1", x: 168, y: 166, w: 84, h: 72 }, { code: "C2", x: 308, y: 166, w: 84, h: 72 },
-      { code: "C3", x: 168, y: 274, w: 84, h: 72 }, { code: "C4", x: 308, y: 274, w: 84, h: 72 },
-      { code: "S1", x: 168, y: 94, w: 84, h: 62 }, { code: "S2", x: 308, y: 94, w: 84, h: 62 },
-      { code: "S3", x: 176, y: 356, w: 208, h: 58 }, { code: "A1", x: 260, y: 162, w: 38, h: 190 },
-      { code: "T1", x: 438, y: 110, w: 124, h: 246 }, { code: "SP1", x: 466, y: 372, w: 74, h: 40 }
-    ];
-    if (carType === "mpv7") {
-      zones = zones.concat([{ code: "S4", x: 430, y: 132, w: 66, h: 78 }, { code: "S5", x: 430, y: 250, w: 66, h: 78 }]);
-    }
-    if (carType === "van9") {
-      zones = zones.concat([
-        { code: "S6", x: 408, y: 90, w: 56, h: 66 }, { code: "S7", x: 408, y: 196, w: 56, h: 66 },
-        { code: "S8", x: 408, y: 304, w: 56, h: 66 }, { code: "S9", x: 500, y: 156, w: 52, h: 154 }
-      ]);
-    }
+    var zones = {
+      sedan5: [
+        { code: "C1", x: 224, y: 170, w: 92, h: 78 }, { code: "C2", x: 356, y: 170, w: 92, h: 78 },
+        { code: "C3", x: 218, y: 306, w: 112, h: 78 }, { code: "C4", x: 342, y: 306, w: 112, h: 78 },
+        { code: "S1", x: 218, y: 92, w: 104, h: 76 }, { code: "S2", x: 350, y: 92, w: 104, h: 76 },
+        { code: "S3", x: 218, y: 386, w: 236, h: 58 }, { code: "A1", x: 324, y: 166, w: 30, h: 214 },
+        { code: "T1", x: 518, y: 126, w: 126, h: 262 }, { code: "SP1", x: 540, y: 398, w: 80, h: 34 }
+      ],
+      suv5: [
+        { code: "C1", x: 220, y: 166, w: 96, h: 82 }, { code: "C2", x: 360, y: 166, w: 96, h: 82 },
+        { code: "C3", x: 212, y: 304, w: 118, h: 82 }, { code: "C4", x: 346, y: 304, w: 118, h: 82 },
+        { code: "S1", x: 214, y: 88, w: 110, h: 78 }, { code: "S2", x: 354, y: 88, w: 110, h: 78 },
+        { code: "S3", x: 214, y: 388, w: 250, h: 60 }, { code: "A1", x: 326, y: 164, w: 32, h: 220 },
+        { code: "T1", x: 520, y: 112, w: 146, h: 292 }, { code: "SP1", x: 550, y: 414, w: 88, h: 34 }
+      ],
+      mpv7: [
+        { code: "C1", x: 172, y: 166, w: 84, h: 76 }, { code: "C2", x: 294, y: 166, w: 84, h: 76 },
+        { code: "C3", x: 170, y: 300, w: 96, h: 82 }, { code: "C4", x: 288, y: 300, w: 96, h: 82 },
+        { code: "S1", x: 168, y: 90, w: 96, h: 74 }, { code: "S2", x: 288, y: 90, w: 96, h: 74 },
+        { code: "S3", x: 166, y: 388, w: 220, h: 58 }, { code: "A1", x: 266, y: 164, w: 26, h: 218 },
+        { code: "S4", x: 456, y: 116, w: 92, h: 86 }, { code: "S5", x: 456, y: 294, w: 92, h: 86 },
+        { code: "T1", x: 598, y: 126, w: 88, h: 256 }, { code: "SP1", x: 612, y: 392, w: 60, h: 34 }
+      ],
+      van9: [
+        { code: "C1", x: 138, y: 162, w: 78, h: 74 }, { code: "C2", x: 242, y: 162, w: 78, h: 74 },
+        { code: "C3", x: 136, y: 294, w: 88, h: 82 }, { code: "C4", x: 236, y: 294, w: 88, h: 82 },
+        { code: "S1", x: 132, y: 88, w: 90, h: 72 }, { code: "S2", x: 236, y: 88, w: 90, h: 72 },
+        { code: "S3", x: 132, y: 386, w: 194, h: 58 }, { code: "A1", x: 222, y: 162, w: 24, h: 214 },
+        { code: "S6", x: 400, y: 82, w: 70, h: 78 }, { code: "S7", x: 400, y: 202, w: 70, h: 78 },
+        { code: "S8", x: 400, y: 322, w: 70, h: 78 }, { code: "S9", x: 522, y: 134, w: 92, h: 212 },
+        { code: "T1", x: 652, y: 142, w: 66, h: 214 }, { code: "SP1", x: 656, y: 366, w: 58, h: 34 }
+      ]
+    }[carType] || [];
     return zones.map(function (zone) {
       return Object.assign({}, zone, { name: CLEAN_ZONE_NAMES[zone.code], price: CLEAN_ZONE_PRICE[zone.code] || 0 });
     });
+  }
+
+  function svgSeat(x, y, w, h, label) {
+    return "<g class=\"car-seat-unit\">" +
+      "<rect x=\"" + x + "\" y=\"" + y + "\" width=\"" + w + "\" height=\"" + h + "\" rx=\"22\" class=\"car-seat-back\"></rect>" +
+      "<rect x=\"" + (x + 8) + "\" y=\"" + (y - 18) + "\" width=\"" + (w - 16) + "\" height=\"28\" rx=\"13\" class=\"car-headrest\"></rect>" +
+      "<path d=\"M" + (x + 12) + " " + (y + 14) + " H" + (x + w - 12) + " M" + (x + 12) + " " + (y + h - 16) + " H" + (x + w - 12) + "\" class=\"car-seat-line\"></path>" +
+      "<text x=\"" + (x + w / 2) + "\" y=\"" + (y + h / 2 + 6) + "\" class=\"car-seat-label\">" + esc(label || "") + "</text>" +
+      "</g>";
+  }
+
+  function svgBench(x, y, w, h, label) {
+    return "<g class=\"car-seat-unit\">" +
+      "<rect x=\"" + x + "\" y=\"" + y + "\" width=\"" + w + "\" height=\"" + h + "\" rx=\"22\" class=\"car-seat-back\"></rect>" +
+      "<path d=\"M" + (x + w / 3) + " " + (y + 7) + " V" + (y + h - 7) + " M" + (x + w * 2 / 3) + " " + (y + 7) + " V" + (y + h - 7) + "\" class=\"car-seat-line\"></path>" +
+      "<text x=\"" + (x + w / 2) + "\" y=\"" + (y + h / 2 + 6) + "\" class=\"car-seat-label\">" + esc(label || "") + "</text>" +
+      "</g>";
+  }
+
+  function svgDoor(x, y, flip) {
+    var d = flip ? "M" + x + " " + y + " C" + (x + 46) + " " + (y - 58) + " " + (x + 98) + " " + (y - 70) + " " + (x + 134) + " " + (y - 48) + " L" + (x + 106) + " " + (y + 18) + " C" + (x + 68) + " " + (y + 8) + " " + (x + 34) + " " + (y + 10) + " " + x + " " + y + "Z"
+      : "M" + x + " " + y + " C" + (x + 46) + " " + (y + 58) + " " + (x + 98) + " " + (y + 70) + " " + (x + 134) + " " + (y + 48) + " L" + (x + 106) + " " + (y - 18) + " C" + (x + 68) + " " + (y - 8) + " " + (x + 34) + " " + (y - 10) + " " + x + " " + y + "Z";
+    return "<path d=\"" + d + "\" class=\"car-door\"></path>";
+  }
+
+  function svgCarInterior(carType, car) {
+    var longBody = carType === "mpv7" || carType === "van9";
+    var shell = longBody
+      ? "M88 116 C130 70 690 70 738 116 L764 168 L752 356 C706 430 132 430 74 356 L62 168 Z"
+      : "M96 116 C144 74 626 76 686 118 L718 172 L704 352 C642 420 142 420 82 352 L72 172 Z";
+    var cabinX = longBody ? 128 : 166;
+    var cabinW = longBody ? 520 : 364;
+    var cargoX = longBody ? 650 : 534;
+    var cargoW = longBody ? 78 : 138;
+    var seats = "";
+    if (carType === "van9") {
+      seats = svgSeat(132, 88, 90, 72, "1") + svgSeat(236, 88, 90, 72, "2") + svgBench(132, 386, 194, 58, "3") +
+        svgSeat(400, 82, 70, 78, "6") + svgSeat(400, 202, 70, 78, "7") + svgSeat(400, 322, 70, 78, "8") + svgBench(522, 134, 92, 212, "9");
+    } else if (carType === "mpv7") {
+      seats = svgSeat(168, 90, 96, 74, "1") + svgSeat(288, 90, 96, 74, "2") + svgBench(166, 388, 220, 58, "3") +
+        svgSeat(456, 116, 92, 86, "4") + svgSeat(456, 294, 92, 86, "5");
+    } else {
+      seats = svgSeat(carType === "suv5" ? 214 : 218, carType === "suv5" ? 88 : 92, carType === "suv5" ? 110 : 104, carType === "suv5" ? 78 : 76, "1") +
+        svgSeat(carType === "suv5" ? 354 : 350, carType === "suv5" ? 88 : 92, carType === "suv5" ? 110 : 104, carType === "suv5" ? 78 : 76, "2") +
+        svgBench(carType === "suv5" ? 214 : 218, carType === "suv5" ? 388 : 386, carType === "suv5" ? 250 : 236, carType === "suv5" ? 60 : 58, "3");
+    }
+    return "<defs><linearGradient id=\"carPaint\" x1=\"0\" x2=\"1\"><stop offset=\"0\" stop-color=\"#f8fdff\"></stop><stop offset=\".5\" stop-color=\"#e4f6ff\"></stop><stop offset=\"1\" stop-color=\"#f9fdff\"></stop></linearGradient></defs>" +
+      "<rect x=\"28\" y=\"38\" width=\"764\" height=\"438\" rx=\"34\" class=\"car-stage\"></rect>" +
+      "<text x=\"58\" y=\"54\" class=\"clean-svg-title\">" + esc(car.name) + "</text>" +
+      "<path d=\"" + shell + "\" class=\"car-shell refined\"></path>" +
+      "<path d=\"M78 180 C118 154 154 142 196 136 L190 382 C146 374 104 358 78 330 Z\" class=\"car-hood refined\"></path>" +
+      "<rect x=\"" + cabinX + "\" y=\"86\" width=\"" + cabinW + "\" height=\"350\" rx=\"46\" class=\"car-cabin refined\"></rect>" +
+      "<rect x=\"" + cargoX + "\" y=\"128\" width=\"" + cargoW + "\" height=\"254\" rx=\"28\" class=\"car-trunk refined\"></rect>" +
+      "<path d=\"M176 122 C270 96 506 96 638 122\" class=\"car-glass\"></path>" +
+      "<path d=\"M176 398 C270 424 506 424 638 398\" class=\"car-glass\"></path>" +
+      svgDoor(228, 104, true) + svgDoor(370, 104, true) + svgDoor(228, 416, false) + svgDoor(370, 416, false) +
+      "<rect x=\"" + (cabinX + 34) + "\" y=\"150\" width=\"" + (cabinW - 68) + "\" height=\"92\" rx=\"24\" class=\"car-floor blue\"></rect>" +
+      "<rect x=\"" + (cabinX + 34) + "\" y=\"288\" width=\"" + (cabinW - 68) + "\" height=\"98\" rx=\"24\" class=\"car-floor green\"></rect>" +
+      (longBody ? "<rect x=\"430\" y=\"112\" width=\"154\" height=\"278\" rx=\"28\" class=\"car-floor rose\"></rect>" : "") +
+      "<path d=\"M" + (cabinX + cabinW / 2) + " 112 V408\" class=\"car-center\"></path>" +
+      "<rect x=\"" + (cargoX + 16) + "\" y=\"150\" width=\"" + Math.max(42, cargoW - 32) + "\" height=\"210\" rx=\"22\" class=\"car-floor cargo\"></rect>" +
+      seats +
+      "<text x=\"" + (cargoX + cargoW / 2) + "\" y=\"260\" class=\"car-zone-label\">T1</text>";
   }
 
   function selectedCleanCodes() {
@@ -199,17 +279,8 @@
       var active = selected.indexOf(zone.code) > -1;
       return "<g class=\"clean-zone-hotspot " + (active ? "is-selected" : "") + "\" data-clean-zone=\"" + esc(zone.code) + "\"><rect x=\"" + zone.x + "\" y=\"" + zone.y + "\" width=\"" + zone.w + "\" height=\"" + zone.h + "\" rx=\"14\"></rect><title>" + esc(zone.name) + " " + money(zone.price) + "</title></g>";
     }).join("");
-    box.innerHTML = "<svg class=\"clean-car-svg\" viewBox=\"0 0 640 500\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
-      "<rect x=\"70\" y=\"52\" width=\"500\" height=\"396\" rx=\"94\" class=\"car-body\"></rect>" +
-      "<path d=\"M95 112 C132 74 498 74 545 112 L562 152 L552 348 C510 416 130 416 88 348 L80 150 Z\" class=\"car-shell\"></path>" +
-      "<path d=\"M92 150 L168 150 L168 350 L92 350\" class=\"car-hood\"></path>" +
-      "<path d=\"M420 118 L554 138 L552 362 L420 382 Z\" class=\"car-trunk\"></path>" +
-      "<rect x=\"188\" y=\"88\" width=\"250\" height=\"318\" rx=\"42\" class=\"car-cabin\"></rect>" +
-      "<rect x=\"178\" y=\"78\" width=\"70\" height=\"88\" rx=\"24\" class=\"car-seat\"></rect><rect x=\"312\" y=\"78\" width=\"70\" height=\"88\" rx=\"24\" class=\"car-seat\"></rect>" +
-      "<rect x=\"178\" y=\"350\" width=\"202\" height=\"54\" rx=\"20\" class=\"car-seat\"></rect>" +
-      (car.seats > 5 ? "<rect x=\"420\" y=\"126\" width=\"78\" height=\"82\" rx=\"22\" class=\"car-seat\"></rect><rect x=\"420\" y=\"250\" width=\"78\" height=\"82\" rx=\"22\" class=\"car-seat\"></rect>" : "") +
-      (car.seats > 7 ? "<rect x=\"404\" y=\"84\" width=\"64\" height=\"76\" rx=\"20\" class=\"car-seat\"></rect><rect x=\"404\" y=\"300\" width=\"64\" height=\"76\" rx=\"20\" class=\"car-seat\"></rect><rect x=\"496\" y=\"158\" width=\"60\" height=\"150\" rx=\"20\" class=\"car-seat\"></rect>" : "") +
-      "<line x1=\"280\" y1=\"108\" x2=\"280\" y2=\"390\" class=\"car-center\"></line><text x=\"84\" y=\"36\" class=\"clean-svg-title\">" + esc(car.name) + "</text>" + zoneRects + "</svg>";
+    box.innerHTML = "<svg class=\"clean-car-svg\" viewBox=\"0 0 820 520\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
+      svgCarInterior(carType, car) + zoneRects + "</svg>";
     renderCleanZoneList();
   }
 

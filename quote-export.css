@@ -715,20 +715,22 @@ body[data-quote-active="1"] .quote-floating-tools {
 .clean-car-svg {
   display: block;
   width: 100%;
-  max-width: 760px;
+  max-width: 860px;
   margin: 0 auto;
   border-radius: 20px;
-  background: #f7fbff;
+  background: linear-gradient(135deg, #f7fbff 0%, #eef8ff 54%, #fbfdff 100%);
+  box-shadow: inset 0 0 0 1px rgba(125, 177, 211, .22);
 }
 
-.car-body {
-  fill: #dff2ff;
+.car-stage {
+  fill: rgba(219, 241, 255, .55);
 }
 
 .car-shell {
-  fill: #ffffff;
+  fill: url(#carPaint);
   stroke: #102033;
-  stroke-width: 6;
+  stroke-width: 5;
+  filter: drop-shadow(0 10px 18px rgba(15, 45, 74, .12));
 }
 
 .car-hood,
@@ -739,10 +741,79 @@ body[data-quote-active="1"] .quote-floating-tools {
   stroke-width: 2;
 }
 
-.car-seat {
+.car-cabin.refined {
+  fill: rgba(230, 248, 255, .76);
+  stroke: #86bddb;
+}
+
+.car-hood.refined {
+  fill: rgba(255, 255, 255, .78);
+}
+
+.car-trunk.refined {
+  fill: rgba(232, 247, 238, .82);
+}
+
+.car-glass {
+  fill: none;
+  stroke: rgba(70, 132, 165, .42);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+
+.car-door {
+  fill: rgba(214, 240, 253, .5);
+  stroke: rgba(81, 139, 172, .46);
+  stroke-width: 2;
+}
+
+.car-floor {
+  stroke: rgba(103, 150, 177, .32);
+  stroke-width: 1.5;
+}
+
+.car-floor.blue {
+  fill: rgba(183, 224, 250, .42);
+}
+
+.car-floor.green {
+  fill: rgba(211, 239, 214, .42);
+}
+
+.car-floor.rose {
+  fill: rgba(244, 223, 226, .42);
+}
+
+.car-floor.cargo {
+  fill: rgba(207, 229, 218, .52);
+}
+
+.car-seat-back,
+.car-headrest {
   fill: #fff7f2;
   stroke: #a8c5d8;
   stroke-width: 2;
+}
+
+.car-seat-line {
+  fill: none;
+  stroke: rgba(115, 145, 165, .42);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.car-seat-label,
+.car-zone-label {
+  fill: #172033;
+  font-size: 18px;
+  font-weight: 900;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.car-zone-label {
+  fill: rgba(28, 65, 91, .65);
+  font-size: 20px;
 }
 
 .car-center {
@@ -758,7 +829,7 @@ body[data-quote-active="1"] .quote-floating-tools {
 }
 
 .clean-zone-hotspot rect {
-  fill: transparent;
+  fill: rgba(255, 255, 255, .02);
   stroke: transparent;
   cursor: pointer;
   transition: fill .16s ease, stroke .16s ease;
