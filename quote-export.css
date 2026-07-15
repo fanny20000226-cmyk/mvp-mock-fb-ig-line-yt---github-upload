@@ -908,6 +908,12 @@ body[data-quote-active="1"] .quote-floating-tools {
   pointer-events: none;
 }
 
+.quote-export-page img,
+.quote-export-page svg,
+.clean-floorplan-image {
+  max-width: 100%;
+}
+
 .clean-type-frame {
   fill: none;
   stroke: rgba(15, 102, 201, .28);
@@ -1295,9 +1301,10 @@ body[data-quote-active="1"] .quote-floating-tools {
   .clean-seat-card img {
     max-height: none;
     aspect-ratio: 1 / .78;
-    object-fit: cover;
-    object-position: center 58%;
+    object-fit: contain;
+    object-position: center;
     margin-top: 10px;
+    background: #fff;
   }
 
   .clean-zone-card #cleanZoneMap {
@@ -1368,7 +1375,11 @@ body[data-quote-active="1"] .quote-floating-tools {
   }
 
   .clean-seat-card img {
-    aspect-ratio: 1 / .9;
+    aspect-ratio: 1 / 1;
+  }
+
+  .quote-export-page img {
+    object-fit: contain !important;
   }
 
   .quote-export-page .topbar {
