@@ -57,6 +57,17 @@
   gap: 10px;
 }
 
+.quote-row-actions .quote-danger-btn {
+  border-color: #e03131;
+  color: #e03131;
+  background: #fff5f5;
+}
+
+.quote-row-actions .quote-danger-btn:hover {
+  background: #e03131;
+  color: #fff;
+}
+
 .quote-top-actions {
   display: flex;
   align-items: center;

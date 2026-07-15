@@ -12,6 +12,7 @@
     pdf: "\u4e0b\u8f09PDF\u5831\u50f9\u55ae",
     image: "\u532f\u51fa\u5716\u7247\u50b3\u9001\u5ba2\u6236",
     convert: "\u8f49\u5de5\u55ae",
+    remove: "\u522a\u9664",
     sourceQuote: "\u67e5\u770b\u539f\u59cb\u5831\u50f9\u55ae",
     back: "\u8fd4\u56de\u4e0a\u4e00\u9801",
     listBack: "\u56de\u5217\u8868",
@@ -426,7 +427,7 @@
     var details = items.map(function (item) {
       return "<li><span>" + esc(item.category) + " / " + esc(item.item_name) + "</span><b>" + money(Number(item.unit_price || 0) * Number(item.qty || 1)) + "</b></li>";
     }).join("");
-    return "<tr class=\"quote-summary-row\"><td>" + esc(q.customer_name) + "<small>" + esc(q.phone || "") + "</small></td><td>" + esc(q.plate) + "<small>" + esc(q.car_model || "") + "</small></td><td>" + esc(quoteCategory(q)) + "</td><td><b>" + money(total(q)) + "</b></td><td><span class=\"quote-status\">" + esc(quoteStatus(q)) + "</span><div class=\"quote-row-actions\"><button data-quote-toggle-detail=\"" + esc(q.quote_id) + "\">\u5c55\u958b\u660e\u7d30</button><button data-quote-detail=\"" + esc(q.quote_id) + "\">" + T.detail + "</button><button data-quote-pdf=\"" + esc(q.quote_id) + "\">PDF</button><button data-quote-img=\"" + esc(q.quote_id) + "\">PNG</button><button data-quote-convert=\"" + esc(q.quote_id) + "\">" + T.convert + "</button></div></td></tr>" +
+    return "<tr class=\"quote-summary-row\"><td>" + esc(q.customer_name) + "<small>" + esc(q.phone || "") + "</small></td><td>" + esc(q.plate) + "<small>" + esc(q.car_model || "") + "</small></td><td>" + esc(quoteCategory(q)) + "</td><td><b>" + money(total(q)) + "</b></td><td><span class=\"quote-status\">" + esc(quoteStatus(q)) + "</span><div class=\"quote-row-actions\"><button data-quote-toggle-detail=\"" + esc(q.quote_id) + "\">\u5c55\u958b\u660e\u7d30</button><button data-quote-detail=\"" + esc(q.quote_id) + "\">" + T.detail + "</button><button data-quote-pdf=\"" + esc(q.quote_id) + "\">PDF</button><button data-quote-img=\"" + esc(q.quote_id) + "\">PNG</button><button data-quote-convert=\"" + esc(q.quote_id) + "\">" + T.convert + "</button><button class=\"quote-danger-btn\" data-quote-delete=\"" + esc(q.quote_id) + "\">" + T.remove + "</button></div></td></tr>" +
       "<tr class=\"quote-detail-row\" data-quote-detail-row=\"" + esc(q.quote_id) + "\" hidden><td colspan=\"5\"><div class=\"quote-detail-panel\"><section><h4>\u7dad\u4fee\u9805\u76ee\u660e\u7d30</h4><ul>" + details + "</ul></section><section><h4>\u5831\u50f9\u5168\u6b77\u7a0b\u8ffd\u6eaf\u65e5\u8a8c</h4><ol>" + quoteTraceLogs(q) + "</ol></section><section><h4>\u5099\u8a3b</h4><p>" + esc(q.remark || T.footer) + "</p></section></div></td></tr>";
   }
 
@@ -593,7 +594,7 @@
   }
 
   function quoteListPage() {
-    var quotes = readDb().quoteEstimates;
+    var quotes = readDb().quoteEstimates.filter(function (q) { return !q.deleted && q.status !== "\u5df2\u522a\u9664"; });
     var stats = quoteStats(quotes);
     var rows = quotes.map(quoteRow).join("") || "<tr><td colspan=\"5\">\u5c1a\u7121\u5831\u50f9\u55ae</td></tr>";
     setMain("\u5831\u50f9", "<section class=\"quote-stat-grid\">" +
@@ -618,6 +619,20 @@
     data.quoteWorkOrders.push({ work_order_id: "WO" + Date.now(), bind_quote_id: q.quote_id, customer_name: q.customer_name, plate: q.plate, status: "\u5f85\u65bd\u5de5" });
     saveDb();
     alert(T.doneWork);
+    quoteListPage();
+  }
+
+  function deleteQuote(id) {
+    var data = readDb();
+    var q = data.quoteEstimates.filter(function (item) { return item.quote_id === id; })[0];
+    if (!q) return alert(T.noQuote);
+    if (!confirm("\u78ba\u5b9a\u8981\u522a\u9664\u9019\u5f35\u5831\u50f9\u55ae\u55ce\uff1f")) return;
+    q.deleted = true;
+    q.status = "\u5df2\u522a\u9664";
+    q.deleted_at = new Date().toISOString();
+    q.trace_logs = q.trace_logs || [];
+    q.trace_logs.push({ action: "\u522a\u9664\u5831\u50f9\u55ae", user: data.currentUser || data.role || "admin", time: q.deleted_at });
+    saveDb();
     quoteListPage();
   }
 
@@ -1033,6 +1048,7 @@
     if (b.getAttribute("data-quote-pdf")) exportPdf(b.getAttribute("data-quote-pdf"));
     if (b.getAttribute("data-quote-img")) exportImage(b.getAttribute("data-quote-img"));
     if (b.getAttribute("data-quote-convert")) convertToWorkOrder(b.getAttribute("data-quote-convert"));
+    if (b.getAttribute("data-quote-delete")) deleteQuote(b.getAttribute("data-quote-delete"));
     if (b.getAttribute("data-quote-toggle-detail")) {
       var row = document.querySelector("[data-quote-detail-row=\"" + b.getAttribute("data-quote-toggle-detail") + "\"]");
       if (row) row.hidden = !row.hidden;
