@@ -280,7 +280,19 @@
     if (quickSelect && quickSelect.value !== carType) quickSelect.value = carType;
     box.innerHTML = "<svg class=\"clean-car-svg clean-photo-svg\" viewBox=\"0 0 1280 1280\" role=\"img\" aria-label=\"" + esc(car.name) + "\">" +
       svgCarInterior(carType, car) + zoneRects + zoneLabels + "</svg>";
+    syncCleanOptionButtons(selected);
     renderCleanZoneList();
+  }
+
+  function syncCleanOptionButtons(selected) {
+    Array.prototype.slice.call(document.querySelectorAll("[data-clean-zone-button]")).forEach(function (button) {
+      button.classList.toggle("is-selected", selected.indexOf(button.getAttribute("data-clean-zone-button")) > -1);
+    });
+    var groups = { G1: ["C1", "C2"], G2: ["C3", "C4"], "ALL-C": ["C1", "C2", "C3", "C4"] };
+    Array.prototype.slice.call(document.querySelectorAll("[data-clean-zone-group]")).forEach(function (button) {
+      var codes = groups[button.getAttribute("data-clean-zone-group")] || [];
+      button.classList.toggle("is-selected", codes.length && codes.every(function (code) { return selected.indexOf(code) > -1; }));
+    });
   }
 
   function renderCleanZoneList() {

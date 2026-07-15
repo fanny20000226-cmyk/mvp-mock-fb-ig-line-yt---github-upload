@@ -1,0 +1,425 @@
+:root {
+  --theme-black: #121212;
+  --theme-bg: #f5f5f5;
+  --theme-card: #ffffff;
+  --theme-gold: #ffc107;
+  --theme-text: #333333;
+  --theme-muted: #666666;
+  --theme-line: #dedede;
+  --theme-shadow: 0 14px 34px rgba(18, 18, 18, .08);
+  --theme-radius: 12px;
+}
+
+* {
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease, opacity .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+
+html,
+body {
+  background: var(--theme-bg) !important;
+  color: var(--theme-text) !important;
+}
+
+body {
+  accent-color: var(--theme-gold);
+}
+
+img {
+  loading: lazy;
+}
+
+.topbar,
+.quote-export-page .topbar {
+  background: var(--theme-black) !important;
+  color: #fff !important;
+  border-bottom: 0 !important;
+  box-shadow: 0 10px 28px rgba(18, 18, 18, .18) !important;
+}
+
+.topbar h1,
+.topbar small,
+.topbar .brand h1,
+.topbar .brand small,
+.quote-export-page .topbar h1,
+.quote-export-page .topbar small {
+  color: #fff !important;
+}
+
+.logo,
+.quote-logo,
+.quote-export-page .logo {
+  background: var(--theme-gold) !important;
+  color: var(--theme-black) !important;
+  box-shadow: none !important;
+}
+
+.page,
+.quote-export-page {
+  background: var(--theme-bg) !important;
+}
+
+.card,
+.stat-card,
+.tool,
+.todo,
+.table-wrap,
+.empty,
+.login-card,
+.module-category-card,
+.module-modal-card,
+.admin-subnav-card,
+.screen-panel,
+.glass-card,
+.quote-export-page .glass-card,
+.quote-paper,
+.quote-stat-card,
+.quote-module-card,
+.quote-list-panel,
+.quote-detail-panel section,
+.quote-modal-card,
+.quote-form-card,
+.clean-zone-card,
+.clean-option-card,
+.clean-range-panel,
+.quote-live-total,
+.menu-card,
+.finance-card,
+.reservation-card {
+  background: var(--theme-card) !important;
+  border: 1px solid var(--theme-line) !important;
+  border-radius: var(--theme-radius) !important;
+  box-shadow: var(--theme-shadow) !important;
+  padding: 16px !important;
+}
+
+.card + .card,
+.glass-card + .glass-card,
+.quote-export-page .glass-card + .glass-card {
+  margin-top: 20px !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+.quote-export-page h1,
+.quote-export-page h2,
+.quote-export-page h3,
+.module-category-head b,
+.tool span,
+.stat-card span,
+.quote-stat-card span {
+  color: var(--theme-black) !important;
+}
+
+p,
+small,
+.muted,
+.quote-export-page p,
+.quote-export-page small,
+.module-category-head em {
+  color: var(--theme-muted) !important;
+}
+
+.stat-card strong,
+.store-today-card strong,
+.price,
+.quote-stat-card strong,
+.quote-payable,
+.quote-payable b,
+#qbFinal,
+#qbSubtotal,
+.quote-live-total b {
+  color: var(--theme-gold) !important;
+  text-shadow: 0 1px 0 rgba(18, 18, 18, .22);
+}
+
+button,
+.quote-export-page button,
+.quote-entry-btn,
+.module-category-actions button,
+.screen-tabs a,
+.screen-workspace-grid button,
+.admin-menu button {
+  min-height: 48px !important;
+  border: 1px solid var(--theme-black) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: var(--theme-black) !important;
+  box-shadow: none !important;
+  font-weight: 900 !important;
+}
+
+button:hover,
+.quote-export-page button:hover,
+.quote-entry-btn:hover,
+.screen-tabs a:hover,
+.admin-menu button:hover {
+  border-color: var(--theme-gold) !important;
+  transform: translateY(-1px);
+}
+
+button.active,
+.bottom-nav button.active,
+.screen-tabs a:focus,
+.screen-tabs a:hover,
+.module-category-card.is-open .module-category-head,
+.module-category-actions button,
+.quote-live-total button,
+[data-create-quote-from-builder],
+[data-add-dropdown-quote-item],
+[data-add-custom-quote-item],
+.quote-modal-card button:first-of-type,
+.todo button,
+.tag.orange,
+.tag.warn {
+  background: var(--theme-gold) !important;
+  color: var(--theme-black) !important;
+  border-color: var(--theme-gold) !important;
+}
+
+.ghost,
+.quote-export-page .ghost-btn,
+.topbar .ghost {
+  background: transparent !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, .55) !important;
+}
+
+input,
+select,
+textarea,
+.quote-field input,
+.quote-field textarea,
+.quote-field select,
+.quote-select-field select,
+.clean-zone-type-select select {
+  background: #fff !important;
+  color: var(--theme-black) !important;
+  border: 1px solid var(--theme-line) !important;
+  border-radius: 8px !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.quote-field input:focus,
+.quote-field textarea:focus,
+.quote-field select:focus {
+  border-color: var(--theme-gold) !important;
+  box-shadow: 0 0 0 4px rgba(255, 193, 7, .18) !important;
+}
+
+.admin-menu {
+  background: var(--theme-black) !important;
+  border-bottom: 0 !important;
+}
+
+.admin-menu button {
+  color: #fff !important;
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, .35) !important;
+}
+
+.admin-menu button.active,
+.admin-menu button[aria-current="page"] {
+  background: var(--theme-gold) !important;
+  color: var(--theme-black) !important;
+}
+
+.bottom-nav {
+  background: var(--theme-black) !important;
+  border-top: 0 !important;
+}
+
+.bottom-nav button {
+  color: #fff !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.bottom-nav button.active,
+.bottom-nav button.active strong {
+  background: var(--theme-gold) !important;
+  color: var(--theme-black) !important;
+}
+
+.tool,
+.tool-grid > button,
+.screen-workspace-grid button {
+  min-height: 104px !important;
+  display: grid !important;
+  place-items: center !important;
+  gap: 8px !important;
+}
+
+.tool strong,
+.tool-grid > button span:first-child,
+.screen-workspace-grid button span,
+.module-category-head span,
+.module-category-actions button span {
+  background: var(--theme-gold) !important;
+  color: var(--theme-black) !important;
+  box-shadow: none !important;
+}
+
+.tag,
+.quote-status,
+.todo .badge {
+  background: rgba(255, 193, 7, .18) !important;
+  color: var(--theme-black) !important;
+  border: 1px solid rgba(255, 193, 7, .55) !important;
+}
+
+th {
+  background: #eeeeee !important;
+  color: var(--theme-black) !important;
+  font-weight: 900 !important;
+}
+
+tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+.clean-option-card button,
+.clean-seat-buttons button,
+[data-clean-zone-button],
+[data-clean-zone-group] {
+  background: #fff !important;
+  color: var(--theme-black) !important;
+  border: 1px solid var(--theme-black) !important;
+  box-shadow: none !important;
+}
+
+.clean-option-card button small,
+.clean-seat-buttons button small {
+  color: var(--theme-muted) !important;
+}
+
+.clean-option-card button.is-selected,
+.clean-seat-buttons button.is-selected,
+[data-clean-zone-button].is-selected,
+[data-clean-zone-group].is-selected {
+  background: var(--theme-gold) !important;
+  color: var(--theme-black) !important;
+  border-color: var(--theme-gold) !important;
+}
+
+.clean-option-card button.is-selected small,
+.clean-seat-buttons button.is-selected small {
+  color: var(--theme-black) !important;
+}
+
+.clean-zone-hotspot rect {
+  fill: rgba(255, 255, 255, .04) !important;
+  stroke: rgba(18, 18, 18, .18) !important;
+}
+
+.clean-zone-hotspot:hover rect {
+  fill: rgba(255, 193, 7, .18) !important;
+  stroke: var(--theme-gold) !important;
+}
+
+.clean-zone-hotspot.is-selected rect {
+  fill: rgba(255, 193, 7, .42) !important;
+  stroke: var(--theme-gold) !important;
+}
+
+.clean-zone-code,
+.car-zone-label {
+  fill: var(--theme-black) !important;
+}
+
+.clean-zone-pill {
+  background: rgba(255, 193, 7, .18) !important;
+  color: var(--theme-black) !important;
+  border: 1px solid rgba(255, 193, 7, .65) !important;
+}
+
+.quote-floating-tools {
+  background: var(--theme-black) !important;
+  border-color: rgba(255, 193, 7, .45) !important;
+}
+
+.quote-floating-tools strong {
+  color: var(--theme-gold) !important;
+}
+
+@media (min-width: 900px) {
+  .module-category-grid,
+  .tool-grid,
+  .screen-workspace-grid {
+    gap: 20px !important;
+  }
+
+  .quote-builder-grid {
+    gap: 20px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    background: var(--theme-bg) !important;
+  }
+
+  .topbar,
+  .quote-export-page .topbar {
+    background: rgba(18, 18, 18, .94) !important;
+  }
+
+  .page,
+  .quote-export-page {
+    padding-inline: 12px !important;
+  }
+
+  .card,
+  .glass-card,
+  .quote-export-page .glass-card,
+  .clean-zone-card,
+  .clean-option-card,
+  .quote-live-total {
+    border-radius: var(--theme-radius) !important;
+    margin-bottom: 20px !important;
+  }
+
+  .tool-grid,
+  .screen-workspace-grid,
+  .module-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .clean-zone-choice-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .clean-zone-toolbar,
+  .clean-seat-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .clean-option-card button,
+  .clean-seat-buttons button {
+    min-height: 58px !important;
+  }
+
+  .bottom-nav {
+    border-radius: 18px 18px 0 0 !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .tool-grid,
+  .screen-workspace-grid,
+  .module-category-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .clean-zone-toolbar,
+  .clean-seat-buttons {
+    grid-template-columns: 1fr !important;
+  }
+}
