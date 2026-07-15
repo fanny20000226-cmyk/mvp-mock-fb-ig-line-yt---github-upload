@@ -137,7 +137,7 @@
     var list = (orders.length ? orders : fallback).slice(0, 5);
     return list.map(function (order) {
       var service = order.planName || plan(order).name;
-      var action = order.id && String(order.id).indexOf("demo-") !== 0 ? " data-open=\"" + esc(order.id) + "\"" : "";
+      var action = order.id && String(order.id).indexOf("demo-") !== 0 ? " data-open=\"" + esc(order.id) + "\"" : " data-go=\"orders\"";
       return "<article class=\"cc-appointment-row\"><div><b>" + esc(order.name || order.plate || "\u5ba2\u6236") + "</b><small>" + esc(order.plate || order.car || "") + "</small></div><span>" + esc(order.store || "\u4e09\u91cd\u9580\u5e02") + "</span><span>" + esc(order.time || "09:30") + "</span><span>" + esc(service) + "</span><button" + action + ">\u64cd\u4f5c</button></article>";
     }).join("");
   }
