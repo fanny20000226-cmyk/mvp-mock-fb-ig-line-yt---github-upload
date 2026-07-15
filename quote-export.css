@@ -1117,12 +1117,34 @@ body[data-quote-active="1"] .quote-floating-tools {
 
 @media (max-width: 760px) {
   .quote-export-page {
-    padding: 16px;
+    padding: 12px;
+    overflow-x: hidden;
   }
 
   .quote-export-page .topbar {
-    margin: -16px -16px 18px;
+    margin: -12px -12px 14px;
     align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .quote-export-page .brand {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .quote-export-page .brand h1 {
+    font-size: 18px;
+  }
+
+  .quote-export-page .brand small {
+    font-size: 12px;
+  }
+
+  .quote-export-page .logo,
+  .quote-logo {
+    width: 38px;
+    height: 38px;
   }
 
   .quote-info {
@@ -1140,9 +1162,31 @@ body[data-quote-active="1"] .quote-floating-tools {
   .quote-form-grid,
   .quote-custom-line,
   .quote-dropdown-add,
-  .clean-zone-choice-grid,
   .quote-eval-fields {
     grid-template-columns: 1fr;
+  }
+
+  .quote-export-page .glass-card,
+  .quote-paper {
+    width: 100%;
+    margin-bottom: 14px;
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .quote-form-card h2,
+  .clean-zone-head h2 {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .quote-field input,
+  .quote-field textarea,
+  .quote-custom-line input,
+  .quote-select-field select,
+  .clean-zone-type-select select {
+    min-height: 50px;
+    font-size: 16px;
   }
 
   .quote-stat-grid,
@@ -1163,20 +1207,27 @@ body[data-quote-active="1"] .quote-floating-tools {
   .quote-export-page button,
   .quote-entry-btn {
     width: 100%;
+    min-height: 50px;
+    border-radius: 15px;
   }
 
   .clean-zone-toolbar {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px 0 14px;
   }
 
   .clean-zone-card {
     padding: 12px;
+    border-radius: 20px;
   }
 
   .clean-photo-svg {
-    width: 760px;
-    max-width: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: auto;
   }
 
   .clean-zone-head-row {
@@ -1184,20 +1235,148 @@ body[data-quote-active="1"] .quote-floating-tools {
     gap: 10px;
   }
 
+  .clean-zone-head p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .clean-zone-choice-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
   .clean-seat-buttons {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .clean-option-card button,
   .clean-seat-buttons button {
-    min-height: 58px;
-    font-size: 14px;
+    min-height: 56px;
+    padding: 8px 6px;
+    font-size: 13px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 12px rgba(15,102,201,.14);
   }
 
   .clean-zone-type-select {
     width: 100%;
     flex: none;
     min-width: 0;
+  }
+
+  .clean-option-card {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .clean-option-card:first-child {
+    order: 2;
+  }
+
+  .clean-seat-card {
+    order: 1;
+  }
+
+  .clean-option-card:nth-child(3) {
+    order: 3;
+  }
+
+  .clean-option-card:not(.clean-seat-card) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .clean-option-card:not(.clean-seat-card) h3 {
+    grid-column: 1 / -1;
+  }
+
+  .clean-seat-card img {
+    max-height: none;
+    aspect-ratio: 1 / .78;
+    object-fit: cover;
+    object-position: center 58%;
+    margin-top: 10px;
+  }
+
+  .clean-zone-card #cleanZoneMap {
+    overflow: hidden;
+    margin: 8px -2px 0;
+  }
+
+  .clean-photo-svg {
+    border-radius: 18px;
+  }
+
+  .clean-type-frame {
+    stroke-width: 0;
+  }
+
+  .clean-svg-title {
+    font-size: 34px;
+  }
+
+  .clean-zone-hotspot rect {
+    stroke-width: 4;
+  }
+
+  .clean-zone-hotspot.is-selected rect {
+    stroke-width: 8;
+  }
+
+  .clean-zone-code {
+    font-size: 28px;
+  }
+
+  .clean-range-panel {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .clean-zone-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .clean-zone-pill {
+    width: 100%;
+    justify-content: center;
+    min-height: 38px;
+  }
+
+  .quote-live-total {
+    position: sticky;
+    bottom: 10px;
+    z-index: 8;
+    border: 1px solid #d8e8f7;
+    box-shadow: 0 14px 34px rgba(15, 45, 74, .14);
+  }
+}
+
+@media (max-width: 430px) {
+  .clean-zone-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .clean-seat-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .clean-option-card:not(.clean-seat-card) {
+    grid-template-columns: 1fr;
+  }
+
+  .clean-seat-card img {
+    aspect-ratio: 1 / .9;
+  }
+
+  .quote-export-page .topbar {
+    flex-direction: column;
+  }
+
+  .quote-top-actions {
+    width: 100%;
   }
 }
 
