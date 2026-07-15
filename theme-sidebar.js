@@ -60,7 +60,8 @@
 
   function view() {
     if (document.body.getAttribute("data-quote-active") === "1") return "quote";
-    return db().view || "home";
+    var currentView = db().view || "home";
+    return currentView === "home" ? "orders" : currentView;
   }
 
   function money(n) {

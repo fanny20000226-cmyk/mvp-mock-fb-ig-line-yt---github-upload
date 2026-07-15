@@ -14,6 +14,18 @@ body.has-carcare-sidebar {
   min-height: 100vh;
 }
 
+body.has-carcare-sidebar #app > .topbar,
+body.has-carcare-sidebar #app > .bottom-nav,
+body.has-carcare-sidebar #app > .admin-menu,
+body.has-carcare-sidebar .bottom-nav,
+body.has-carcare-sidebar .admin-menu {
+  display: none !important;
+}
+
+body.has-carcare-sidebar #app > main.page {
+  padding-top: 16px !important;
+}
+
 .cc-sidebar {
   position: fixed;
   inset: 0 auto 0 0;
