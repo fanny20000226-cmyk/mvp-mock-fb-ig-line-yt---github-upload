@@ -129,23 +129,20 @@
   }
 
   function lineRows(orders) {
-    var fallback = [
-      { id: "demo-1", name: "\u738b\u5148\u751f", store: "\u4e09\u91cd\u9580\u5e02", plate: "ABC-1234", car: "Altis", time: "09:30", planName: "\u5167\u88dd\u6e05\u6f54" },
-      { id: "demo-2", name: "DEF-5678", store: "\u6843\u5712\u9580\u5e02", plate: "DEF-5678", car: "Altis", time: "11:00", planName: "\u6253\u881f\u4fdd\u990a" },
-      { id: "demo-3", name: "\u674e\u5c0f\u59d0", store: "\u65b0\u7af9\u9580\u5e02", plate: "GHI-9012", car: "BMW", time: "14:30", planName: "\u76ae\u9769\u8b77\u7406" }
-    ];
-    var list = (orders.length ? orders : fallback).slice(0, 5);
+    var list = orders.slice(0, 5);
+    if (!list.length) return "<article class=\"cc-empty-row\">\u76ee\u524d\u6c92\u6709\u9810\u7d04\u8cc7\u6599</article>";
     return list.map(function (order) {
       var service = order.planName || plan(order).name;
-      var action = order.id && String(order.id).indexOf("demo-") !== 0 ? " data-open=\"" + esc(order.id) + "\"" : " data-go=\"orders\"";
-      return "<article class=\"cc-appointment-row\"><div><b>" + esc(order.name || order.plate || "\u5ba2\u6236") + "</b><small>" + esc(order.plate || order.car || "") + "</small></div><span>" + esc(order.store || "\u4e09\u91cd\u9580\u5e02") + "</span><span>" + esc(order.time || "09:30") + "</span><span>" + esc(service) + "</span><button" + action + ">\u64cd\u4f5c</button></article>";
+      var action = order.id ? " data-open=\"" + esc(order.id) + "\"" : " data-go=\"orders\"";
+      return "<article class=\"cc-appointment-row\"><div><b>" + esc(order.name || order.plate || "\u5ba2\u6236") + "</b><small>" + esc(order.plate || order.car || "") + "</small></div><span>" + esc(order.store || "\u672a\u6307\u5b9a") + "</span><span>" + esc(order.time || "\u672a\u6307\u5b9a") + "</span><span>" + esc(service || "\u672a\u6307\u5b9a") + "</span><button" + action + ">\u64cd\u4f5c</button></article>";
     }).join("");
   }
 
   function detailCard(title, order) {
+    if (!order) return "";
     var selected = order || {};
-    var service = (selected.planName || (selected.plan ? plan(selected).name : "")) || "\u5167\u88dd\u6e05\u6f54";
-    return "<section class=\"cc-panel\"><h2>" + esc(title) + "</h2><dl class=\"cc-detail-list\"><div><dt>\u8eca\u4e3b</dt><dd>" + esc(selected.name || "\u738b\u5148\u751f") + "</dd></div><div><dt>\u8eca\u724c</dt><dd>" + esc(selected.plate || "DEF-5678") + "</dd></div><div><dt>\u670d\u52d9\u9805\u76ee</dt><dd>" + esc(service) + "</dd></div><div><dt>\u5099\u8a3b</dt><dd>" + esc(selected.note || "\u5230\u5e97\u524d 30 \u5206\u9418\u63d0\u9192\u5ba2\u6236") + "</dd></div></dl><button class=\"cc-primary-action\">\u767c\u9001LINE\u63d0\u9192</button></section>";
+    var service = (selected.planName || (selected.plan ? plan(selected).name : "")) || "\u672a\u6307\u5b9a";
+    return "<section class=\"cc-panel\"><h2>" + esc(title) + "</h2><dl class=\"cc-detail-list\"><div><dt>\u8eca\u4e3b</dt><dd>" + esc(selected.name || "\u672a\u586b\u5beb") + "</dd></div><div><dt>\u8eca\u724c</dt><dd>" + esc(selected.plate || "\u672a\u586b\u5beb") + "</dd></div><div><dt>\u670d\u52d9\u9805\u76ee</dt><dd>" + esc(service || "\u672a\u6307\u5b9a") + "</dd></div><div><dt>\u5099\u8a3b</dt><dd>" + esc(selected.note || "\u7121") + "</dd></div></dl><button class=\"cc-primary-action\">\u767c\u9001LINE\u63d0\u9192</button></section>";
   }
 
   function kpi(label, number) {
@@ -161,18 +158,22 @@
     document.body.classList.add("cc-line-mode");
     if (main.querySelector(".cc-line-dashboard")) return;
     var orders = db().orders || [];
-    var pending = orders.filter(function (order) { return order.status === "\u5f85\u78ba\u8a8d"; }).length || 6;
-    var today = todayOrders().length || 12;
-    var complete = orders.filter(function (order) { return order.status === "\u5df2\u5b8c\u5de5"; }).length || 10;
-    var first = orders[0] || {};
-    var second = orders[1] || {};
+    var pending = orders.filter(function (order) { return order.status === "\u5f85\u78ba\u8a8d"; }).length;
+    var today = todayOrders().length;
+    var complete = orders.filter(function (order) { return order.status === "\u5df2\u5b8c\u5de5"; }).length;
+    var first = orders[0];
+    var second = orders[1];
+    var remind = orders.filter(function (order) { return order.status !== "\u5df2\u5b8c\u5de5" && order.status !== "\u53d6\u6d88"; }).length;
+    var timeline = todayOrders().slice(0, 6).map(function (order) {
+      return "<p><i></i><b>" + esc(order.time || "--:--") + "</b><span>" + esc((order.name || order.plate || "\u5ba2\u6236") + " / " + (order.planName || plan(order).name)) + "</span></p>";
+    }).join("") || "<p class=\"cc-empty-line\">\u4eca\u65e5\u5c1a\u7121\u6392\u7a0b</p>";
     var dashboard = "<section class=\"cc-line-dashboard\">" +
       "<section class=\"cc-overview\"><select aria-label=\"store\"><option>\u6843\u5712\u4e2d\u58e2\u9580\u5e02</option><option>\u4e09\u91cd\u9580\u5e02</option><option>\u65b0\u7af9\u9580\u5e02</option><option>\u53f0\u5357\u9580\u5e02</option></select><h2>\u4eca\u65e5\u71df\u904b\u901f\u89bd</h2><button>\u901a\u77e5\u9801 &gt;</button></section>" +
       "<section class=\"cc-kpi-grid\">" +
-      kpi("\u5168\u90e8\u9810\u7d04", orders.length || 28) + kpi("\u5f85\u78ba\u8a18", pending) + kpi("\u4eca\u65e5\u5230\u5e97", today) + kpi("\u5f85\u63d0\u9192\u727d\u8eca", 10) + kpi("\u4eca\u65e5\u5b8c\u6210", complete) +
+      kpi("\u5168\u90e8\u9810\u7d04", orders.length) + kpi("\u5f85\u78ba\u8a18", pending) + kpi("\u4eca\u65e5\u5230\u5e97", today) + kpi("\u5f85\u63d0\u9192\u727d\u8eca", remind) + kpi("\u4eca\u65e5\u5b8c\u6210", complete) +
       "</section>" +
       "<section class=\"cc-line-columns\"><section class=\"cc-panel cc-list-panel\"><h2>\u9810\u7d04\u5217\u8868</h2><div class=\"cc-list-head\"><span>\u8eca\u4e3b</span><span>\u9580\u5e02</span><span>\u9810\u7d04\u6642\u9593</span><span>\u65bd\u5de5\u9805\u76ee</span><span></span></div>" + lineRows(orders) + "</section>" + detailCard("\u9810\u7d04\u7d30\u7bc0", first) + detailCard("\u9810\u7d04\u7d30\u7bc0", second) + "</section>" +
-      "<section class=\"cc-panel cc-timeline\"><h2>\u4eca\u65e5\u6392\u7a0b\u6642\u9593\u8ef8</h2><div><p><i></i><b>09:30</b><span>\u738b\u5148\u751f / \u5167\u88dd\u6e05\u6f54</span></p><p><i></i><b>11:00</b><span>DEF-5678 / \u6253\u881f\u4fdd\u990a</span></p><p><i></i><b>14:30</b><span>\u674e\u5c0f\u59d0 / \u76ae\u9769\u8b77\u7406</span></p></div></section>" +
+      "<section class=\"cc-panel cc-timeline\"><h2>\u4eca\u65e5\u6392\u7a0b\u6642\u9593\u8ef8</h2><div>" + timeline + "</div></section>" +
       "</section>";
     main.insertAdjacentHTML("afterbegin", dashboard);
   }

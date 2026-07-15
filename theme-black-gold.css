@@ -289,6 +289,16 @@ body.has-carcare-sidebar #app > main.page {
   color: #666 !important;
 }
 
+.cc-empty-row,
+.cc-empty-line {
+  padding: 18px;
+  color: #666;
+  background: #f8f8f8;
+  border: 1px dashed #d8d8d8;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
 .cc-detail-list {
   display: grid;
   gap: 12px;
@@ -363,6 +373,16 @@ body.has-carcare-sidebar #app > main.page {
 
 .cc-timeline span {
   color: #333;
+}
+
+.cc-timeline .cc-empty-line {
+  display: block;
+  margin: 0;
+}
+
+.cc-timeline .cc-empty-line:before,
+.cc-timeline .cc-empty-line i {
+  display: none;
 }
 
 @media (min-width: 1024px) {
