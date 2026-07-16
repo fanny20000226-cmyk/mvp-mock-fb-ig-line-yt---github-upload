@@ -20,19 +20,19 @@ import {
 import { Role, roleLabels, roleMenus } from "@/lib/permissions";
 
 const menu = [
-  { href: "/dashboard", label: "管理總覽", icon: LayoutDashboard },
-  { href: "/operations/cars", label: "客戶車輛", icon: Car },
-  { href: "/operations/services", label: "服務價目", icon: Sparkles },
+  { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
+  { href: "/operations/quotations", label: "預約評估", icon: ClipboardList },
   { href: "/operations/quotations", label: "製作報價單", icon: FileText },
+  { href: "/operations/services", label: "門市服務價格設定", icon: Sparkles },
   { href: "/operations/construction", label: "施工訂單", icon: Hammer },
-  { href: "/annotations", label: "車況圖片標註", icon: Image },
+  { href: "/operations/cars", label: "車輛相簿", icon: Car },
+  { href: "/annotations", label: "圖片標註", icon: Image },
   { href: "/finance/payments", label: "收款核銷", icon: Wallet },
   { href: "/finance/reports", label: "財務報表", icon: BadgeDollarSign },
   { href: "/hr/employees", label: "人員資料", icon: Users },
   { href: "/hr/attendance", label: "出勤打卡", icon: CalendarCheck },
   { href: "/bonus", label: "獎金設定", icon: Gift },
-  { href: "/permissions", label: "權限管理", icon: Shield },
-  { href: "/operations/quotations", label: "預約評估", icon: ClipboardList }
+  { href: "/permissions", label: "系統設定", icon: Shield }
 ];
 
 export default function Sidebar({

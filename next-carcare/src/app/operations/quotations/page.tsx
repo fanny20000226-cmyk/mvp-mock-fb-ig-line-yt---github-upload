@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
-import InteriorQuoteBuilder from "@/components/InteriorQuoteBuilder";
+import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
 import { getCurrentProfile } from "@/lib/auth";
 import { listQuotations, listServiceItems } from "@/lib/db";
@@ -133,6 +133,51 @@ export default function QuotationsPage() {
     load();
   }
 
+  async function createQuotationFromDraft(draft: QuoteDraft) {
+    if (saving) return;
+    const profile = await getCurrentProfile();
+    if (!profile?.shop_id) return alert("找不到門市資料，請重新登入。");
+    const amount = Number(draft.final_amount || 0);
+    if (!draft.customer_name || !draft.plate_no) return alert("請填寫車主姓名與車牌。");
+
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("quotations")
+      .insert({
+        shop_id: profile.shop_id,
+        created_by: profile.id,
+        quote_no: `Q${Date.now()}`,
+        customer_name: draft.customer_name,
+        customer_phone: draft.customer_phone,
+        plate_no: draft.plate_no,
+        total_amount: amount,
+        final_amount: amount,
+        status: "pending",
+        remark: draft.note
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      setSaving(false);
+      return alert(error?.message || "建立報價單失敗。");
+    }
+
+    await supabase.from("quotation_items").insert({
+      shop_id: profile.shop_id,
+      quotation_id: data.id,
+      item_name: draft.custom_item,
+      category: "打翻評估",
+      quantity: 1,
+      unit_price: amount,
+      subtotal: amount
+    });
+
+    setSaving(false);
+    await load();
+    alert("打翻評估報價單已建立。");
+  }
+
   async function updateStatus(row: QuoteRow, status: string) {
     const { error } = await supabase.from("quotations").update({ status }).eq("id", row.id);
     if (error) return alert(error.message);
@@ -141,36 +186,32 @@ export default function QuotationsPage() {
 
   return (
     <RequireAuth>
-      <section className="card" id="quotation-pdf-area">
+      <section className="space-y-5" id="quotation-pdf-area">
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-black text-carcare-yellow">預約評估 / 製作報價單</p>
-            <h1 className="text-2xl font-black">製作報價單</h1>
+            <p className="text-sm font-black text-carcare-yellow">製作報價單</p>
+            <h1 className="text-2xl font-black">打翻評估報價單</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              選擇後台價目項目或輸入自訂服務，系統會建立報價單並保留紀錄。
+              手動建立現場評估報價，所有客戶資料由現場人員填寫。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={createQuotation} disabled={saving} className="primary-btn">
-              {saving ? "建立中..." : "新增報價單"}
+              {saving ? "建立中..." : "手動新增報價"}
             </button>
             <PdfExportButton targetId="quotation-pdf-area" filename="報價單.pdf" />
           </div>
         </div>
 
         <InteriorQuoteBuilder
-          onApply={(draft) =>
-            setForm((current) => ({
-              ...current,
-              service_id: "",
-              custom_item: draft.custom_item,
-              final_amount: draft.final_amount,
-              note: draft.note
-            }))
-          }
+          onGenerate={createQuotationFromDraft}
         />
 
-        <div className="mb-5 grid gap-3 md:grid-cols-3">
+        <div className="card grid gap-3 md:grid-cols-3">
+          <div className="md:col-span-3">
+            <p className="text-sm font-black text-carcare-yellow">手動補充</p>
+            <h2 className="text-xl font-black">一般報價欄位</h2>
+          </div>
           <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
           <input className="form-input" placeholder="聯絡電話" value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
           <input className="form-input" placeholder="車牌號碼" value={form.plate_no} onChange={(e) => setForm({ ...form, plate_no: e.target.value })} />
@@ -187,7 +228,8 @@ export default function QuotationsPage() {
           <textarea className="form-input md:col-span-3" placeholder="備註，例如車況、客戶需求、優惠內容" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </div>
 
-        <div className="table-wrap">
+        <div className="card table-wrap">
+          <h2 className="mb-4 text-xl font-black">歷史報價紀錄</h2>
           <table className="data-table">
             <thead>
               <tr>
