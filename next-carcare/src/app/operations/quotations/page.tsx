@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
@@ -18,6 +18,15 @@ type QuoteRow = {
   final_amount: number;
   status: string;
   created_at: string;
+};
+
+type QuoteItemRow = {
+  id: string;
+  item_name: string;
+  category: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  subtotal: number | null;
 };
 
 type ServiceRow = {
@@ -38,6 +47,8 @@ const statusText: Record<string, string> = {
 export default function QuotationsPage() {
   const [rows, setRows] = useState<QuoteRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
+  const [expandedId, setExpandedId] = useState("");
+  const [quoteItems, setQuoteItems] = useState<Record<string, QuoteItemRow[]>>({});
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     customer_name: "",
@@ -61,6 +72,22 @@ export default function QuotationsPage() {
     ]);
     setRows((quoteData || []) as QuoteRow[]);
     setServices(((serviceData || []) as ServiceRow[]).filter((item) => item.active));
+  }
+
+  async function loadQuoteItems(quoteId: string) {
+    if (quoteItems[quoteId]) return;
+    const { data, error } = await supabase
+      .from("quotation_items")
+      .select("id, item_name, category, quantity, unit_price, subtotal")
+      .eq("quotation_id", quoteId);
+    if (error) return alert(error.message);
+    setQuoteItems((current) => ({ ...current, [quoteId]: (data || []) as QuoteItemRow[] }));
+  }
+
+  async function toggleDetail(row: QuoteRow) {
+    const nextId = expandedId === row.id ? "" : row.id;
+    setExpandedId(nextId);
+    if (nextId) await loadQuoteItems(row.id);
   }
 
   useEffect(() => {
@@ -184,6 +211,75 @@ export default function QuotationsPage() {
     load();
   }
 
+  async function ensureCar(profileShopId: string, row: QuoteRow) {
+    if (!row.plate_no) return null;
+    const { data: existing } = await supabase
+      .from("cars")
+      .select("id")
+      .eq("shop_id", profileShopId)
+      .eq("plate_no", row.plate_no)
+      .limit(1);
+    const id = existing?.[0]?.id as string | undefined;
+    if (id) return id;
+
+    const { data, error } = await supabase
+      .from("cars")
+      .insert({
+        shop_id: profileShopId,
+        customer_name: row.customer_name || "未命名客戶",
+        customer_phone: row.customer_phone || "",
+        plate_no: row.plate_no,
+        brand: "",
+        model: "",
+        updated_at: new Date().toISOString()
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw error || new Error("建立車輛資料失敗");
+    return data.id as string;
+  }
+
+  async function convertToOrder(row: QuoteRow) {
+    if (saving) return;
+    if (row.status === "converted") return alert("這張報價單已經轉成施工單。");
+    const ok = window.confirm(`確定要將 ${row.quote_no} 轉成施工單嗎？`);
+    if (!ok) return;
+
+    const profile = await getCurrentProfile();
+    if (!profile?.shop_id) return alert("找不到門市資料，請重新登入。");
+
+    setSaving(true);
+    try {
+      const carId = await ensureCar(profile.shop_id, row);
+      const amount = Number(row.final_amount || row.total_amount || 0);
+      const { error: orderError } = await supabase.from("construction_orders").insert({
+        shop_id: profile.shop_id,
+        car_id: carId,
+        quotation_id: row.id,
+        order_no: `W${Date.now()}`,
+        status: "pending",
+        total_amount: amount,
+        paid_amount: 0,
+        remark: `由報價單 ${row.quote_no} 轉入`,
+        created_by: profile.id
+      });
+      if (orderError) throw orderError;
+
+      const { error: quoteError } = await supabase
+        .from("quotations")
+        .update({ status: "converted" })
+        .eq("id", row.id);
+      if (quoteError) throw quoteError;
+
+      await load();
+      alert("已轉成施工單，可到訂單管理或施工訂單查看。");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "轉施工單失敗。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <RequireAuth>
       <section className="space-y-5" id="quotation-pdf-area">
@@ -244,26 +340,87 @@ export default function QuotationsPage() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.quote_no}</td>
-                  <td>{row.customer_name || "-"}</td>
-                  <td>{row.customer_phone || "-"}</td>
-                  <td>{row.plate_no || "-"}</td>
-                  <td>${Number(row.final_amount || row.total_amount || 0).toLocaleString()}</td>
-                  <td>{statusText[row.status] || row.status}</td>
-                  <td>
-                    <select
-                      className="form-input min-w-36"
-                      value={row.status}
-                      onChange={(e) => updateStatus(row, e.target.value)}
-                    >
-                      <option value="pending">待客戶確認</option>
-                      <option value="confirmed">已確認</option>
-                      <option value="converted">已轉工單</option>
-                      <option value="void">作廢</option>
-                    </select>
-                  </td>
-                </tr>
+                <Fragment key={row.id}>
+                  <tr>
+                    <td>{row.quote_no}</td>
+                    <td>{row.customer_name || "-"}</td>
+                    <td>{row.customer_phone || "-"}</td>
+                    <td>{row.plate_no || "-"}</td>
+                    <td>${Number(row.final_amount || row.total_amount || 0).toLocaleString()}</td>
+                    <td>{statusText[row.status] || row.status}</td>
+                    <td>
+                      <div className="flex min-w-72 flex-wrap gap-2">
+                        <select
+                          className="form-input min-w-36"
+                          value={row.status}
+                          onChange={(e) => updateStatus(row, e.target.value)}
+                        >
+                          <option value="pending">待客戶確認</option>
+                          <option value="confirmed">已確認</option>
+                          <option value="converted">已轉工單</option>
+                          <option value="void">作廢</option>
+                        </select>
+                        <button type="button" className="secondary-btn" onClick={() => toggleDetail(row)}>
+                          {expandedId === row.id ? "收合明細" : "展開明細"}
+                        </button>
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          disabled={saving || row.status === "converted"}
+                          onClick={() => convertToOrder(row)}
+                        >
+                          轉施工單
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {expandedId === row.id ? (
+                    <tr key={`${row.id}-detail`}>
+                      <td colSpan={7}>
+                        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                          <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="text-sm font-black text-carcare-yellow">報價明細</p>
+                              <h3 className="text-lg font-black text-neutral-900">{row.quote_no}</h3>
+                            </div>
+                            <PdfExportButton targetId="quotation-pdf-area" filename={`${row.quote_no || "報價單"}.pdf`} />
+                          </div>
+                          <div className="table-wrap">
+                            <table className="data-table">
+                              <thead>
+                                <tr>
+                                  <th>項目</th>
+                                  <th>分類</th>
+                                  <th>數量</th>
+                                  <th>單價</th>
+                                  <th>小計</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(quoteItems[row.id] || []).map((item) => (
+                                  <tr key={item.id}>
+                                    <td>{item.item_name}</td>
+                                    <td>{item.category || "-"}</td>
+                                    <td>{Number(item.quantity || 0)}</td>
+                                    <td>${Number(item.unit_price || 0).toLocaleString()}</td>
+                                    <td>${Number(item.subtotal || 0).toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                                {!quoteItems[row.id]?.length ? (
+                                  <tr>
+                                    <td colSpan={5} className="text-center text-neutral-500">
+                                      目前沒有明細資料
+                                    </td>
+                                  </tr>
+                                ) : null}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))}
               {!rows.length ? (
                 <tr>
