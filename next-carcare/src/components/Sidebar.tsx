@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BadgeDollarSign,
   CalendarCheck,
+  CalendarX,
   Car,
   ClipboardList,
   ClipboardPaste,
@@ -27,6 +28,7 @@ const menu = [
   { href: "/operations/evaluation", label: "預約評估", icon: ClipboardList },
   { href: "/operations/quotations", label: "製作報價單", icon: FileText },
   { href: "/operations/orders", label: "訂單管理", icon: ListChecks },
+  { href: "/operations/cancellations", label: "取消 / 改期", icon: CalendarX },
   { href: "/operations/services", label: "門市服務價格設定", icon: Sparkles },
   { href: "/operations/construction", label: "施工訂單", icon: Hammer },
   { href: "/operations/cars", label: "車輛相簿", icon: Car },

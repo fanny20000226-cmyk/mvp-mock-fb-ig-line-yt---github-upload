@@ -21,6 +21,7 @@ const quickLinks = [
   { href: "/operations/services", title: "服務價目", desc: "管理套餐、加購、贈送、外包與備註項目" },
   { href: "/operations/quotations", title: "製作報價單", desc: "建立報價、產生 PDF、轉施工單" },
   { href: "/operations/orders", title: "訂單管理", desc: "查看、篩選、改狀態與取消訂單" },
+  { href: "/operations/cancellations", title: "取消 / 改期", desc: "審核取消申請與改期紀錄" },
   { href: "/operations/construction", title: "施工訂單", desc: "追蹤待施工、施工中、完工狀態" },
   { href: "/annotations", title: "車況圖片標註", desc: "上傳照片並圈選施工區域" },
   { href: "/finance/payments", title: "收款核銷", desc: "登記現金、匯款、刷卡與訂金" },
