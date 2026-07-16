@@ -141,7 +141,26 @@ export default function Sidebar({
         {visibleGroups.map((group) => {
           const GroupIcon = group.icon;
           const groupActive = group.items.some((item) => pathname.startsWith(item.href));
+          const singleItem = group.items.length === 1 && group.items[0].label === group.label;
           const groupOpen = expanded === group.label || groupActive;
+          if (singleItem) {
+            const item = group.items[0];
+            return (
+              <Link
+                key={group.label}
+                href={item.href}
+                onClick={onClose}
+                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-black transition duration-200 ${
+                  groupActive
+                    ? "bg-carcare-yellow text-carcare-black"
+                    : "text-white hover:bg-white/10 hover:ring-1 hover:ring-carcare-yellow"
+                }`}
+              >
+                <GroupIcon size={18} />
+                {group.label}
+              </Link>
+            );
+          }
           return (
             <div key={group.label}>
               <button
