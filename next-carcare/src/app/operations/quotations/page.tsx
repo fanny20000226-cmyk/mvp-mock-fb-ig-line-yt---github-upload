@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import InteriorQuoteBuilder from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
 import { getCurrentProfile } from "@/lib/auth";
 import { listQuotations, listServiceItems } from "@/lib/db";
@@ -156,6 +157,18 @@ export default function QuotationsPage() {
             <PdfExportButton targetId="quotation-pdf-area" filename="報價單.pdf" />
           </div>
         </div>
+
+        <InteriorQuoteBuilder
+          onApply={(draft) =>
+            setForm((current) => ({
+              ...current,
+              service_id: "",
+              custom_item: draft.custom_item,
+              final_amount: draft.final_amount,
+              note: draft.note
+            }))
+          }
+        />
 
         <div className="mb-5 grid gap-3 md:grid-cols-3">
           <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />

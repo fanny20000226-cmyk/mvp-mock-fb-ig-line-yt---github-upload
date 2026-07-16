@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import CarAlbumUploader from "@/components/CarAlbumUploader";
 import { getCurrentProfile } from "@/lib/auth";
 import { listCars } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
@@ -82,6 +83,7 @@ export default function CarsPage() {
             新增客戶車輛
           </button>
         </div>
+        <CarAlbumUploader cars={rows} />
         <div className="mb-5 grid gap-3 md:grid-cols-4">
           <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
           <input className="form-input" placeholder="聯絡電話" value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />

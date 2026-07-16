@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import ConstructionOrderCreator from "@/components/ConstructionOrderCreator";
 import { listConstructionOrders } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
@@ -59,6 +60,7 @@ export default function ConstructionPage() {
             管理待確認、施工中、已完工與取消訂單。
           </p>
         </div>
+        <ConstructionOrderCreator onCreated={load} />
         <div className="table-wrap">
           <table className="data-table">
             <thead>
