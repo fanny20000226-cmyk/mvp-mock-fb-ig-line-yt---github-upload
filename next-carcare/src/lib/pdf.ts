@@ -16,9 +16,21 @@ export async function exportElementToPdf(elementId: string, filename: string) {
   const image = canvas.toDataURL("image/png");
   const pdf = new jsPDF("p", "mm", "a4");
   const pageWidth = 210;
-  const pageHeight = (canvas.height * pageWidth) / canvas.width;
+  const pageHeight = 297;
+  const imageHeight = (canvas.height * pageWidth) / canvas.width;
 
-  pdf.addImage(image, "PNG", 0, 0, pageWidth, pageHeight);
+  let remainingHeight = imageHeight;
+  let imageTop = 0;
+
+  pdf.addImage(image, "PNG", 0, imageTop, pageWidth, imageHeight);
+  remainingHeight -= pageHeight;
+
+  while (remainingHeight > 0) {
+    imageTop -= pageHeight;
+    pdf.addPage();
+    pdf.addImage(image, "PNG", 0, imageTop, pageWidth, imageHeight);
+    remainingHeight -= pageHeight;
+  }
+
   pdf.save(filename);
 }
-
