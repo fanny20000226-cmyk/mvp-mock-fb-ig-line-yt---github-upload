@@ -19,7 +19,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      alert("登入失敗，請確認帳號密碼");
+      alert("登入失敗，請確認帳號或密碼。");
       return;
     }
 
@@ -35,6 +35,9 @@ export default function LoginPage() {
           <h1 className="mt-2 text-3xl font-black text-carcare-black">
             登入管理後台
           </h1>
+          <p className="mt-2 text-sm text-neutral-500">
+            請使用管理員或員工帳號登入。
+          </p>
         </div>
 
         <label className="mb-4 block">

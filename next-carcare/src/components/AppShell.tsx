@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Sidebar from "./Sidebar";
@@ -55,4 +55,3 @@ export default function AppShell({
     </div>
   );
 }
-

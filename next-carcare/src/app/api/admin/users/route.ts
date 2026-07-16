@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const token = authHeader.replace("Bearer ", "");
 
   if (!token) {
-    return NextResponse.json({ message: "未登入" }, { status: 401 });
+    return NextResponse.json({ message: "缺少登入權杖" }, { status: 401 });
   }
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const currentUserId = authUser.user?.id;
 
   if (!currentUserId) {
-    return NextResponse.json({ message: "登入已失效" }, { status: 401 });
+    return NextResponse.json({ message: "登入狀態失效" }, { status: 401 });
   }
 
   const { data: currentProfile } = await userClient

@@ -21,6 +21,13 @@ export async function listConstructionOrders() {
     .order("created_at", { ascending: false });
 }
 
+export async function listServiceItems() {
+  return supabase
+    .from("service_items")
+    .select("id, name, category, base_price, description, active, updated_at")
+    .order("updated_at", { ascending: false });
+}
+
 export async function listPayments() {
   return supabase
     .from("payment")
@@ -41,4 +48,3 @@ export async function listAttendance() {
     .select("id, work_date, clock_in_at, clock_out_at, is_late, is_early_leave, employees(name)")
     .order("work_date", { ascending: false });
 }
-

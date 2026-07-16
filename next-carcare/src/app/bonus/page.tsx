@@ -27,16 +27,19 @@ export default function BonusPage() {
   return (
     <RequireAuth>
       <section className="card">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-2xl font-black">獎金設定與月度獎金</h1>
-          <button className="primary-btn">計算本月獎金</button>
+        <div className="mb-5">
+          <p className="text-sm font-black text-carcare-yellow">獎金管理</p>
+          <h1 className="text-2xl font-black">員工月度獎金</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            後續可依施工單與門店比例自動產生獎金明細。
+          </p>
         </div>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
                 <th>月份</th>
-                <th>基礎金額</th>
+                <th>計算基礎</th>
                 <th>比例</th>
                 <th>獎金</th>
                 <th>狀態</th>
@@ -52,6 +55,13 @@ export default function BonusPage() {
                   <td>{row.status}</td>
                 </tr>
               ))}
+              {!rows.length ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-neutral-500">
+                    尚未有獎金紀錄。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -59,4 +69,3 @@ export default function BonusPage() {
     </RequireAuth>
   );
 }
-

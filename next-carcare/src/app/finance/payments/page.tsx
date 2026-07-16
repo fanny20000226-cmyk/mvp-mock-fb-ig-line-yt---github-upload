@@ -16,6 +16,8 @@ type PaymentRow = {
   remark: string | null;
 };
 
+const payTypes = ["現金", "匯款", "刷卡", "訂金", "對公轉帳", "掛帳"];
+
 export default function PaymentsPage() {
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [form, setForm] = useState({ pay_type: "現金", amount: "", remark: "" });
@@ -31,7 +33,9 @@ export default function PaymentsPage() {
 
   async function createPayment() {
     const profile = await getCurrentProfile();
-    if (!profile?.shop_id) return alert("請先綁定門店");
+    if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
+    if (!form.amount) return alert("請輸入收款金額。");
+
     const { error } = await supabase.from("payment").insert({
       shop_id: profile.shop_id,
       payment_no: `P${Date.now()}`,
@@ -49,28 +53,30 @@ export default function PaymentsPage() {
   return (
     <RequireAuth>
       <section className="card">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-2xl font-black">收款登記與核銷</h1>
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-black text-carcare-yellow">財務管理</p>
+            <h1 className="text-2xl font-black">收款核銷</h1>
+          </div>
           <button onClick={createPayment} className="primary-btn">新增收款</button>
         </div>
         <div className="mb-5 grid gap-3 md:grid-cols-3">
           <select className="form-input" value={form.pay_type} onChange={(e) => setForm({ ...form, pay_type: e.target.value })}>
-            <option>現金</option>
-            <option>匯款</option>
-            <option>刷卡</option>
-            <option>訂金</option>
+            {payTypes.map((type) => (
+              <option key={type}>{type}</option>
+            ))}
           </select>
           <input className="form-input" placeholder="金額" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-          <input className="form-input" placeholder="備註" value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} />
+          <input className="form-input" placeholder="備註，例如：訂金、尾款、補款" value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} />
         </div>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
                 <th>流水號</th>
-                <th>付款方式</th>
+                <th>收款方式</th>
                 <th>金額</th>
-                <th>時間</th>
+                <th>收款時間</th>
                 <th>狀態</th>
                 <th>備註</th>
               </tr>
@@ -82,10 +88,17 @@ export default function PaymentsPage() {
                   <td>{row.pay_type}</td>
                   <td>${Number(row.amount || 0).toLocaleString()}</td>
                   <td>{row.paid_at}</td>
-                  <td>{row.check_status}</td>
+                  <td>{row.check_status === "pending" ? "待核銷" : row.check_status}</td>
                   <td>{row.remark || "-"}</td>
                 </tr>
               ))}
+              {!rows.length ? (
+                <tr>
+                  <td colSpan={6} className="text-center text-neutral-500">
+                    尚未建立收款紀錄。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

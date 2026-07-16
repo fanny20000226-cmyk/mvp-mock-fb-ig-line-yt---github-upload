@@ -16,18 +16,19 @@ export type UserProfile = {
 };
 
 export const roleLabels: Record<Role, string> = {
-  admin: "總管理",
+  admin: "總管理員",
   finance: "財務",
   hr: "人資",
   shop_manager: "店長",
   vice_manager: "副店長",
-  worker: "施工員"
+  worker: "施工人員"
 };
 
 export const roleMenus: Record<Role, string[]> = {
   admin: [
     "/dashboard",
     "/operations/cars",
+    "/operations/services",
     "/operations/quotations",
     "/operations/construction",
     "/annotations",
@@ -43,6 +44,7 @@ export const roleMenus: Record<Role, string[]> = {
   shop_manager: [
     "/dashboard",
     "/operations/cars",
+    "/operations/services",
     "/operations/quotations",
     "/operations/construction",
     "/annotations",
@@ -54,6 +56,7 @@ export const roleMenus: Record<Role, string[]> = {
   vice_manager: [
     "/dashboard",
     "/operations/cars",
+    "/operations/services",
     "/operations/quotations",
     "/operations/construction",
     "/annotations",
@@ -68,4 +71,3 @@ export const roleMenus: Record<Role, string[]> = {
 export function canAccess(role: Role, path: string) {
   return roleMenus[role]?.some((item) => path.startsWith(item));
 }
-

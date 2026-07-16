@@ -40,8 +40,8 @@ export default function CarsPage() {
 
   async function createCar() {
     const profile = await getCurrentProfile();
-    if (!profile?.shop_id) return alert("請先綁定門店");
-    if (!form.customer_name || !form.plate_no) return alert("請填客戶與車牌");
+    if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
+    if (!form.customer_name || !form.plate_no) return alert("請輸入客戶姓名與車牌。");
 
     const { error } = await supabase.from("cars").insert({
       shop_id: profile.shop_id,
@@ -70,21 +70,26 @@ export default function CarsPage() {
   return (
     <RequireAuth>
       <section className="card">
-        <div className="mb-5 flex items-center justify-between">
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-black text-carcare-yellow">營運模組</p>
-            <h1 className="text-2xl font-black">車輛客戶管理</h1>
+            <p className="text-sm font-black text-carcare-yellow">客戶資料庫</p>
+            <h1 className="text-2xl font-black">客戶車輛管理</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              建立客戶、車牌、車型，後續可串接報價與施工單。
+            </p>
           </div>
-          <button onClick={createCar} className="primary-btn">新增車輛</button>
+          <button onClick={createCar} className="primary-btn">
+            新增客戶車輛
+          </button>
         </div>
         <div className="mb-5 grid gap-3 md:grid-cols-4">
           <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
-          <input className="form-input" placeholder="電話" value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+          <input className="form-input" placeholder="聯絡電話" value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
           <input className="form-input" placeholder="車牌" value={form.plate_no} onChange={(e) => setForm({ ...form, plate_no: e.target.value })} />
-          <input className="form-input" placeholder="品牌" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
-          <input className="form-input" placeholder="車型" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+          <input className="form-input" placeholder="品牌，例如 Tesla" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+          <input className="form-input" placeholder="車型，例如 Model Y" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
           <input className="form-input" placeholder="年份" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
-          <input className="form-input" placeholder="顏色" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+          <input className="form-input" placeholder="車色" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
         </div>
         <div className="table-wrap">
           <table className="data-table">
@@ -95,7 +100,7 @@ export default function CarsPage() {
                 <th>車牌</th>
                 <th>車型</th>
                 <th>年份</th>
-                <th>顏色</th>
+                <th>車色</th>
               </tr>
             </thead>
             <tbody>
@@ -109,6 +114,13 @@ export default function CarsPage() {
                   <td>{row.color || "-"}</td>
                 </tr>
               ))}
+              {!rows.length ? (
+                <tr>
+                  <td colSpan={6} className="text-center text-neutral-500">
+                    尚未建立客戶車輛。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

@@ -29,13 +29,13 @@ export default function AttendancePage() {
 
   async function clockIn() {
     const profile = await getCurrentProfile();
-    if (!profile?.shop_id) return alert("請先綁定門店");
+    if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
     const { data: employee } = await supabase
       .from("employees")
       .select("id")
       .eq("user_id", profile.id)
       .single();
-    if (!employee) return alert("找不到員工資料");
+    if (!employee) return alert("目前帳號尚未綁定員工資料，請先到人員資料建立或綁定。");
     const { error } = await supabase.from("attendance").insert({
       shop_id: profile.shop_id,
       employee_id: employee.id,
@@ -51,8 +51,11 @@ export default function AttendancePage() {
   return (
     <RequireAuth>
       <section className="card">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-2xl font-black">考勤紀錄</h1>
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-black text-carcare-yellow">人資管理</p>
+            <h1 className="text-2xl font-black">出勤打卡</h1>
+          </div>
           <button onClick={clockIn} className="primary-btn">上班打卡</button>
         </div>
         <div className="table-wrap">
@@ -60,8 +63,8 @@ export default function AttendancePage() {
             <thead>
               <tr>
                 <th>日期</th>
-                <th>上班</th>
-                <th>下班</th>
+                <th>上班時間</th>
+                <th>下班時間</th>
                 <th>遲到</th>
                 <th>早退</th>
               </tr>
@@ -76,6 +79,13 @@ export default function AttendancePage() {
                   <td>{row.is_early_leave ? "是" : "否"}</td>
                 </tr>
               ))}
+              {!rows.length ? (
+                <tr>
+                  <td colSpan={5} className="text-center text-neutral-500">
+                    尚未有打卡紀錄。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

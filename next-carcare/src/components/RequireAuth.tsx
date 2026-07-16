@@ -39,4 +39,3 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   return <AppShell profile={profile}>{children}</AppShell>;
 }
-

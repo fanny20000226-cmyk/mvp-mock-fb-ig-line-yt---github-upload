@@ -37,8 +37,8 @@ export default function EmployeesPage() {
 
   async function createEmployee() {
     const profile = await getCurrentProfile();
-    if (!profile?.shop_id) return alert("請先綁定門店");
-    if (!form.name) return alert("請填姓名");
+    if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
+    if (!form.name) return alert("請輸入姓名。");
     const { error } = await supabase.from("employees").insert({
       shop_id: profile.shop_id,
       ...form,
@@ -52,26 +52,29 @@ export default function EmployeesPage() {
   return (
     <RequireAuth>
       <section className="card">
-        <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-2xl font-black">員工資料</h1>
-          <button onClick={createEmployee} className="primary-btn">新增員工</button>
+        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-black text-carcare-yellow">人資管理</p>
+            <h1 className="text-2xl font-black">人員資料</h1>
+          </div>
+          <button onClick={createEmployee} className="primary-btn">新增人員</button>
         </div>
         <div className="mb-5 grid gap-3 md:grid-cols-5">
-          <input className="form-input" placeholder="員編" value={form.employee_no} onChange={(e) => setForm({ ...form, employee_no: e.target.value })} />
+          <input className="form-input" placeholder="員工編號" value={form.employee_no} onChange={(e) => setForm({ ...form, employee_no: e.target.value })} />
           <input className="form-input" placeholder="姓名" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="form-input" placeholder="電話" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           <input className="form-input" placeholder="部門" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-          <input className="form-input" placeholder="職位" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
+          <input className="form-input" placeholder="職稱" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
         </div>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
-                <th>員編</th>
+                <th>員工編號</th>
                 <th>姓名</th>
                 <th>電話</th>
                 <th>部門</th>
-                <th>職位</th>
+                <th>職稱</th>
                 <th>狀態</th>
               </tr>
             </thead>
@@ -83,9 +86,16 @@ export default function EmployeesPage() {
                   <td>{row.phone || "-"}</td>
                   <td>{row.department || "-"}</td>
                   <td>{row.position || "-"}</td>
-                  <td>{row.active ? "在職" : "停用"}</td>
+                  <td>{row.active ? "啟用" : "停用"}</td>
                 </tr>
               ))}
+              {!rows.length ? (
+                <tr>
+                  <td colSpan={6} className="text-center text-neutral-500">
+                    尚未建立人員資料。
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
