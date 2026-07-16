@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import ConstructionOrderCreator from "@/components/ConstructionOrderCreator";
+import PdfExportButton from "@/components/PdfExportButton";
 import { listConstructionOrders } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
@@ -14,9 +15,19 @@ type OrderRow = {
   finish_at: string | null;
   total_amount: number;
   paid_amount: number;
+  remark?: string | null;
   cars?: {
     customer_name?: string | null;
+    customer_phone?: string | null;
     plate_no?: string | null;
+    brand?: string | null;
+    model?: string | null;
+    year?: string | null;
+  } | null;
+  quotations?: {
+    quote_no?: string | null;
+    final_amount?: number | null;
+    status?: string | null;
   } | null;
 };
 
@@ -30,6 +41,7 @@ const statusText: Record<string, string> = {
 
 export default function ConstructionPage() {
   const [rows, setRows] = useState<OrderRow[]>([]);
+  const [expandedId, setExpandedId] = useState("");
 
   async function load() {
     const { data } = await listConstructionOrders();
@@ -50,6 +62,14 @@ export default function ConstructionPage() {
     load();
   }
 
+  function carName(row: OrderRow) {
+    return [row.cars?.brand, row.cars?.model, row.cars?.year].filter(Boolean).join(" ") || "-";
+  }
+
+  function balance(row: OrderRow) {
+    return Number(row.total_amount || 0) - Number(row.paid_amount || 0);
+  }
+
   return (
     <RequireAuth>
       <section className="card">
@@ -61,7 +81,32 @@ export default function ConstructionPage() {
           </p>
         </div>
         <ConstructionOrderCreator onCreated={load} />
-        <div className="table-wrap">
+        <div className="mt-5 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+            <p className="text-sm text-neutral-500">全部施工單</p>
+            <p className="mt-2 text-3xl font-black text-carcare-yellow">{rows.length}</p>
+          </div>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+            <p className="text-sm text-neutral-500">施工中</p>
+            <p className="mt-2 text-3xl font-black text-carcare-yellow">
+              {rows.filter((row) => row.status === "working").length}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+            <p className="text-sm text-neutral-500">已完工</p>
+            <p className="mt-2 text-3xl font-black text-carcare-yellow">
+              {rows.filter((row) => row.status === "finished").length}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+            <p className="text-sm text-neutral-500">待收尾款</p>
+            <p className="mt-2 text-3xl font-black text-carcare-yellow">
+              {rows.filter((row) => balance(row) > 0).length}
+            </p>
+          </div>
+        </div>
+
+        <div className="table-wrap mt-5">
           <table className="data-table">
             <thead>
               <tr>
@@ -72,38 +117,147 @@ export default function ConstructionPage() {
                 <th>完工時間</th>
                 <th>總金額</th>
                 <th>已收款</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id}>
-                  <td>{row.order_no}</td>
-                  <td>
-                    <p className="font-black text-neutral-900">{row.cars?.customer_name || "-"}</p>
-                    <p className="text-xs text-neutral-500">{row.cars?.plate_no || "-"}</p>
-                  </td>
-                  <td>
-                    <select
-                      className="form-input min-w-32"
-                      value={row.status}
-                      onChange={(e) => updateStatus(row, e.target.value)}
-                    >
-                      <option value="pending">待確認</option>
-                      <option value="scheduled">已排程</option>
-                      <option value="working">施工中</option>
-                      <option value="finished">已完工</option>
-                      <option value="cancelled">取消</option>
-                    </select>
-                  </td>
-                  <td>{row.start_at || "-"}</td>
-                  <td>{row.finish_at || "-"}</td>
-                  <td>${Number(row.total_amount || 0).toLocaleString()}</td>
-                  <td>${Number(row.paid_amount || 0).toLocaleString()}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const isExpanded = expandedId === row.id;
+                return (
+                  <Fragment key={row.id}>
+                    <tr>
+                      <td>
+                        <p className="font-black">{row.order_no}</p>
+                        <p className="text-xs text-neutral-500">
+                          原報價：{row.quotations?.quote_no || "-"}
+                        </p>
+                      </td>
+                      <td>
+                        <p className="font-black text-neutral-900">{row.cars?.customer_name || "-"}</p>
+                        <p className="text-xs text-neutral-500">{row.cars?.plate_no || "-"}</p>
+                        <p className="text-xs text-neutral-500">{carName(row)}</p>
+                      </td>
+                      <td>
+                        <select
+                          className="form-input min-w-32"
+                          value={row.status}
+                          onChange={(e) => updateStatus(row, e.target.value)}
+                        >
+                          <option value="pending">待確認</option>
+                          <option value="scheduled">已排程</option>
+                          <option value="working">施工中</option>
+                          <option value="finished">已完工</option>
+                          <option value="cancelled">取消</option>
+                        </select>
+                      </td>
+                      <td>{row.start_at || "-"}</td>
+                      <td>{row.finish_at || "-"}</td>
+                      <td>${Number(row.total_amount || 0).toLocaleString()}</td>
+                      <td>
+                        <p>${Number(row.paid_amount || 0).toLocaleString()}</p>
+                        <p className="text-xs text-neutral-500">
+                          尾款 ${Math.max(balance(row), 0).toLocaleString()}
+                        </p>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-xl border border-neutral-900 px-3 py-2 text-sm font-black"
+                            onClick={() => updateStatus(row, "working")}
+                            disabled={row.status === "working" || row.status === "finished"}
+                          >
+                            開始
+                          </button>
+                          <button
+                            className="rounded-xl bg-carcare-yellow px-3 py-2 text-sm font-black text-carcare-black"
+                            onClick={() => updateStatus(row, "finished")}
+                            disabled={row.status === "finished"}
+                          >
+                            完工
+                          </button>
+                          <button
+                            className="rounded-xl border border-neutral-900 px-3 py-2 text-sm font-black"
+                            onClick={() => setExpandedId(isExpanded ? "" : row.id)}
+                          >
+                            {isExpanded ? "收合" : "完工單"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded ? (
+                      <tr key={`${row.id}-completion`}>
+                        <td colSpan={8}>
+                          <div
+                            id={`completion-doc-${row.id}`}
+                            className="rounded-2xl border border-neutral-200 bg-white p-5"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 pb-4">
+                              <div>
+                                <p className="text-sm font-black text-carcare-yellow">完工確認施工單</p>
+                                <h2 className="mt-1 text-2xl font-black">{row.order_no}</h2>
+                                <p className="mt-1 text-sm text-neutral-500">
+                                  原始報價單：{row.quotations?.quote_no || "-"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-neutral-500">目前狀態</p>
+                                <p className="text-xl font-black text-carcare-yellow">
+                                  {statusText[row.status] || row.status}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-5 grid gap-4 md:grid-cols-2">
+                              <div className="rounded-2xl bg-neutral-50 p-4">
+                                <h3 className="font-black">客戶與車輛</h3>
+                                <p className="mt-3">車主：{row.cars?.customer_name || "-"}</p>
+                                <p>電話：{row.cars?.customer_phone || "-"}</p>
+                                <p>車牌：{row.cars?.plate_no || "-"}</p>
+                                <p>車型：{carName(row)}</p>
+                              </div>
+                              <div className="rounded-2xl bg-neutral-50 p-4">
+                                <h3 className="font-black">施工與結算</h3>
+                                <p className="mt-3">開始：{row.start_at || "-"}</p>
+                                <p>完工：{row.finish_at || "-"}</p>
+                                <p>施工總額：${Number(row.total_amount || 0).toLocaleString()}</p>
+                                <p>已收款：${Number(row.paid_amount || 0).toLocaleString()}</p>
+                                <p className="font-black text-carcare-yellow">
+                                  剩餘尾款：${Math.max(balance(row), 0).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 rounded-2xl bg-neutral-50 p-4">
+                              <h3 className="font-black">施工備註</h3>
+                              <p className="mt-2 whitespace-pre-wrap text-neutral-700">
+                                {row.remark || "尚未填寫施工備註。"}
+                              </p>
+                            </div>
+
+                            <div className="mt-8 grid gap-4 md:grid-cols-2">
+                              <div className="rounded-2xl border border-neutral-300 p-4 text-center">
+                                客戶取車簽名
+                              </div>
+                              <div className="rounded-2xl border border-neutral-300 p-4 text-center">
+                                門市確認簽名
+                              </div>
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <PdfExportButton
+                              targetId={`completion-doc-${row.id}`}
+                              filename={`完工施工單_${row.order_no || "施工單"}.pdf`}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
               {!rows.length ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-neutral-500">
+                  <td colSpan={8} className="text-center text-neutral-500">
                     尚未建立施工訂單。
                   </td>
                 </tr>
