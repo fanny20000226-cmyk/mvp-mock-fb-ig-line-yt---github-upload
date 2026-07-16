@@ -29,6 +29,12 @@ const baseDiagramByCarType: Record<string, string> = {
   九人商務車: "/car-diagram/car-base-9seat.png"
 };
 
+const previewDiagramByCarType: Record<string, string> = {
+  一般5人座轎車: "/car-diagram/car-preview-5seat.png",
+  "七人座2-3-2": "/car-diagram/car-preview-7seat.png",
+  九人商務車: "/car-diagram/car-preview-9seat.png"
+};
+
 const carpetDiagramByCarType: Record<string, string> = {
   一般5人座轎車: "/car-diagram/carpet-area-mark-5seat.png",
   "七人座2-3-2": "/car-diagram/carpet-area-mark-7seat.png",
@@ -118,6 +124,7 @@ export default function InteriorQuoteBuilder({
   const extraSubtotal = useMemo(() => optionTotal(extraOptions, extras), [extras]);
   const finalTotal = carpetSubtotal + seatSubtotal + extraSubtotal;
   const baseDiagram = baseDiagramByCarType[carType] || baseDiagramByCarType[carTypes[0]];
+  const previewDiagram = previewDiagramByCarType[carType] || previewDiagramByCarType[carTypes[0]];
   const carpetDiagram = carpets.includes("all")
     ? fullCarpetDiagramByCarType[carType] || fullCarpetDiagramByCarType[carTypes[0]]
     : carpetDiagramByCarType[carType] || carpetDiagramByCarType[carTypes[0]];
@@ -222,13 +229,13 @@ export default function InteriorQuoteBuilder({
             <input className="form-input" placeholder="聯絡電話" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
             <input className="form-input" placeholder="車牌號碼" value={plateNo} onChange={(e) => setPlateNo(e.target.value)} />
           </div>
-          <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+          <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-[#dceff7]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={baseDiagram}
+              src={previewDiagram}
               alt="車型完整底圖"
               loading="lazy"
-              className="h-40 w-full object-contain p-3"
+              className="h-48 w-full object-contain"
             />
           </div>
         </div>
