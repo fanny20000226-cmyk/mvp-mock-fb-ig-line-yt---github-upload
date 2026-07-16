@@ -23,6 +23,12 @@ const carTypes = ["一般5人座轎車", "七人座2-3-2", "九人商務車"];
 const stores = ["三重", "桃園", "新竹", "台南"];
 const categories = ["基礎保養", "加購", "贈送", "外包", "其他備註"];
 
+const carpetDiagramByCarType: Record<string, string> = {
+  一般5人座轎車: "/car-diagram/carpet-area-mark-5seat.png",
+  "七人座2-3-2": "/car-diagram/car-base-5seat.png",
+  九人商務車: "/car-diagram/blank-car-layout.png"
+};
+
 const carpetOptions: Option[] = [
   { id: "driver", label: "駕駛座地毯", price: 600 },
   { id: "passenger", label: "副駕地毯", price: 600 },
@@ -99,6 +105,9 @@ export default function InteriorQuoteBuilder({
   const seatSubtotal = useMemo(() => optionTotal(seatOptions, seats), [seats]);
   const extraSubtotal = useMemo(() => optionTotal(extraOptions, extras), [extras]);
   const finalTotal = carpetSubtotal + seatSubtotal + extraSubtotal;
+  const carpetDiagram = carpets.includes("all")
+    ? "/car-diagram/full-carpet-mark-5seat.png"
+    : carpetDiagramByCarType[carType];
 
   async function uploadPhoto(file: File) {
     const profile = await getCurrentProfile();
@@ -200,6 +209,15 @@ export default function InteriorQuoteBuilder({
             <input className="form-input" placeholder="聯絡電話" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
             <input className="form-input" placeholder="車牌號碼" value={plateNo} onChange={(e) => setPlateNo(e.target.value)} />
           </div>
+          <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/car-diagram/car-base-5seat.png"
+              alt="車型完整底圖"
+              loading="lazy"
+              className="h-40 w-full object-cover"
+            />
+          </div>
         </div>
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -269,15 +287,51 @@ export default function InteriorQuoteBuilder({
               );
             })}
           </div>
-          <div className="mt-4 rounded-2xl bg-neutral-100 p-3">
-            <div className="relative mx-auto h-56 max-w-sm rounded-[2rem] border-4 border-carcare-black bg-white">
-              <button type="button" onClick={() => toggleCarpet("driver")} className={`absolute left-12 top-12 h-16 w-20 rounded-xl border-2 ${carpets.includes("driver") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>駕</button>
-              <button type="button" onClick={() => toggleCarpet("passenger")} className={`absolute right-12 top-12 h-16 w-20 rounded-xl border-2 ${carpets.includes("passenger") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>副</button>
-              <button type="button" onClick={() => toggleCarpet("left")} className={`absolute left-12 bottom-12 h-16 w-20 rounded-xl border-2 ${carpets.includes("left") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>左</button>
-              <button type="button" onClick={() => toggleCarpet("right")} className={`absolute right-12 bottom-12 h-16 w-20 rounded-xl border-2 ${carpets.includes("right") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>右</button>
+          <div className="mt-4 overflow-hidden rounded-2xl bg-neutral-100">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={carpetDiagram}
+                alt="地毯分區示意圖"
+                loading="lazy"
+                className="w-full select-none"
+              />
+              <button
+                type="button"
+                aria-label="駕駛座地毯"
+                onClick={() => toggleCarpet("driver")}
+                className={`absolute left-[9%] top-[16%] z-10 h-[22%] w-[21%] rounded-2xl transition ${carpets.includes("driver") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="副駕地毯"
+                onClick={() => toggleCarpet("passenger")}
+                className={`absolute left-[9%] top-[56%] z-10 h-[22%] w-[21%] rounded-2xl transition ${carpets.includes("passenger") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="左半邊地毯"
+                onClick={() => toggleCarpet("left")}
+                className={`absolute left-[40%] top-[16%] z-10 h-[22%] w-[22%] rounded-2xl transition ${carpets.includes("left") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="右半邊地毯"
+                onClick={() => toggleCarpet("right")}
+                className={`absolute left-[40%] top-[56%] z-10 h-[22%] w-[22%] rounded-2xl transition ${carpets.includes("right") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="全車地毯"
+                onClick={() => toggleCarpet("all")}
+                className={`absolute left-[9%] top-[13%] z-0 h-[68%] w-[76%] rounded-[2rem] transition ${carpets.includes("all") ? "bg-carcare-yellow/30 ring-4 ring-carcare-yellow" : "bg-transparent"}`}
+              />
             </div>
           </div>
-          <p className="mt-3 text-sm font-black">地毯小計：${carpetSubtotal.toLocaleString()}</p>
+          <div className="mt-3 rounded-xl bg-neutral-50 p-3 text-sm">
+            <p className="font-black">已選地毯：{optionLabels(carpetOptions, carpets).join("、") || "未選"}</p>
+            <p className="mt-1 font-black text-carcare-yellow">地毯小計：${carpetSubtotal.toLocaleString()}</p>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -302,12 +356,63 @@ export default function InteriorQuoteBuilder({
       <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
         <h2 className="mb-3 text-lg font-black">座椅分區互動示意圖</h2>
         <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl bg-neutral-100 p-4">
-            <div className="relative mx-auto h-72 max-w-3xl rounded-[3rem] border-4 border-carcare-black bg-white">
-              <button type="button" onClick={() => toggleList(seats, "driver-seat", setSeats)} className={`absolute left-24 top-16 h-20 w-24 rounded-2xl border-2 ${seats.includes("driver-seat") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>駕駛座椅</button>
-              <button type="button" onClick={() => toggleList(seats, "passenger-seat", setSeats)} className={`absolute left-24 bottom-16 h-20 w-24 rounded-2xl border-2 ${seats.includes("passenger-seat") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>副駕座椅</button>
-              <button type="button" onClick={() => toggleList(seats, "rear-seat", setSeats)} className={`absolute right-44 top-16 h-20 w-28 rounded-2xl border-2 ${seats.includes("rear-seat") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>後排座椅</button>
-              <button type="button" onClick={() => toggleList(seats, "rear-combo", setSeats)} className={`absolute right-44 bottom-16 h-20 w-28 rounded-2xl border-2 ${seats.includes("rear-combo") ? "border-carcare-yellow bg-carcare-yellow/70" : "border-neutral-400 bg-white"}`}>後排連體</button>
+          <div className="overflow-hidden rounded-2xl bg-neutral-100">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/car-diagram/seat-diagram.png"
+                alt="座椅分區互動圖"
+                loading="lazy"
+                className="w-full select-none"
+              />
+              <button
+                type="button"
+                aria-label="駕駛座椅"
+                onClick={() => toggleList(seats, "driver-seat", setSeats)}
+                className={`absolute left-[14%] top-[19%] h-[8%] w-[23%] rounded-xl transition ${seats.includes("driver-seat") ? "bg-carcare-yellow/55 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="副駕座椅"
+                onClick={() => toggleList(seats, "passenger-seat", setSeats)}
+                className={`absolute left-[39%] top-[19%] h-[8%] w-[23%] rounded-xl transition ${seats.includes("passenger-seat") ? "bg-carcare-yellow/55 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="後排座椅"
+                onClick={() => toggleList(seats, "rear-seat", setSeats)}
+                className={`absolute left-[65%] top-[19%] h-[8%] w-[21%] rounded-xl transition ${seats.includes("rear-seat") ? "bg-carcare-yellow/55 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="後排連體座椅"
+                onClick={() => toggleList(seats, "rear-combo", setSeats)}
+                className={`absolute left-[39%] top-[36%] h-[8%] w-[23%] rounded-xl transition ${seats.includes("rear-combo") ? "bg-carcare-yellow/55 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="駕駛座椅車內區"
+                onClick={() => toggleList(seats, "driver-seat", setSeats)}
+                className={`absolute left-[23%] top-[66%] h-[12%] w-[12%] rounded-2xl transition ${seats.includes("driver-seat") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="副駕座椅車內區"
+                onClick={() => toggleList(seats, "passenger-seat", setSeats)}
+                className={`absolute left-[23%] top-[80%] h-[12%] w-[12%] rounded-2xl transition ${seats.includes("passenger-seat") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="後排座椅車內區"
+                onClick={() => toggleList(seats, "rear-seat", setSeats)}
+                className={`absolute left-[48%] top-[68%] h-[21%] w-[20%] rounded-2xl transition ${seats.includes("rear-seat") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
+              <button
+                type="button"
+                aria-label="後排連體座椅車內區"
+                onClick={() => toggleList(seats, "rear-combo", setSeats)}
+                className={`absolute left-[67%] top-[68%] h-[21%] w-[23%] rounded-2xl transition ${seats.includes("rear-combo") ? "bg-carcare-yellow/45 ring-4 ring-carcare-yellow" : "bg-transparent hover:bg-carcare-yellow/20"}`}
+              />
             </div>
           </div>
           <div className="space-y-3">
