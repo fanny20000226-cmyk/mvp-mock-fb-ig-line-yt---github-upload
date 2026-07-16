@@ -215,7 +215,7 @@ export default function InteriorQuoteBuilder({
               src="/car-diagram/car-base-5seat.png"
               alt="車型完整底圖"
               loading="lazy"
-              className="h-40 w-full object-cover"
+              className="h-40 w-full object-contain p-3"
             />
           </div>
         </div>
@@ -294,7 +294,7 @@ export default function InteriorQuoteBuilder({
                 src={carpetDiagram}
                 alt="地毯分區示意圖"
                 loading="lazy"
-                className="w-full select-none"
+                className="mx-auto block max-h-64 w-full object-contain p-3 select-none"
               />
               <button
                 type="button"
@@ -363,7 +363,7 @@ export default function InteriorQuoteBuilder({
                 src="/car-diagram/seat-diagram.png"
                 alt="座椅分區互動圖"
                 loading="lazy"
-                className="w-full select-none"
+                className="mx-auto block max-h-[560px] w-full object-contain p-3 select-none"
               />
               <button
                 type="button"
