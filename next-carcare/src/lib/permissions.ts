@@ -28,6 +28,7 @@ export const roleMenus: Record<Role, string[]> = {
   admin: [
     "/dashboard",
     "/operations/paste-reservation",
+    "/operations/evaluation",
     "/operations/orders",
     "/operations/cars",
     "/operations/services",
@@ -46,6 +47,7 @@ export const roleMenus: Record<Role, string[]> = {
   shop_manager: [
     "/dashboard",
     "/operations/paste-reservation",
+    "/operations/evaluation",
     "/operations/orders",
     "/operations/cars",
     "/operations/services",
@@ -60,6 +62,7 @@ export const roleMenus: Record<Role, string[]> = {
   vice_manager: [
     "/dashboard",
     "/operations/paste-reservation",
+    "/operations/evaluation",
     "/operations/orders",
     "/operations/cars",
     "/operations/services",

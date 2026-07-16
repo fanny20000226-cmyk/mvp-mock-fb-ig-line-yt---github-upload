@@ -24,7 +24,7 @@ import { Role, roleLabels, roleMenus } from "@/lib/permissions";
 const menu = [
   { href: "/dashboard", label: "工作台", icon: LayoutDashboard },
   { href: "/operations/paste-reservation", label: "貼上填單", icon: ClipboardPaste },
-  { href: "/operations/quotations", label: "預約評估", icon: ClipboardList },
+  { href: "/operations/evaluation", label: "預約評估", icon: ClipboardList },
   { href: "/operations/quotations", label: "製作報價單", icon: FileText },
   { href: "/operations/orders", label: "訂單管理", icon: ListChecks },
   { href: "/operations/services", label: "門市服務價格設定", icon: Sparkles },

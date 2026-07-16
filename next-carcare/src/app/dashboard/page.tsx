@@ -16,6 +16,7 @@ type OrderRow = {
 
 const quickLinks = [
   { href: "/operations/paste-reservation", title: "貼上填單", desc: "複製客戶預約資料，自動填好並建立訂單" },
+  { href: "/operations/evaluation", title: "預約評估", desc: "12 欄評估表，可貼上文字自動帶入" },
   { href: "/operations/cars", title: "客戶車輛", desc: "建立客戶、電話、車牌與車型資料" },
   { href: "/operations/services", title: "服務價目", desc: "管理套餐、加購、贈送、外包與備註項目" },
   { href: "/operations/quotations", title: "製作報價單", desc: "建立報價、產生 PDF、轉施工單" },
