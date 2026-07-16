@@ -27,6 +27,8 @@ export const roleLabels: Record<Role, string> = {
 export const roleMenus: Record<Role, string[]> = {
   admin: [
     "/dashboard",
+    "/operations/paste-reservation",
+    "/operations/orders",
     "/operations/cars",
     "/operations/services",
     "/operations/quotations",
@@ -43,6 +45,8 @@ export const roleMenus: Record<Role, string[]> = {
   hr: ["/dashboard", "/hr/employees", "/hr/attendance"],
   shop_manager: [
     "/dashboard",
+    "/operations/paste-reservation",
+    "/operations/orders",
     "/operations/cars",
     "/operations/services",
     "/operations/quotations",
@@ -55,6 +59,8 @@ export const roleMenus: Record<Role, string[]> = {
   ],
   vice_manager: [
     "/dashboard",
+    "/operations/paste-reservation",
+    "/operations/orders",
     "/operations/cars",
     "/operations/services",
     "/operations/quotations",

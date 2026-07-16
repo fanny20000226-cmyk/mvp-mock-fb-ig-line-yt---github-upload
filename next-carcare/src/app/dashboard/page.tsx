@@ -15,9 +15,11 @@ type OrderRow = {
 };
 
 const quickLinks = [
+  { href: "/operations/paste-reservation", title: "貼上填單", desc: "複製客戶預約資料，自動填好並建立訂單" },
   { href: "/operations/cars", title: "客戶車輛", desc: "建立客戶、電話、車牌與車型資料" },
   { href: "/operations/services", title: "服務價目", desc: "管理套餐、加購、贈送、外包與備註項目" },
   { href: "/operations/quotations", title: "製作報價單", desc: "建立報價、產生 PDF、轉施工單" },
+  { href: "/operations/orders", title: "訂單管理", desc: "查看、篩選、改狀態與取消訂單" },
   { href: "/operations/construction", title: "施工訂單", desc: "追蹤待施工、施工中、完工狀態" },
   { href: "/annotations", title: "車況圖片標註", desc: "上傳照片並圈選施工區域" },
   { href: "/finance/payments", title: "收款核銷", desc: "登記現金、匯款、刷卡與訂金" },
