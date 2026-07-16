@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import { getCurrentProfile } from "@/lib/auth";
 import { listAttendance } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 type AttendanceRow = {
   id: string;
@@ -16,14 +18,43 @@ type AttendanceRow = {
 export default function AttendancePage() {
   const [rows, setRows] = useState<AttendanceRow[]>([]);
 
+  async function load() {
+    const { data } = await listAttendance();
+    setRows((data || []) as AttendanceRow[]);
+  }
+
   useEffect(() => {
-    listAttendance().then(({ data }) => setRows((data || []) as AttendanceRow[]));
+    load();
   }, []);
+
+  async function clockIn() {
+    const profile = await getCurrentProfile();
+    if (!profile?.shop_id) return alert("請先綁定門店");
+    const { data: employee } = await supabase
+      .from("employees")
+      .select("id")
+      .eq("user_id", profile.id)
+      .single();
+    if (!employee) return alert("找不到員工資料");
+    const { error } = await supabase.from("attendance").insert({
+      shop_id: profile.shop_id,
+      employee_id: employee.id,
+      user_id: profile.id,
+      work_date: new Date().toISOString().slice(0, 10),
+      clock_in_at: new Date().toISOString(),
+      clock_type: "normal"
+    });
+    if (error) return alert(error.message);
+    load();
+  }
 
   return (
     <RequireAuth>
       <section className="card">
-        <h1 className="mb-5 text-2xl font-black">考勤紀錄</h1>
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-2xl font-black">考勤紀錄</h1>
+          <button onClick={clockIn} className="primary-btn">上班打卡</button>
+        </div>
         <div className="table-wrap">
           <table className="data-table">
             <thead>
@@ -52,4 +83,3 @@ export default function AttendancePage() {
     </RequireAuth>
   );
 }
-

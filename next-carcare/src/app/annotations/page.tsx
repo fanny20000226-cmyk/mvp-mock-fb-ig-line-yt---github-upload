@@ -10,6 +10,24 @@ export default function AnnotationsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [boxes, setBoxes] = useState<AnnotationBox[]>([]);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadImage(file: File) {
+    const profile = await getCurrentProfile();
+    if (!profile?.shop_id) return alert("請先綁定門店");
+    setUploading(true);
+    const path = `${profile.shop_id}/${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("car-images").upload(path, file, {
+      upsert: false
+    });
+    if (error) {
+      setUploading(false);
+      return alert(error.message);
+    }
+    const { data } = supabase.storage.from("car-images").getPublicUrl(path);
+    setImageUrl(data.publicUrl);
+    setUploading(false);
+  }
 
   async function save() {
     setSaving(true);
@@ -47,6 +65,18 @@ export default function AnnotationsPage() {
             {saving ? "儲存中..." : "儲存標註"}
           </button>
         </div>
+        <label className="mb-4 block rounded-2xl border border-dashed border-neutral-300 bg-white p-5 text-center font-black">
+          {uploading ? "圖片上傳中..." : "上傳車內照片"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) uploadImage(file);
+            }}
+          />
+        </label>
         {imageUrl ? (
           <ImageAnnotator imageUrl={imageUrl} onChange={setBoxes} />
         ) : (

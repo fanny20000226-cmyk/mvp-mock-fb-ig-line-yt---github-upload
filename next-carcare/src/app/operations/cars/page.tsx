@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import { getCurrentProfile } from "@/lib/auth";
 import { listCars } from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 type CarRow = {
   id: string;
@@ -17,10 +19,53 @@ type CarRow = {
 
 export default function CarsPage() {
   const [rows, setRows] = useState<CarRow[]>([]);
+  const [form, setForm] = useState({
+    customer_name: "",
+    customer_phone: "",
+    plate_no: "",
+    brand: "",
+    model: "",
+    year: "",
+    color: ""
+  });
+
+  async function load() {
+    const { data } = await listCars();
+    setRows((data || []) as CarRow[]);
+  }
 
   useEffect(() => {
-    listCars().then(({ data }) => setRows((data || []) as CarRow[]));
+    load();
   }, []);
+
+  async function createCar() {
+    const profile = await getCurrentProfile();
+    if (!profile?.shop_id) return alert("請先綁定門店");
+    if (!form.customer_name || !form.plate_no) return alert("請填客戶與車牌");
+
+    const { error } = await supabase.from("cars").insert({
+      shop_id: profile.shop_id,
+      customer_name: form.customer_name,
+      customer_phone: form.customer_phone,
+      plate_no: form.plate_no,
+      brand: form.brand,
+      model: form.model,
+      year: form.year ? Number(form.year) : null,
+      color: form.color
+    });
+
+    if (error) return alert(error.message);
+    setForm({
+      customer_name: "",
+      customer_phone: "",
+      plate_no: "",
+      brand: "",
+      model: "",
+      year: "",
+      color: ""
+    });
+    load();
+  }
 
   return (
     <RequireAuth>
@@ -30,7 +75,16 @@ export default function CarsPage() {
             <p className="text-sm font-black text-carcare-yellow">營運模組</p>
             <h1 className="text-2xl font-black">車輛客戶管理</h1>
           </div>
-          <button className="primary-btn">新增車輛</button>
+          <button onClick={createCar} className="primary-btn">新增車輛</button>
+        </div>
+        <div className="mb-5 grid gap-3 md:grid-cols-4">
+          <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(e) => setForm({ ...form, customer_name: e.target.value })} />
+          <input className="form-input" placeholder="電話" value={form.customer_phone} onChange={(e) => setForm({ ...form, customer_phone: e.target.value })} />
+          <input className="form-input" placeholder="車牌" value={form.plate_no} onChange={(e) => setForm({ ...form, plate_no: e.target.value })} />
+          <input className="form-input" placeholder="品牌" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} />
+          <input className="form-input" placeholder="車型" value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
+          <input className="form-input" placeholder="年份" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} />
+          <input className="form-input" placeholder="顏色" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
         </div>
         <div className="table-wrap">
           <table className="data-table">
@@ -62,4 +116,3 @@ export default function CarsPage() {
     </RequireAuth>
   );
 }
-
