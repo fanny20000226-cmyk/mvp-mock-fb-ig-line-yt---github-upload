@@ -9,42 +9,67 @@
 html,
 body {
   min-height: 100%;
+  background: #f8f8f8;
 }
 
 body {
   margin: 0;
   background: #f8f8f8;
-  color: #111111;
+  color: #333333;
+  font-size: 14px;
 }
 
 input,
 select,
-textarea {
+textarea,
+button,
+a {
   outline: none;
 }
 
+button,
+a,
+input,
+select,
+textarea {
+  transition-duration: 200ms;
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow, filter;
+  transition-timing-function: ease-out;
+}
+
+h1,
+h2,
+h3 {
+  color: #111111;
+  font-weight: 900;
+}
+
+p {
+  color: inherit;
+}
+
 .form-input {
-  @apply w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm font-bold text-neutral-800 transition focus:border-carcare-yellow;
+  @apply w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm font-bold text-neutral-800 shadow-sm focus:border-carcare-yellow focus:ring-2 focus:ring-carcare-yellow/20;
 }
 
 .card {
-  @apply rounded-2xl bg-white p-5 shadow-soft;
+  @apply rounded-xl bg-white p-4 shadow-soft;
 }
 
 .primary-btn {
-  @apply rounded-xl bg-carcare-yellow px-5 py-3 font-black text-carcare-black transition hover:brightness-95;
+  @apply rounded-lg bg-carcare-yellow px-5 py-3 font-black text-carcare-black shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .secondary-btn {
-  @apply rounded-xl border border-neutral-300 bg-white px-5 py-3 font-black text-carcare-black transition hover:border-carcare-yellow;
+  @apply rounded-lg border border-neutral-300 bg-white px-5 py-3 font-black text-carcare-black shadow-sm hover:border-carcare-yellow disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .table-wrap {
-  @apply overflow-x-auto rounded-2xl bg-white shadow-soft;
+  @apply overflow-x-auto rounded-xl bg-white shadow-soft;
 }
 
 .data-table {
-  @apply min-w-full text-left text-sm;
+  @apply min-w-full border-separate border-spacing-0 text-left text-sm;
 }
 
 .data-table th {
@@ -55,3 +80,17 @@ textarea {
   @apply border-b border-neutral-100 px-4 py-3 text-neutral-700;
 }
 
+.data-table tr:hover td {
+  @apply bg-neutral-50;
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .card,
+  .table-wrap {
+    @apply rounded-xl;
+  }
+}

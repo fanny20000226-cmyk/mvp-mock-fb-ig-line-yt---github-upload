@@ -23,28 +23,29 @@ export default function AppShell({
   }
 
   return (
-    <div className="min-h-screen bg-carcare-bg">
+    <div className="min-h-screen bg-carcare-bg text-neutral-900">
       <Sidebar
         role={profile.role}
         name={profile.name}
         open={open}
         onClose={() => setOpen(false)}
       />
-      <main className="min-h-screen p-4 lg:ml-64 lg:p-8">
-        <header className="mb-6 flex items-center justify-between rounded-2xl bg-white p-4 shadow-soft">
+      <main className="min-h-screen p-4 transition-all duration-200 ease-out lg:ml-64 lg:p-8">
+        <header className="mb-5 flex items-center justify-between rounded-xl bg-white p-4 shadow-soft">
           <button
             onClick={() => setOpen(true)}
-            className="rounded-xl border border-neutral-200 p-3 lg:hidden"
+            aria-label="打開選單"
+            className="rounded-lg border border-neutral-300 bg-white p-3 text-carcare-black transition duration-200 hover:border-carcare-yellow lg:hidden"
           >
             <Menu />
           </button>
           <div>
             <p className="text-xs font-bold text-neutral-500">CarCare System</p>
-            <h2 className="text-xl font-black text-carcare-black">門店管理後台</h2>
+            <h2 className="text-lg font-black text-carcare-black">門店管理後台</h2>
           </div>
           <button
             onClick={logout}
-            className="flex items-center gap-2 rounded-xl bg-carcare-yellow px-4 py-3 font-black text-carcare-black"
+            className="flex items-center gap-2 rounded-lg bg-carcare-yellow px-4 py-3 text-sm font-black text-carcare-black transition duration-200 hover:brightness-95"
           >
             <LogOut size={18} />
             登出
