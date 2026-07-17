@@ -17,6 +17,7 @@ type QuoteRow = {
   total_amount: number;
   final_amount: number;
   status: string;
+  remark: string | null;
   created_at: string;
 };
 
@@ -190,15 +191,21 @@ export default function QuotationsPage() {
       return alert(error?.message || "建立報價單失敗。");
     }
 
-    await supabase.from("quotation_items").insert({
-      shop_id: profile.shop_id,
-      quotation_id: data.id,
-      item_name: draft.custom_item,
-      category: "打翻評估",
-      quantity: 1,
-      unit_price: amount,
-      subtotal: amount
-    });
+    const draftItems = draft.items?.length
+      ? draft.items
+      : [{ id: "draft-total", label: draft.custom_item, price: amount }];
+
+    await supabase.from("quotation_items").insert(
+      draftItems.map((item) => ({
+        shop_id: profile.shop_id,
+        quotation_id: data.id,
+        item_name: item.label,
+        category: item.id.startsWith("manual") ? "手動補充" : "打翻評估",
+        quantity: 1,
+        unit_price: item.price,
+        subtotal: item.price
+      }))
+    );
 
     setSaving(false);
     await load();
@@ -416,6 +423,12 @@ export default function QuotationsPage() {
                               </tbody>
                             </table>
                           </div>
+                          {row.remark ? (
+                            <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
+                              <p className="mb-2 text-sm font-black text-carcare-yellow">原始報價內容</p>
+                              <pre className="whitespace-pre-wrap text-sm leading-6 text-neutral-700">{row.remark}</pre>
+                            </div>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

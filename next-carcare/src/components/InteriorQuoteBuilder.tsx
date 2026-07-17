@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { exportElementToPdf } from "@/lib/pdf";
 import { getCurrentProfile } from "@/lib/auth";
@@ -13,6 +13,7 @@ export type QuoteDraft = {
   custom_item: string;
   final_amount: string;
   note: string;
+  items?: Option[];
 };
 
 type Option = {
@@ -87,6 +88,7 @@ const seatZones: HotZone[] = [
 
 const PDF_TEMPLATE_A_ID = "peiway-quote-template-a";
 const PDF_TEMPLATE_B_ID = "peiway-workorder-template-b";
+const DRAFT_KEY = "peiway-interior-quote-draft-v3";
 
 function optionTotal(options: Option[], selected: string[]) {
   return options
@@ -130,12 +132,17 @@ export default function InteriorQuoteBuilder({
   const [carpets, setCarpets] = useState<string[]>([]);
   const [seats, setSeats] = useState<string[]>([]);
   const [extras, setExtras] = useState<string[]>([]);
+  const [manualItems, setManualItems] = useState<Option[]>([]);
+  const [manualName, setManualName] = useState("");
+  const [manualPrice, setManualPrice] = useState("");
   const [appointmentAt, setAppointmentAt] = useState("");
   const [deposit, setDeposit] = useState("");
   const [suggestion, setSuggestion] = useState("建議依現場車況確認地毯、座椅與內裝重點區域後施工。");
   const [photoTab, setPhotoTab] = useState<"before" | "after">("before");
   const [beforePhotoUrls, setBeforePhotoUrls] = useState<string[]>([]);
   const [afterPhotoUrls, setAfterPhotoUrls] = useState<string[]>([]);
+  const [photoUrlInput, setPhotoUrlInput] = useState("");
+  const [previewPhoto, setPreviewPhoto] = useState("");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [quoteNo] = useState(() => `Q${Date.now()}`);
@@ -156,16 +163,15 @@ export default function InteriorQuoteBuilder({
 
   function changeCarType(nextType: string) {
     setCarType(nextType);
-    setCarpets([]);
-    setSeats([]);
   }
 
   const carpetSubtotal = useMemo(() => optionTotal(carpetOptions, carpets), [carpets]);
   const seatSubtotal = useMemo(() => optionTotal(seatOptions, seats), [seats]);
   const extraSubtotal = useMemo(() => optionTotal(extraOptions, extras), [extras]);
+  const manualSubtotal = useMemo(() => manualItems.reduce((sum, item) => sum + item.price, 0), [manualItems]);
   const depositAmount = parseAmount(deposit);
   const baseTotal = carpetSubtotal + seatSubtotal;
-  const quoteTotal = baseTotal + extraSubtotal;
+  const quoteTotal = baseTotal + extraSubtotal + manualSubtotal;
   const finalTotal = Math.max(quoteTotal - depositAmount, 0);
   const previewDiagram = previewDiagramByCarType[carType] || previewDiagramByCarType[carTypes[0]];
   const carpetDiagram = carpets.includes("all")
@@ -178,6 +184,148 @@ export default function InteriorQuoteBuilder({
   const activeCarpetItems = useMemo(() => selectedOptions(carpetOptions, carpets), [carpets]);
   const activeSeatItems = useMemo(() => selectedOptions(seatOptions, seats), [seats]);
   const activeExtraItems = useMemo(() => selectedOptions(extraOptions, extras), [extras]);
+  const allQuoteItems = useMemo(
+    () => [...activeCarpetItems, ...activeSeatItems, ...activeExtraItems, ...manualItems],
+    [activeCarpetItems, activeSeatItems, activeExtraItems, manualItems]
+  );
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw) as {
+        carType?: string;
+        store?: string;
+        customerName?: string;
+        customerPhone?: string;
+        plateNo?: string;
+        categoryA?: string;
+        categoryB?: string;
+        noteA?: string;
+        noteB?: string;
+        carpets?: string[];
+        seats?: string[];
+        extras?: string[];
+        manualItems?: Option[];
+        appointmentAt?: string;
+        deposit?: string;
+        suggestion?: string;
+        beforePhotoUrls?: string[];
+        afterPhotoUrls?: string[];
+      };
+      if (draft.carType) setCarType(draft.carType);
+      if (draft.store) setStore(draft.store);
+      setCustomerName(draft.customerName || "");
+      setCustomerPhone(draft.customerPhone || "");
+      setPlateNo(draft.plateNo || "");
+      if (draft.categoryA) setCategoryA(draft.categoryA);
+      if (draft.categoryB) setCategoryB(draft.categoryB);
+      setNoteA(draft.noteA || "");
+      setNoteB(draft.noteB || "");
+      setCarpets(draft.carpets || []);
+      setSeats(draft.seats || []);
+      setExtras(draft.extras || []);
+      setManualItems(draft.manualItems || []);
+      setAppointmentAt(draft.appointmentAt || "");
+      setDeposit(draft.deposit || "");
+      if (draft.suggestion) setSuggestion(draft.suggestion);
+      setBeforePhotoUrls(draft.beforePhotoUrls || []);
+      setAfterPhotoUrls(draft.afterPhotoUrls || []);
+    } catch {
+      window.localStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  function buildDraftPayload() {
+    return {
+      carType,
+      store,
+      customerName,
+      customerPhone,
+      plateNo,
+      categoryA,
+      categoryB,
+      noteA,
+      noteB,
+      carpets,
+      seats,
+      extras,
+      manualItems,
+      appointmentAt,
+      deposit,
+      suggestion,
+      beforePhotoUrls,
+      afterPhotoUrls,
+      savedAt: new Date().toISOString()
+    };
+  }
+
+  function saveDraftToLocal() {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(buildDraftPayload()));
+    alert("草稿已儲存，下次回到製作報價單會自動還原。");
+  }
+
+  function clearDraft() {
+    window.localStorage.removeItem(DRAFT_KEY);
+  }
+
+  function addManualItem() {
+    const price = parseAmount(manualPrice);
+    if (!manualName.trim()) return alert("請輸入補充項目名稱。");
+    if (!price) return alert("請輸入補充項目金額。");
+    setManualItems((current) => [
+      ...current,
+      { id: `manual-${Date.now()}`, label: manualName.trim(), price }
+    ]);
+    setManualName("");
+    setManualPrice("");
+  }
+
+  function removeManualItem(id: string) {
+    setManualItems((current) => current.filter((item) => item.id !== id));
+  }
+
+  function setPhotoUrls(phase: "before" | "after", updater: (current: string[]) => string[]) {
+    if (phase === "before") {
+      setBeforePhotoUrls(updater);
+    } else {
+      setAfterPhotoUrls(updater);
+    }
+  }
+
+  async function addPhotoUrl() {
+    const value = photoUrlInput.trim();
+    if (!value) return;
+    const currentPhotos = photoTab === "before" ? beforePhotoUrls : afterPhotoUrls;
+    if (currentPhotos.length >= 8) return alert("每個分類最多 8 張照片。");
+    try {
+      const url = new URL(value);
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error("invalid");
+      const profile = await getCurrentProfile();
+      if (profile?.shop_id) {
+        await supabase.from("image_annotations").insert({
+          shop_id: profile.shop_id,
+          image_url: value,
+          annot_data: {
+            type: photoTab === "before" ? "quote_before_url_photo" : "quote_after_url_photo",
+            plate_no: plateNo,
+            car_type: carType,
+            linked_at: new Date().toISOString()
+          },
+          created_by: profile.id
+        });
+      }
+      setPhotoUrls(photoTab, (current) => [...current, value]);
+      setPhotoUrlInput("");
+    } catch {
+      alert("請貼上正確的圖片網址。");
+    }
+  }
+
+  function removePhoto(phase: "before" | "after", url: string) {
+    setPhotoUrls(phase, (current) => current.filter((item) => item !== url));
+    if (previewPhoto === url) setPreviewPhoto("");
+  }
 
   async function uploadPhoto(file: File, phase: "before" | "after") {
     const profile = await getCurrentProfile();
@@ -237,16 +385,20 @@ export default function InteriorQuoteBuilder({
           `地毯：${carpetLabelList.join("；") || "未選"}`,
           `座椅：${seatLabelList.join("；") || "未選"}`,
           `附加項目：${extraLabelList.join("；") || "未選"}`,
+          `手動補充：${manualItems.map((item) => `${item.label} ${money(item.price)}`).join("；") || "無"}`,
           `建議方案：${suggestion || "無"}`,
           `施工前照片：${beforePhotoUrls.join("；") || "無"}`,
           `施工後照片：${afterPhotoUrls.join("；") || "無"}`,
           `地毯小計：${money(carpetSubtotal)}`,
           `座椅小計：${money(seatSubtotal)}`,
           `附加項目：${money(extraSubtotal)}`,
+          `手動補充：${money(manualSubtotal)}`,
           `訂金：${money(depositAmount)}`,
           `最終應付總金額：${money(finalTotal)}`
-        ].join("\n")
+        ].join("\n"),
+        items: allQuoteItems
       });
+      clearDraft();
       if (exportDocs) {
         await new Promise((resolve) => window.requestAnimationFrame(resolve));
         await exportElementToPdf(PDF_TEMPLATE_A_ID, `PEIWAY_打翻評估報價單_${plateNo || quoteNo}.pdf`);
@@ -257,14 +409,30 @@ export default function InteriorQuoteBuilder({
     }
   }
 
-  function PhotoGrid({ urls }: { urls: string[] }) {
+  function PhotoGrid({ phase, urls }: { phase: "before" | "after"; urls: string[] }) {
     return (
       <div className="grid grid-cols-4 gap-2">
         {Array.from({ length: 8 }).map((_, index) => {
           const url = urls[index];
           return url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={url} src={url} alt="車況照片" loading="lazy" className="h-20 w-full rounded-xl object-cover" />
+            <div key={url} className="group relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt="車況照片"
+                loading="lazy"
+                className="h-20 w-full cursor-zoom-in rounded-xl object-cover"
+                onClick={() => setPreviewPhoto(url)}
+              />
+              <button
+                type="button"
+                className="absolute right-1 top-1 rounded-full bg-black/70 px-2 py-1 text-xs font-black text-white opacity-100 md:opacity-0 md:transition md:group-hover:opacity-100"
+                onClick={() => removePhoto(phase, url)}
+              >
+                刪除
+              </button>
+            </div>
           ) : (
             <div key={index} className="flex h-20 items-center justify-center rounded-xl border border-dashed border-neutral-300 text-2xl font-black text-neutral-400">
               +
@@ -290,7 +458,7 @@ export default function InteriorQuoteBuilder({
                 <option key={item}>{item}</option>
               ))}
             </select>
-            <button type="button" className="secondary-btn" onClick={() => generateQuote(false)}>
+            <button type="button" className="secondary-btn" onClick={saveDraftToLocal}>
               存草稿
             </button>
             <button type="button" className="primary-btn" onClick={() => generateQuote(true)}>
@@ -447,8 +615,19 @@ export default function InteriorQuoteBuilder({
               }}
             />
           </label>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              className="form-input"
+              placeholder="貼上圖片網址"
+              value={photoUrlInput}
+              onChange={(e) => setPhotoUrlInput(e.target.value)}
+            />
+            <button type="button" className="secondary-btn shrink-0" onClick={addPhotoUrl}>
+              加入網址
+            </button>
+          </div>
           <div className="mt-3">
-            <PhotoGrid urls={photoTab === "before" ? beforePhotoUrls : afterPhotoUrls} />
+            <PhotoGrid phase={photoTab} urls={photoTab === "before" ? beforePhotoUrls : afterPhotoUrls} />
           </div>
         </div>
       </section>
@@ -512,18 +691,56 @@ export default function InteriorQuoteBuilder({
                 ))}
               </div>
             </div>
+            <div className="rounded-2xl bg-neutral-50 p-3">
+              <p className="mb-2 font-black">手動補充價目</p>
+              <div className="grid gap-2 sm:grid-cols-[1fr_130px_auto] xl:grid-cols-1">
+                <input
+                  className="form-input"
+                  placeholder="項目名稱，例如：局部拆洗"
+                  value={manualName}
+                  onChange={(e) => setManualName(e.target.value)}
+                />
+                <input
+                  className="form-input"
+                  inputMode="numeric"
+                  placeholder="金額"
+                  value={manualPrice}
+                  onChange={(e) => setManualPrice(e.target.value)}
+                />
+                <button type="button" className="secondary-btn" onClick={addManualItem}>
+                  新增
+                </button>
+              </div>
+              {manualItems.length ? (
+                <div className="mt-3 space-y-2">
+                  {manualItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-sm">
+                      <span className="font-bold">{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-carcare-yellow">{money(item.price)}</span>
+                        <button type="button" className="secondary-btn px-3 py-1 text-xs" onClick={() => removeManualItem(item.id)}>
+                          刪除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <div className="rounded-2xl bg-neutral-50 p-3 text-sm">
               <p className="font-black">已選座椅：{seatLabelList.join("、") || "未選"}</p>
               <p className="mt-1 font-black text-carcare-yellow">座椅小計：{money(seatSubtotal)}</p>
               <p className="mt-2 font-black">附加項目：{extraLabelList.join("、") || "未選"}</p>
               <p className="mt-1 font-black text-carcare-yellow">附加小計：{money(extraSubtotal)}</p>
+              <p className="mt-2 font-black">手動補充：{manualItems.map((item) => item.label).join("、") || "無"}</p>
+              <p className="mt-1 font-black text-carcare-yellow">補充小計：{money(manualSubtotal)}</p>
             </div>
           </div>
         </div>
       </section>
 
       <section className="rounded-2xl bg-carcare-black p-5 text-white shadow-sm">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <div>
             <p className="text-sm text-white/60">地毯小計</p>
             <p className="text-2xl font-black text-carcare-yellow">{money(carpetSubtotal)}</p>
@@ -535,6 +752,10 @@ export default function InteriorQuoteBuilder({
           <div>
             <p className="text-sm text-white/60">附加項目</p>
             <p className="text-2xl font-black text-carcare-yellow">{money(extraSubtotal)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-white/60">手動補充</p>
+            <p className="text-2xl font-black text-carcare-yellow">{money(manualSubtotal)}</p>
           </div>
           <div>
             <p className="text-sm text-white/60">訂金</p>
@@ -571,7 +792,7 @@ export default function InteriorQuoteBuilder({
             />
             <PdfItemTable title="地毯選取明細" items={activeCarpetItems} emptyText="未選地毯項目" />
             <PdfItemTable title="座椅選取明細" items={activeSeatItems} emptyText="未選座椅項目" />
-            <PdfItemTable title="附加項目" items={activeExtraItems} emptyText="未選附加項目" />
+            <PdfItemTable title="附加項目" items={[...activeExtraItems, ...manualItems]} emptyText="未選附加項目" />
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-xl border p-4">
                 <h3 className="font-black">車內示意圖</h3>
@@ -583,7 +804,7 @@ export default function InteriorQuoteBuilder({
                 <p className="mt-2 whitespace-pre-wrap text-sm">{[noteA, noteB, suggestion].filter(Boolean).join("\n") || "-"}</p>
               </div>
             </div>
-            <PdfTotalBlock carpetSubtotal={carpetSubtotal} seatSubtotal={seatSubtotal} extraSubtotal={extraSubtotal} depositAmount={depositAmount} finalTotal={finalTotal} />
+            <PdfTotalBlock carpetSubtotal={carpetSubtotal} seatSubtotal={seatSubtotal} extraSubtotal={extraSubtotal + manualSubtotal} depositAmount={depositAmount} finalTotal={finalTotal} />
           </div>
         </div>
 
@@ -617,16 +838,16 @@ export default function InteriorQuoteBuilder({
             <PhotoWorkCard title="施工前照片" urls={beforePhotoUrls} />
             <PhotoWorkCard title="施工後照片" urls={afterPhotoUrls} />
             <WorkCard title="加購項目">
-              {extraLabelList.slice(0, 4).map((item, index) => (
+              {[...extraLabelList, ...manualItems.map((item) => `${item.label} ${money(item.price)}`)].slice(0, 4).map((item, index) => (
                 <p key={item} className="border-b border-neutral-500 py-2 text-xl">
                   {index + 1}. {item}
                 </p>
               ))}
-              {!extraLabelList.length ? <p className="py-2 text-xl">1. 無</p> : null}
+              {![...extraLabelList, ...manualItems].length ? <p className="py-2 text-xl">1. 無</p> : null}
             </WorkCard>
             <WorkCard title="金額合計">
               <WorkLine label="施工方案金額" value={money(baseTotal)} />
-              <WorkLine label="加購金額" value={money(extraSubtotal)} />
+              <WorkLine label="加購金額" value={money(extraSubtotal + manualSubtotal)} />
               <WorkLine label="訂金" value={money(depositAmount)} />
             </WorkCard>
           </div>
@@ -648,6 +869,16 @@ export default function InteriorQuoteBuilder({
           </div>
         </div>
       </section>
+      {previewPhoto ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-4"
+          onClick={() => setPreviewPhoto("")}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewPhoto} alt="放大車況照片" className="max-h-[90vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl" />
+        </button>
+      ) : null}
     </div>
   );
 }

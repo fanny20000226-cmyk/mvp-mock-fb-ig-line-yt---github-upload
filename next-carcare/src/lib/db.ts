@@ -10,7 +10,7 @@ export async function listCars() {
 export async function listQuotations() {
   return supabase
     .from("quotations")
-    .select("id, quote_no, customer_name, customer_phone, plate_no, total_amount, final_amount, status, created_at")
+    .select("id, quote_no, customer_name, customer_phone, plate_no, total_amount, final_amount, status, remark, created_at")
     .order("created_at", { ascending: false });
 }
 
