@@ -363,7 +363,7 @@ export default function InteriorQuoteBuilder({
     setUploading(false);
   }
 
-  async function generateQuote(exportDocs = false) {
+  async function generateQuote(exportQuotePdf = false) {
     if (saving) return;
     if (!customerName || !plateNo) return alert("請先填寫車主姓名與車牌號碼。");
     if (!quoteTotal) return alert("請至少選擇一個地毯、座椅或附加項目。");
@@ -399,10 +399,9 @@ export default function InteriorQuoteBuilder({
         items: allQuoteItems
       });
       clearDraft();
-      if (exportDocs) {
+      if (exportQuotePdf) {
         await new Promise((resolve) => window.requestAnimationFrame(resolve));
-        await exportElementToPdf(PDF_TEMPLATE_A_ID, `PEIWAY_打翻評估報價單_${plateNo || quoteNo}.pdf`);
-        await exportElementToPdf(PDF_TEMPLATE_B_ID, `PEIWAY_車輛施工確認工單_${plateNo || quoteNo}.pdf`);
+        await exportElementToPdf(PDF_TEMPLATE_A_ID, `PEIWAY_汽車施工專業報價單_${plateNo || quoteNo}.pdf`);
       }
     } finally {
       setSaving(false);
@@ -462,7 +461,7 @@ export default function InteriorQuoteBuilder({
               存草稿
             </button>
             <button type="button" className="primary-btn" onClick={() => generateQuote(true)}>
-              匯出雙份文件
+              匯出報價單PDF
             </button>
           </div>
         </div>
@@ -773,38 +772,62 @@ export default function InteriorQuoteBuilder({
           <p className="text-5xl font-black text-carcare-yellow">{money(finalTotal)}</p>
         </div>
         <button type="button" onClick={() => generateQuote(true)} className="primary-btn mt-5 w-full text-lg">
-          {saving ? "處理中..." : "建議並匯出雙份文件"}
+          {saving ? "處理中..." : "建議並匯出報價單PDF"}
         </button>
       </section>
 
       <section className="fixed left-[-9999px] top-0 w-[794px] bg-white text-neutral-900">
         <div id={PDF_TEMPLATE_A_ID} className="bg-white p-0">
-          <PdfHeader title="PEIWAY 汽車施工評估報價單" store={store} quoteNo={quoteNo} today={today} />
-          <div className="space-y-5 p-6">
-            <PdfInfoBlock
-              title="車主與車輛資訊"
-              rows={[
-                ["車主姓名", customerName || "-"],
-                ["聯絡電話", customerPhone || "-"],
-                ["車牌號碼", plateNo || "-"],
-                ["車型", carType]
-              ]}
-            />
-            <PdfItemTable title="地毯選取明細" items={activeCarpetItems} emptyText="未選地毯項目" />
-            <PdfItemTable title="座椅選取明細" items={activeSeatItems} emptyText="未選座椅項目" />
-            <PdfItemTable title="附加項目" items={[...activeExtraItems, ...manualItems]} emptyText="未選附加項目" />
+          <PdfHeader title="PEIWAY 汽車施工專業報價單" store={store} quoteNo={quoteNo} today={today} />
+          <div className="space-y-4 p-6">
             <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl border p-4">
+              <PdfInfoBlock
+                title="客戶車輛資訊"
+                rows={[
+                  ["車主姓名", customerName],
+                  ["聯絡電話", customerPhone],
+                  ["車廠品牌", ""],
+                  ["車型規格", carType],
+                  ["車牌號碼", plateNo]
+                ]}
+              />
+              <PdfPlanSummary items={[...activeCarpetItems, ...activeSeatItems, ...activeExtraItems, ...manualItems]} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <PdfPhotoGrid title="施工前照片" urls={beforePhotoUrls} />
+              <PdfPhotoGrid title="施工後照片" urls={afterPhotoUrls} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <PdfItemTable title="選配加購項目" items={manualItems} emptyText="無手動加購項目" />
+              <PdfTotalBlock
+                carpetSubtotal={carpetSubtotal}
+                seatSubtotal={seatSubtotal}
+                extraSubtotal={extraSubtotal + manualSubtotal}
+                depositAmount={depositAmount}
+                finalTotal={finalTotal}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <PdfItemTable title="地毯選取明細" items={activeCarpetItems} emptyText="未選地毯項目" />
+              <PdfItemTable title="座椅選取明細" items={activeSeatItems} emptyText="未選座椅項目" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-neutral-300 p-4">
                 <h3 className="font-black">車內示意圖</h3>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={carpetDiagram} alt="地毯示意圖" className="mt-3 h-44 w-full object-contain" />
               </div>
-              <div className="rounded-xl border p-4">
-                <h3 className="font-black">備註</h3>
-                <p className="mt-2 whitespace-pre-wrap text-sm">{[noteA, noteB, suggestion].filter(Boolean).join("\n") || "-"}</p>
+              <div className="rounded-xl border border-neutral-300 p-4">
+                <h3 className="font-black">綜合備註</h3>
+                <p className="mt-2 min-h-36 whitespace-pre-wrap text-sm leading-6">
+                  {[noteA, noteB, suggestion].filter(Boolean).join("\n") || ""}
+                </p>
               </div>
             </div>
-            <PdfTotalBlock carpetSubtotal={carpetSubtotal} seatSubtotal={seatSubtotal} extraSubtotal={extraSubtotal + manualSubtotal} depositAmount={depositAmount} finalTotal={finalTotal} />
+            <div className="grid grid-cols-2 gap-4 rounded-xl border border-neutral-300 p-4 text-sm">
+              <p>門市確認：__________________</p>
+              <p>客戶確認：__________________</p>
+            </div>
           </div>
         </div>
 
@@ -885,17 +908,17 @@ export default function InteriorQuoteBuilder({
 
 function PdfHeader({ title, store, quoteNo, today }: { title: string; store: string; quoteNo: string; today: string }) {
   return (
-    <div className="flex items-center justify-between bg-[#111] px-6 py-5 text-white">
-      <div className="text-4xl font-black">
+    <div className="flex items-center justify-between bg-[#111] px-7 py-6 text-white">
+      <div className="rounded-xl border-2 border-white px-4 py-2 text-4xl font-black italic tracking-tight">
         PEI<span className="text-[#dfff00]">WAY</span>
       </div>
       <div className="text-center">
-        <h2 className="text-2xl font-black">{title}</h2>
+        <h2 className="text-3xl font-black tracking-wide">{title}</h2>
         <p className="text-sm text-white/70">{store}</p>
       </div>
       <div className="text-right text-sm">
-        <p>單號：{quoteNo}</p>
-        <p>日期：{today}</p>
+        <p>工單編號：{quoteNo}</p>
+        <p>開單日期：{today}</p>
       </div>
     </div>
   );
@@ -903,15 +926,36 @@ function PdfHeader({ title, store, quoteNo, today }: { title: string; store: str
 
 function PdfInfoBlock({ title, rows }: { title: string; rows: string[][] }) {
   return (
-    <div className="rounded-xl border p-4">
-      <h3 className="mb-3 font-black">{title}</h3>
-      <div className="grid grid-cols-2 gap-2 text-sm">
+    <div className="rounded-xl border border-neutral-300 p-4">
+      <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-xl font-black">{title}</h3>
+      <div className="space-y-0 text-sm">
         {rows.map(([label, value]) => (
-          <p key={label}>
-            <span className="font-bold">{label}：</span>
-            {value}
-          </p>
+          <div key={label} className="grid min-h-10 grid-cols-[100px_1fr] border-b border-neutral-300">
+            <span className="flex items-center font-black">{label}</span>
+            <span className="flex items-center px-2">{value || ""}</span>
+          </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function PdfPlanSummary({ items }: { items: Option[] }) {
+  const planItems = items.length ? items : [{ id: "empty", label: "", price: 0 }];
+  return (
+    <div className="rounded-xl border border-neutral-300 p-4">
+      <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-xl font-black">施工方案大綱</h3>
+      <div className="space-y-2 text-sm">
+        {Array.from({ length: 4 }).map((_, index) => {
+          const item = planItems[index];
+          return (
+            <div key={item?.id || index} className="min-h-10 border-b border-neutral-300 py-2">
+              <span className="font-black">{index + 1}. </span>
+              {item ? `${item.label}${item.price ? ` ${money(item.price)}` : ""}` : ""}
+            </div>
+          );
+        })}
+        {items.length > 4 ? <p className="pt-1 text-xs text-neutral-600">其他項目：{items.slice(4).map((item) => item.label).join("、")}</p> : null}
       </div>
     </div>
   );
@@ -919,8 +963,8 @@ function PdfInfoBlock({ title, rows }: { title: string; rows: string[][] }) {
 
 function PdfItemTable({ title, items, emptyText }: { title: string; items: Option[]; emptyText: string }) {
   return (
-    <div className="rounded-xl border p-4">
-      <h3 className="mb-3 font-black">{title}</h3>
+    <div className="rounded-xl border border-neutral-300 p-4">
+      <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-lg font-black">{title}</h3>
       {items.length ? (
         <table className="w-full text-sm">
           <thead>
@@ -945,6 +989,27 @@ function PdfItemTable({ title, items, emptyText }: { title: string; items: Optio
   );
 }
 
+function PdfPhotoGrid({ title, urls }: { title: string; urls: string[] }) {
+  return (
+    <div className="rounded-xl border border-neutral-300 p-4">
+      <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-lg font-black">{title}</h3>
+      <div className="grid grid-cols-4 gap-2">
+        {Array.from({ length: 8 }).map((_, index) => {
+          const url = urls[index];
+          return url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={url} src={url} alt={title} className="h-20 w-full rounded-lg border border-neutral-200 bg-white object-contain" />
+          ) : (
+            <div key={index} className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-neutral-300 text-3xl font-black text-neutral-300">
+              +
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PdfTotalBlock({
   carpetSubtotal,
   seatSubtotal,
@@ -959,14 +1024,27 @@ function PdfTotalBlock({
   finalTotal: number;
 }) {
   return (
-    <div className="rounded-xl bg-[#111] p-5 text-white">
-      <div className="grid grid-cols-4 gap-3 text-sm">
-        <p>地毯小計：{money(carpetSubtotal)}</p>
-        <p>座椅小計：{money(seatSubtotal)}</p>
-        <p>加購小計：{money(extraSubtotal)}</p>
-        <p>訂金：{money(depositAmount)}</p>
+    <div className="rounded-xl border border-neutral-300 p-4">
+      <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-lg font-black">費用明細</h3>
+      <div className="space-y-1 text-sm">
+        <p className="flex justify-between border-b border-neutral-200 py-1">
+          <span>地毯小計金額</span>
+          <span className="font-black">{money(carpetSubtotal)}</span>
+        </p>
+        <p className="flex justify-between border-b border-neutral-200 py-1">
+          <span>座椅小計金額</span>
+          <span className="font-black">{money(seatSubtotal)}</span>
+        </p>
+        <p className="flex justify-between border-b border-neutral-200 py-1">
+          <span>附加項目金額</span>
+          <span className="font-black">{money(extraSubtotal)}</span>
+        </p>
+        <p className="flex justify-between border-b border-neutral-200 py-1">
+          <span>訂金金額</span>
+          <span className="font-black">{money(depositAmount)}</span>
+        </p>
       </div>
-      <p className="mt-4 rounded-lg bg-[#ffc107] p-4 text-center text-3xl font-black text-black">總金額：{money(finalTotal)}</p>
+      <p className="mt-4 rounded-lg bg-[#ffc107] p-4 text-center text-3xl font-black text-black">最終應付總金額：{money(finalTotal)}</p>
     </div>
   );
 }
