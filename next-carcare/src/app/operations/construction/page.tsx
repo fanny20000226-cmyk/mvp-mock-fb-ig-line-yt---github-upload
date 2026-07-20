@@ -3,8 +3,9 @@
 import { Fragment, useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import ConstructionOrderCreator from "@/components/ConstructionOrderCreator";
-import PdfExportButton from "@/components/PdfExportButton";
+import PeiwayWorkOrderPdf from "@/components/PeiwayWorkOrderPdf";
 import { listConstructionOrders } from "@/lib/db";
+import { exportElementToPdf } from "@/lib/pdf";
 import { supabase } from "@/lib/supabase";
 
 type OrderRow = {
@@ -27,8 +28,14 @@ type OrderRow = {
   quotations?: {
     quote_no?: string | null;
     final_amount?: number | null;
+    remark?: string | null;
     status?: string | null;
   } | null;
+};
+
+type WorkOrderPhotos = {
+  before: string[];
+  after: string[];
 };
 
 const statusText: Record<string, string> = {
@@ -42,6 +49,8 @@ const statusText: Record<string, string> = {
 export default function ConstructionPage() {
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [expandedId, setExpandedId] = useState("");
+  const [photoMap, setPhotoMap] = useState<Record<string, WorkOrderPhotos>>({});
+  const [exportingId, setExportingId] = useState("");
 
   async function load() {
     const { data } = await listConstructionOrders();
@@ -68,6 +77,52 @@ export default function ConstructionPage() {
 
   function balance(row: OrderRow) {
     return Number(row.total_amount || 0) - Number(row.paid_amount || 0);
+  }
+
+  async function loadWorkOrderPhotos(row: OrderRow) {
+    if (photoMap[row.id]) return;
+    const plateNo = row.cars?.plate_no;
+    if (!plateNo) {
+      setPhotoMap((current) => ({ ...current, [row.id]: { before: [], after: [] } }));
+      return;
+    }
+    const { data } = await supabase
+      .from("image_annotations")
+      .select("image_url, annot_data")
+      .contains("annot_data", { plate_no: plateNo })
+      .limit(80);
+
+    const photos = (data || []).reduce<WorkOrderPhotos>(
+      (result, item) => {
+        const type = String((item.annot_data as { type?: string } | null)?.type || "");
+        if (!item.image_url) return result;
+        if (type.includes("before") && result.before.length < 8) result.before.push(item.image_url);
+        if (type.includes("after") && result.after.length < 8) result.after.push(item.image_url);
+        return result;
+      },
+      { before: [], after: [] }
+    );
+    setPhotoMap((current) => ({ ...current, [row.id]: photos }));
+  }
+
+  async function toggleExpanded(row: OrderRow, isExpanded: boolean) {
+    if (isExpanded) {
+      setExpandedId("");
+      return;
+    }
+    setExpandedId(row.id);
+    loadWorkOrderPhotos(row);
+  }
+
+  async function exportWorkOrderPdf(row: OrderRow) {
+    setExportingId(row.id);
+    try {
+      await loadWorkOrderPhotos(row);
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await exportElementToPdf(`peiway-work-order-pdf-${row.id}`, `PEIWAY_施工確認工單_${row.order_no || "施工單"}.pdf`);
+    } finally {
+      setExportingId("");
+    }
   }
 
   return (
@@ -177,7 +232,7 @@ export default function ConstructionPage() {
                           </button>
                           <button
                             className="rounded-xl border border-neutral-900 px-3 py-2 text-sm font-black"
-                            onClick={() => setExpandedId(isExpanded ? "" : row.id)}
+                            onClick={() => toggleExpanded(row, isExpanded)}
                           >
                             {isExpanded ? "收合" : "完工單"}
                           </button>
@@ -187,10 +242,7 @@ export default function ConstructionPage() {
                     {isExpanded ? (
                       <tr key={`${row.id}-completion`}>
                         <td colSpan={8}>
-                          <div
-                            id={`completion-doc-${row.id}`}
-                            className="rounded-2xl border border-neutral-200 bg-white p-5"
-                          >
+                          <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                             <div className="flex flex-wrap items-start justify-between gap-4 border-b border-neutral-200 pb-4">
                               <div>
                                 <p className="text-sm font-black text-carcare-yellow">完工確認施工單</p>
@@ -243,11 +295,24 @@ export default function ConstructionPage() {
                               </div>
                             </div>
                           </div>
+                          <div className="fixed left-[-9999px] top-0 w-[794px] bg-white">
+                            <div id={`peiway-work-order-pdf-${row.id}`}>
+                              <PeiwayWorkOrderPdf
+                                row={row}
+                                beforePhotoUrls={photoMap[row.id]?.before || []}
+                                afterPhotoUrls={photoMap[row.id]?.after || []}
+                              />
+                            </div>
+                          </div>
                           <div className="mt-3">
-                            <PdfExportButton
-                              targetId={`completion-doc-${row.id}`}
-                              filename={`完工施工單_${row.order_no || "施工單"}.pdf`}
-                            />
+                            <button
+                              type="button"
+                              className="rounded-xl bg-carcare-yellow px-5 py-3 font-black text-carcare-black transition duration-200"
+                              onClick={() => exportWorkOrderPdf(row)}
+                              disabled={exportingId === row.id}
+                            >
+                              {exportingId === row.id ? "匯出中..." : "匯出施工工單PDF"}
+                            </button>
                           </div>
                         </td>
                       </tr>

@@ -18,7 +18,7 @@ export async function listConstructionOrders() {
   return supabase
     .from("construction_orders")
     .select(
-      "id, order_no, status, start_at, finish_at, total_amount, paid_amount, remark, cars(customer_name, customer_phone, plate_no, brand, model, year), quotations(quote_no, final_amount, status)"
+      "id, order_no, status, start_at, finish_at, total_amount, paid_amount, remark, cars(customer_name, customer_phone, plate_no, brand, model, year), quotations(quote_no, final_amount, remark, status)"
     )
     .order("created_at", { ascending: false });
 }
