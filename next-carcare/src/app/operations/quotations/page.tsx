@@ -5,6 +5,7 @@ import RequireAuth from "@/components/RequireAuth";
 import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
 import { getCurrentProfile } from "@/lib/auth";
+import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listQuotations, listServiceItems } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
@@ -115,6 +116,16 @@ export default function QuotationsPage() {
     setSaving(true);
     const itemName = form.custom_item || selectedService?.name || "自訂服務";
     const category = selectedService?.category || "其他備註";
+    try {
+      await ensureCustomerVehicleArchive(profile, {
+        customer_name: form.customer_name,
+        customer_phone: form.customer_phone,
+        plate_no: form.plate_no
+      });
+    } catch (archiveError) {
+      setSaving(false);
+      return alert(archiveError instanceof Error ? archiveError.message : "歸檔客戶車輛資料失敗。");
+    }
 
     const { data, error } = await supabase
       .from("quotations")
@@ -169,6 +180,17 @@ export default function QuotationsPage() {
     if (!draft.customer_name || !draft.plate_no) return alert("請填寫車主姓名與車牌。");
 
     setSaving(true);
+    try {
+      await ensureCustomerVehicleArchive(profile, {
+        customer_name: draft.customer_name,
+        customer_phone: draft.customer_phone,
+        plate_no: draft.plate_no
+      });
+    } catch (archiveError) {
+      setSaving(false);
+      return alert(archiveError instanceof Error ? archiveError.message : "歸檔客戶車輛資料失敗。");
+    }
+
     const { data, error } = await supabase
       .from("quotations")
       .insert({

@@ -61,7 +61,10 @@ const menuGroups = [
   {
     label: "車輛相簿",
     icon: Car,
-    items: [{ href: "/operations/cars", label: "車輛相簿", icon: Car }]
+    items: [
+      { href: "/operations/customers", label: "客戶資料查詢", icon: Users },
+      { href: "/operations/cars", label: "車輛相簿", icon: Car }
+    ]
   },
   {
     label: "財務報表",
