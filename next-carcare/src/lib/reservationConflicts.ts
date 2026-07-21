@@ -20,6 +20,37 @@ export type ReservationConflict = {
   } | null;
 };
 
+type RelationValue<T> = T | T[] | null | undefined;
+
+type ReservationConflictRelation = {
+  customer_name?: string | null;
+  plate_no?: string | null;
+  brand?: string | null;
+  model?: string | null;
+};
+
+type QuotationConflictRelation = {
+  quote_no?: string | null;
+  remark?: string | null;
+};
+
+type ReservationConflictQueryRow = Omit<ReservationConflict, "cars" | "quotations"> & {
+  cars?: RelationValue<ReservationConflictRelation>;
+  quotations?: RelationValue<QuotationConflictRelation>;
+};
+
+function firstRelation<T>(value: RelationValue<T>) {
+  return Array.isArray(value) ? value[0] || null : value || null;
+}
+
+function normalizeReservationConflict(row: ReservationConflictQueryRow): ReservationConflict {
+  return {
+    ...row,
+    cars: firstRelation(row.cars),
+    quotations: firstRelation(row.quotations)
+  };
+}
+
 export function canOverrideReservationConflict(role?: Role | null) {
   return role === "admin" || role === "shop_manager" || role === "vice_manager";
 }
@@ -65,7 +96,11 @@ export async function findReservationConflicts(input: {
     .neq("status", "cancelled");
 
   if (input.excludeId) query = query.neq("id", input.excludeId);
-  return query;
+  const { data, error } = await query;
+  return {
+    data: error ? null : ((data || []) as ReservationConflictQueryRow[]).map(normalizeReservationConflict),
+    error
+  };
 }
 
 export function formatReservationConflict(conflicts: ReservationConflict[]) {
