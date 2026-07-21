@@ -115,6 +115,15 @@ function parseAmount(value: string) {
   return Number.isFinite(amount) ? Math.max(amount, 0) : 0;
 }
 
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function InteriorQuoteBuilder({
   onGenerate
 }: {
@@ -340,34 +349,48 @@ export default function InteriorQuoteBuilder({
     const currentPhotos = phase === "before" ? beforePhotoUrls : afterPhotoUrls;
     if (currentPhotos.length >= 8) return alert("每個分類最多上傳 8 張照片。");
     setUploading(true);
-    const safeName = file.name.replace(/[^\w.\-]+/g, "-");
-    const path = `${profile.shop_id}/quote/${plateNo || "no-plate"}/${phase}/${Date.now()}-${safeName}`;
-    const { error } = await supabase.storage.from("car-images").upload(path, file, {
-      upsert: false
-    });
-    if (error) {
+    try {
+      const safeName = file.name.replace(/[^\w.\-]+/g, "-");
+      const path = `${profile.shop_id}/quote/${plateNo || "no-plate"}/${phase}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage.from("car-images").upload(path, file, {
+        upsert: false
+      });
+
+      let imageUrl = "";
+      let storageMode: "cloud" | "local-fallback" = "cloud";
+      if (error) {
+        console.warn("Supabase storage upload failed, using local preview fallback.", error.message);
+        imageUrl = await fileToDataUrl(file);
+        storageMode = "local-fallback";
+      } else {
+        const { data } = supabase.storage.from("car-images").getPublicUrl(path);
+        imageUrl = data.publicUrl;
+      }
+
+      if (imageUrl) {
+        setPhotoUrls(phase, (current) => [...current, imageUrl]);
+      }
+
+      if (storageMode === "cloud") {
+        const { error: recordError } = await supabase.from("image_annotations").insert({
+          shop_id: profile.shop_id,
+          image_url: imageUrl,
+          annot_data: {
+            type: phase === "before" ? "quote_before_photo" : "quote_after_photo",
+            plate_no: plateNo,
+            car_type: carType,
+            uploaded_at: new Date().toISOString()
+          },
+          created_by: profile.id
+        });
+        if (recordError) console.warn("Photo record insert failed.", recordError.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("圖片讀取失敗，請換一張圖片再試一次。");
+    } finally {
       setUploading(false);
-      return alert(`${error.message}\n\n如果顯示 Bucket not found，請到 Supabase 建立 car-images bucket。`);
     }
-    const { data } = supabase.storage.from("car-images").getPublicUrl(path);
-    const publicUrl = data.publicUrl;
-    await supabase.from("image_annotations").insert({
-      shop_id: profile.shop_id,
-      image_url: publicUrl,
-      annot_data: {
-        type: phase === "before" ? "quote_before_photo" : "quote_after_photo",
-        plate_no: plateNo,
-        car_type: carType,
-        uploaded_at: new Date().toISOString()
-      },
-      created_by: profile.id
-    });
-    if (phase === "before") {
-      setBeforePhotoUrls((current) => [...current, publicUrl]);
-    } else {
-      setAfterPhotoUrls((current) => [...current, publicUrl]);
-    }
-    setUploading(false);
   }
 
   async function generateQuote(exportQuotePdf = false) {
