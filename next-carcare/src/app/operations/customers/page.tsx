@@ -5,7 +5,20 @@ import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import PdfExportButton from "@/components/PdfExportButton";
 import PhotoZipButton from "@/components/PhotoZipButton";
+import { getCurrentProfile } from "@/lib/auth";
+import {
+  addCustomerTag,
+  canAttachCustomerTags,
+  canManageCustomerTags,
+  defaultCustomerTags,
+  listCustomerTags,
+  normalizeCustomerKey,
+  removeCustomerTag,
+  removeTagEverywhere,
+  type CustomerTag
+} from "@/lib/customerTags";
 import { listCars, listQuotations } from "@/lib/db";
+import type { Role } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 
 type CarRow = {
@@ -76,23 +89,31 @@ export default function CustomersPage() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [photos, setPhotos] = useState<AlbumPhoto[]>([]);
   const [keyword, setKeyword] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<CustomerTag[]>([]);
+  const [profile, setProfile] = useState<{ id: string; shop_id: string | null; role: Role } | null>(null);
+  const [tagDraft, setTagDraft] = useState<Record<string, { tagName: string; tagColor: string }>>({});
   const [expandedKey, setExpandedKey] = useState("");
   const [previewPhoto, setPreviewPhoto] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function load() {
     setLoading(true);
-    const [{ data: carData }, { data: quoteData }, { data: photoData }] = await Promise.all([
+    const currentProfile = await getCurrentProfile();
+    setProfile(currentProfile ? { id: currentProfile.id, shop_id: currentProfile.shop_id, role: currentProfile.role } : null);
+    const [{ data: carData }, { data: quoteData }, { data: photoData }, tagRows] = await Promise.all([
       listCars(),
       listQuotations(),
       supabase
         .from("image_annotations")
         .select("id, car_id, image_url, annot_data, created_at")
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false }),
+      listCustomerTags()
     ]);
     setCars((carData || []) as CarRow[]);
     setQuotes((quoteData || []) as QuoteRow[]);
     setPhotos((photoData || []) as AlbumPhoto[]);
+    if (!tagRows.error) setTags((tagRows.data || []) as CustomerTag[]);
     setLoading(false);
   }
 
@@ -153,16 +174,33 @@ export default function CustomersPage() {
     return Array.from(groups.values()).sort((a, b) => (b.latestAt || "").localeCompare(a.latestAt || ""));
   }, [cars, quotes]);
 
+  const tagsByCustomer = useMemo(() => {
+    const grouped = new Map<string, CustomerTag[]>();
+    tags.forEach((tag) => grouped.set(tag.customer_id, [...(grouped.get(tag.customer_id) || []), tag]));
+    return grouped;
+  }, [tags]);
+
+  const tagOptions = useMemo(() => {
+    const optionMap = new Map<string, { tag_name: string; tag_color: string }>();
+    defaultCustomerTags.forEach((tag) => optionMap.set(tag.tag_name, tag));
+    tags.forEach((tag) => optionMap.set(tag.tag_name, { tag_name: tag.tag_name, tag_color: tag.tag_color }));
+    return Array.from(optionMap.values()).sort((a, b) => a.tag_name.localeCompare(b.tag_name, "zh-Hant"));
+  }, [tags]);
+
   const filteredGroups = useMemo(() => {
     const term = normalize(keyword);
-    if (!term) return customerGroups;
     return customerGroups.filter((group) => {
+      const groupTags = tagsByCustomer.get(group.key) || [];
+      const tagMatch =
+        selectedTags.length === 0 || selectedTags.every((tagName) => groupTags.some((tag) => tag.tag_name === tagName));
+      if (!tagMatch) return false;
+      if (!term) return true;
       const carText = group.cars
         .map((car) => [car.plate_no, car.brand, car.model, car.color].filter(Boolean).join(" "))
         .join(" ");
       return normalize(`${group.name} ${group.phone} ${carText}`).includes(term);
     });
-  }, [customerGroups, keyword]);
+  }, [customerGroups, keyword, selectedTags, tagsByCustomer]);
 
   function photosForCar(car: CarRow) {
     const plate = normalize(car.plate_no);
@@ -194,6 +232,41 @@ export default function CustomersPage() {
     setPhotos((current) => current.filter((photo) => photo.id !== photoId));
   }
 
+  async function attachTag(customerId: string) {
+    if (!profile || !canAttachCustomerTags(profile.role)) return alert("目前角色僅能查看標籤。");
+    const draft = tagDraft[customerId] || { tagName: "", tagColor: "#ffc107" };
+    const option = tagOptions.find((item) => item.tag_name === draft.tagName);
+    const tagName = (draft.tagName || "").trim();
+    if (!tagName) return alert("請先選擇或輸入標籤名稱。");
+    if (!canManageCustomerTags(profile.role) && !option) return alert("目前角色只能套用既有標籤。");
+    const { error } = await addCustomerTag({
+      customerId,
+      shopId: profile.shop_id,
+      tagName,
+      tagColor: draft.tagColor || option?.tag_color || "#ffc107",
+      createdBy: profile.id
+    });
+    if (error) return alert(error.message);
+    setTagDraft((current) => ({ ...current, [customerId]: { tagName: "", tagColor: "#ffc107" } }));
+    load();
+  }
+
+  async function detachTag(tagId: string) {
+    if (!profile || !canAttachCustomerTags(profile.role)) return;
+    const { error } = await removeCustomerTag(tagId);
+    if (error) return alert(error.message);
+    load();
+  }
+
+  async function deleteTagLibrary(tagName: string) {
+    if (!profile || !canManageCustomerTags(profile.role)) return;
+    const ok = window.confirm(`確定刪除「${tagName}」標籤庫？已套用的同名標籤也會一併移除。`);
+    if (!ok) return;
+    const { error } = await removeTagEverywhere(tagName, profile.shop_id);
+    if (error) return alert(error.message);
+    load();
+  }
+
   return (
     <RequireAuth>
       <section className="space-y-5">
@@ -218,16 +291,144 @@ export default function CustomersPage() {
           />
         </div>
 
+        <div className="card">
+          <p className="mb-3 text-sm font-black text-neutral-700">客戶標籤篩選</p>
+          <div className="flex flex-wrap gap-2">
+            {tagOptions.map((tag) => {
+              const active = selectedTags.includes(tag.tag_name);
+              return (
+                <button
+                  key={tag.tag_name}
+                  type="button"
+                  className={`rounded-full border px-3 py-2 text-xs font-black transition ${
+                    active ? "border-carcare-yellow bg-carcare-yellow text-carcare-black" : "border-neutral-300 bg-white text-neutral-700"
+                  }`}
+                  onClick={() =>
+                    setSelectedTags((current) =>
+                      active ? current.filter((item) => item !== tag.tag_name) : [...current, tag.tag_name]
+                    )
+                  }
+                >
+                  {tag.tag_name}
+                </button>
+              );
+            })}
+            {selectedTags.length ? (
+              <button type="button" className="secondary-btn" onClick={() => setSelectedTags([])}>
+                清除標籤篩選
+              </button>
+            ) : null}
+          </div>
+        </div>
+
         <div className="space-y-4">
           {filteredGroups.map((group) => {
             const open = expandedKey === group.key;
             const targetId = `customer-archive-${encodeURIComponent(group.key).replace(/%/g, "")}`;
+            const groupTags = tagsByCustomer.get(group.key) || [];
+            const draft = tagDraft[group.key] || { tagName: "", tagColor: "#ffc107" };
             return (
               <div key={group.key} className="card">
                 <div id={targetId}>
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h2 className="text-xl font-black">{group.name}</h2>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {groupTags.map((tag) => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            className="rounded-full px-3 py-1 text-xs font-black text-carcare-black"
+                            style={{ backgroundColor: tag.tag_color || "#ffc107" }}
+                            onClick={() =>
+                              setSelectedTags((current) =>
+                                current.includes(tag.tag_name) ? current : [...current, tag.tag_name]
+                              )
+                            }
+                          >
+                            {tag.tag_name}
+                            {profile && canAttachCustomerTags(profile.role) ? (
+                              <span
+                                className="ml-2"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  detachTag(tag.id);
+                                }}
+                              >
+                                ×
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                      {profile && canAttachCustomerTags(profile.role) ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <select
+                            className="form-input min-w-44 flex-1"
+                            value={draft.tagName}
+                            onChange={(event) => {
+                              const option = tagOptions.find((item) => item.tag_name === event.target.value);
+                              setTagDraft((current) => ({
+                                ...current,
+                                [group.key]: {
+                                  tagName: event.target.value,
+                                  tagColor: option?.tag_color || draft.tagColor || "#ffc107"
+                                }
+                              }));
+                            }}
+                          >
+                            <option value="">選擇標籤</option>
+                            {tagOptions.map((tag) => (
+                              <option key={tag.tag_name} value={tag.tag_name}>
+                                {tag.tag_name}
+                              </option>
+                            ))}
+                          </select>
+                          {canManageCustomerTags(profile.role) ? (
+                            <>
+                              <input
+                                className="form-input min-w-40 flex-1"
+                                value={draft.tagName}
+                                onChange={(event) =>
+                                  setTagDraft((current) => ({
+                                    ...current,
+                                    [group.key]: { ...draft, tagName: event.target.value }
+                                  }))
+                                }
+                                placeholder="自訂標籤"
+                              />
+                              <input
+                                className="h-12 w-16 rounded-xl border border-neutral-300 bg-white p-1"
+                                type="color"
+                                value={draft.tagColor}
+                                onChange={(event) =>
+                                  setTagDraft((current) => ({
+                                    ...current,
+                                    [group.key]: { ...draft, tagColor: event.target.value }
+                                  }))
+                                }
+                              />
+                            </>
+                          ) : null}
+                          <button type="button" className="primary-btn" onClick={() => attachTag(group.key)}>
+                            加入標籤
+                          </button>
+                        </div>
+                      ) : null}
+                      {profile && canManageCustomerTags(profile.role) && groupTags.length ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {Array.from(new Set(groupTags.map((tag) => tag.tag_name))).map((tagName) => (
+                            <button
+                              key={tagName}
+                              type="button"
+                              className="text-xs font-black text-red-600"
+                              onClick={() => deleteTagLibrary(tagName)}
+                            >
+                              刪除「{tagName}」標籤庫
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="mt-1 text-sm text-neutral-500">{group.phone || "未填電話"}</p>
                       <p className="mt-2 text-sm">
                         名下車輛：{group.cars.map((car) => car.plate_no || "未填車牌").join("、") || "尚無車輛"}

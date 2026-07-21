@@ -5,6 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
 import { listServiceItems } from "@/lib/db";
+import {
+  buildConflictNote,
+  canOverrideReservationConflict,
+  defaultReserveEnd,
+  findReservationConflicts,
+  formatReservationConflict,
+  parseReservationStart
+} from "@/lib/reservationConflicts";
 import { supabase } from "@/lib/supabase";
 
 type ServiceRow = {
@@ -183,11 +191,44 @@ export default function PasteReservationPage() {
     }
 
     const amount = Number(form.amount || matchedService?.base_price || 0);
+    const reserveStart = parseReservationStart(form.appointment_at);
+    const reserveEnd = reserveStart ? defaultReserveEnd(reserveStart) : null;
+    let conflictOverride = false;
+    let conflictNote = "";
+
+    if (reserveStart && reserveEnd) {
+      const { data: conflicts, error: conflictError } = await findReservationConflicts({
+        storeId: profile.shop_id,
+        start: reserveStart,
+        end: reserveEnd
+      });
+      if (conflictError) {
+        setSaving(false);
+        return alert(conflictError.message);
+      }
+      if (conflicts?.length) {
+        const message = `同門市同時段已有預約：\n${formatReservationConflict(conflicts)}`;
+        if (!canOverrideReservationConflict(profile.role)) {
+          setSaving(false);
+          alert(`${message}\n\n請調整預約時間後再建立。`);
+          return;
+        }
+        const ok = window.confirm(`${message}\n\n是否由店長/總管理權限強制建立？`);
+        if (!ok) {
+          setSaving(false);
+          return;
+        }
+        conflictOverride = true;
+        conflictNote = buildConflictNote(conflicts);
+      }
+    }
+
     const noteLines = [
       form.note ? `備註：${form.note}` : "",
       form.store_name ? `預約門市：${form.store_name}` : "",
       form.appointment_at ? `預約時間：${form.appointment_at}` : "",
-      form.source ? `得知管道：${form.source}` : ""
+      form.source ? `得知管道：${form.source}` : "",
+      conflictNote
     ].filter(Boolean);
 
     const { data: quoteData, error: quoteError } = await supabase
@@ -225,10 +266,16 @@ export default function PasteReservationPage() {
     const orderNo = `O${Date.now()}`;
     const { error: orderError } = await supabase.from("construction_orders").insert({
       shop_id: profile.shop_id,
+      store_id: profile.shop_id,
       car_id: carId,
       quotation_id: quoteData.id,
       order_no: orderNo,
       status: "pending",
+      start_at: reserveStart ? reserveStart.toISOString() : null,
+      reserve_start: reserveStart ? reserveStart.toISOString() : null,
+      reserve_end: reserveEnd ? reserveEnd.toISOString() : null,
+      conflict_override: conflictOverride,
+      conflict_note: conflictNote || null,
       total_amount: amount,
       paid_amount: 0,
       remark: noteLines.join("\n"),

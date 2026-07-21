@@ -3,17 +3,33 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import { getCurrentProfile } from "@/lib/auth";
+import { listCustomerTags, normalizeCustomerKey, type CustomerTag } from "@/lib/customerTags";
+import {
+  buildConflictNote,
+  canOverrideReservationConflict,
+  defaultReserveEnd,
+  findReservationConflicts,
+  formatReservationConflict,
+  parseReservationStart
+} from "@/lib/reservationConflicts";
 import { supabase } from "@/lib/supabase";
 
 type ScheduleRow = {
   id: string;
   order_no: string;
   status: string;
+  store_id: string | null;
   start_at: string | null;
+  reserve_start: string | null;
+  reserve_end: string | null;
   finish_at: string | null;
+  conflict_override?: boolean | null;
+  conflict_note?: string | null;
   remark: string | null;
   cars?: {
     customer_name?: string | null;
+    customer_phone?: string | null;
     plate_no?: string | null;
     brand?: string | null;
     model?: string | null;
@@ -47,6 +63,7 @@ export default function CalendarPage() {
   const [store, setStore] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [view, setView] = useState<"day" | "week">("day");
+  const [tags, setTags] = useState<CustomerTag[]>([]);
 
   async function load() {
     const { data, error } = await supabase
@@ -55,15 +72,22 @@ export default function CalendarPage() {
         id,
         order_no,
         status,
+        store_id,
         start_at,
+        reserve_start,
+        reserve_end,
         finish_at,
+        conflict_override,
+        conflict_note,
         remark,
-        cars(customer_name, plate_no, brand, model),
+        cars(customer_name, customer_phone, plate_no, brand, model),
         quotations(quote_no, remark)
       `)
       .order("start_at", { ascending: true });
     if (error) return alert(error.message);
     setRows((data || []) as ScheduleRow[]);
+    const tagRows = await listCustomerTags();
+    if (!tagRows.error) setTags((tagRows.data || []) as CustomerTag[]);
   }
 
   useEffect(() => {
@@ -95,6 +119,17 @@ export default function CalendarPage() {
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [visibleRows]);
 
+  const tagsByCustomer = useMemo(() => {
+    const grouped = new Map<string, CustomerTag[]>();
+    tags.forEach((tag) => grouped.set(tag.customer_id, [...(grouped.get(tag.customer_id) || []), tag]));
+    return grouped;
+  }, [tags]);
+
+  function tagsForRow(row: ScheduleRow) {
+    const key = normalizeCustomerKey(row.cars?.customer_name, row.cars?.customer_phone, row.cars?.plate_no);
+    return tagsByCustomer.get(key) || [];
+  }
+
   async function updateStatus(row: ScheduleRow, status: string) {
     const patch: Record<string, string | null> = { status };
     if (status === "working" && !row.start_at) patch.start_at = new Date().toISOString();
@@ -116,6 +151,59 @@ export default function CalendarPage() {
     const { error } = await supabase
       .from("construction_orders")
       .update({ start_at: next, status: "scheduled", remark })
+      .eq("id", row.id);
+    if (error) return alert(error.message);
+    load();
+  }
+
+  async function rescheduleWithConflict(row: ScheduleRow) {
+    const next = window.prompt("請輸入新的預約日期時間，例如 2026-07-21T10:30", row.start_at || `${date}T10:00`);
+    if (!next) return;
+    const profile = await getCurrentProfile();
+    const reserveStart = parseReservationStart(next);
+    const reserveEnd = reserveStart ? defaultReserveEnd(reserveStart) : null;
+    let conflictOverride = row.conflict_override || false;
+    let conflictNote = row.conflict_note || "";
+
+    if (reserveStart && reserveEnd) {
+      const { data: conflicts, error: conflictError } = await findReservationConflicts({
+        storeId: row.store_id || profile?.shop_id || null,
+        start: reserveStart,
+        end: reserveEnd,
+        excludeId: row.id
+      });
+      if (conflictError) return alert(conflictError.message);
+      if (conflicts?.length) {
+        const message = `同門市同時段已有預約：\n${formatReservationConflict(conflicts)}`;
+        if (!canOverrideReservationConflict(profile?.role)) {
+          alert(`${message}\n\n請調整預約時間。`);
+          return;
+        }
+        const ok = window.confirm(`${message}\n\n是否強制改期建立重疊預約？`);
+        if (!ok) return;
+        conflictOverride = true;
+        conflictNote = buildConflictNote(conflicts);
+      }
+    }
+
+    const remark = [
+      row.remark || "",
+      `[改期紀錄] ${new Date().toLocaleString("zh-TW")}：${row.start_at || "未排程"} -> ${next}`,
+      conflictNote
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const { error } = await supabase
+      .from("construction_orders")
+      .update({
+        start_at: reserveStart ? reserveStart.toISOString() : next,
+        reserve_start: reserveStart ? reserveStart.toISOString() : next,
+        reserve_end: reserveEnd ? reserveEnd.toISOString() : null,
+        status: "scheduled",
+        remark,
+        conflict_override: conflictOverride,
+        conflict_note: conflictNote || null
+      })
       .eq("id", row.id);
     if (error) return alert(error.message);
     load();
@@ -175,8 +263,17 @@ export default function CalendarPage() {
             <div key={day} className="card">
               <h2 className="mb-4 text-xl font-black">{day}</h2>
               <div className="grid gap-3 xl:grid-cols-2">
-                {items.map((row) => (
-                  <article key={row.id} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+                {items.map((row) => {
+                  const rowTags = tagsForRow(row);
+                  const hasConflict = Boolean(row.conflict_override || row.conflict_note);
+                  return (
+                  <article
+                    key={row.id}
+                    title={row.conflict_note || undefined}
+                    className={`rounded-2xl border bg-white p-4 shadow-sm ${
+                      hasConflict ? "border-carcare-yellow ring-2 ring-carcare-yellow/40" : "border-neutral-200"
+                    }`}
+                  >
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <p className="font-black text-neutral-900">{timeText(row.start_at)} / {row.order_no}</p>
@@ -191,8 +288,26 @@ export default function CalendarPage() {
                         {statusText[row.status] || row.status}
                       </span>
                     </div>
+                    {hasConflict ? (
+                      <p className="mt-3 rounded-xl bg-carcare-yellow/20 px-3 py-2 text-xs font-black text-carcare-black">
+                        時段衝突：滑鼠停留可查看重疊預約資訊
+                      </p>
+                    ) : null}
+                    {rowTags.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {rowTags.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="rounded-full px-3 py-1 text-xs font-black text-carcare-black"
+                            style={{ backgroundColor: tag.tag_color || "#ffc107" }}
+                          >
+                            {tag.tag_name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button className="secondary-btn" type="button" onClick={() => reschedule(row)}>
+                      <button className="secondary-btn" type="button" onClick={() => rescheduleWithConflict(row)}>
                         改期
                       </button>
                       <button className="secondary-btn" type="button" onClick={() => updateStatus(row, "working")}>
@@ -206,7 +321,8 @@ export default function CalendarPage() {
                       </button>
                     </div>
                   </article>
-                ))}
+                );
+                })}
               </div>
             </div>
           ))}
