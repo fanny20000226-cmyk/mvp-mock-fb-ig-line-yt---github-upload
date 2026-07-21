@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import StatCard from "@/components/StatCard";
 import { listPayments } from "@/lib/db";
+import { money } from "@/lib/receipts";
+import { supabase } from "@/lib/supabase";
 
 type PaymentRow = {
   id: string;
@@ -14,9 +16,19 @@ type PaymentRow = {
 
 export default function FinanceReportsPage() {
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [taxStats, setTaxStats] = useState({ beforeTax: 0, tax: 0 });
 
   useEffect(() => {
     listPayments().then(({ data }) => setRows((data || []) as PaymentRow[]));
+    supabase
+      .from("receipt_records")
+      .select("amount_before_tax, total_tax")
+      .then(({ data }) => {
+        setTaxStats({
+          beforeTax: (data || []).reduce((sum, row) => sum + Number(row.amount_before_tax || 0), 0),
+          tax: (data || []).reduce((sum, row) => sum + Number(row.total_tax || 0), 0)
+        });
+      });
   }, []);
 
   const incomeRows = useMemo(() => rows.filter((row) => Number(row.amount || 0) >= 0), [rows]);
@@ -48,6 +60,8 @@ export default function FinanceReportsPage() {
           <StatCard title="支出合計" value={`$${expenseTotal.toLocaleString()}`} />
           <StatCard title="淨額" value={`$${netTotal.toLocaleString()}`} />
           <StatCard title="流水筆數" value={rows.length} />
+          <StatCard title="未稅營業額" value={money(taxStats.beforeTax)} />
+          <StatCard title="營業稅總額" value={money(taxStats.tax)} />
         </section>
 
         <section className="card">

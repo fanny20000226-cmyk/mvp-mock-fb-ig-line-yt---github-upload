@@ -5,6 +5,7 @@ import RequireAuth from "@/components/RequireAuth";
 import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
 import PhotoZipButton from "@/components/PhotoZipButton";
+import ReceiptExportButton from "@/components/ReceiptExportButton";
 import { getCurrentProfile } from "@/lib/auth";
 import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listQuotations, listServiceItems } from "@/lib/db";
@@ -21,6 +22,8 @@ type QuoteRow = {
   status: string;
   remark: string | null;
   created_at: string;
+  shop_id?: string | null;
+  tax_rate?: number | null;
 };
 
 type QuoteItemRow = {
@@ -424,7 +427,20 @@ export default function QuotationsPage() {
                                 urls={extractPhotoUrls(row.remark)}
                                 filename={`PEIWAY_${row.plate_no || row.quote_no}_${String(row.created_at || new Date().toISOString()).slice(0, 10)}`}
                               />
-                              <PdfExportButton targetId="quotation-pdf-area" filename={`${row.quote_no || "報價單"}.pdf`} />
+                        <PdfExportButton targetId="quotation-pdf-area" filename={`${row.quote_no || "報價單"}.pdf`} />
+                        <ReceiptExportButton
+                          source={{
+                            quotationId: row.id,
+                            quoteNo: row.quote_no,
+                            shopId: row.shop_id,
+                            customerName: row.customer_name,
+                            customerPhone: row.customer_phone,
+                            plateNo: row.plate_no,
+                            totalAmount: Number(row.final_amount || row.total_amount || 0),
+                            taxRate: row.tax_rate,
+                            createdAt: row.created_at
+                          }}
+                        />
                             </div>
                           </div>
                           <div className="table-wrap">

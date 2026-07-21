@@ -5,6 +5,7 @@ import RequireAuth from "@/components/RequireAuth";
 import ConstructionOrderCreator from "@/components/ConstructionOrderCreator";
 import PeiwayWorkOrderPdf from "@/components/PeiwayWorkOrderPdf";
 import PhotoZipButton from "@/components/PhotoZipButton";
+import ReceiptExportButton from "@/components/ReceiptExportButton";
 import { listConstructionOrders } from "@/lib/db";
 import {
   createMockSmsNotification,
@@ -362,6 +363,27 @@ export default function ConstructionPage() {
                               <PhotoZipButton
                                 urls={[...(photoMap[row.id]?.before || []), ...(photoMap[row.id]?.after || [])]}
                                 filename={`PEIWAY_${row.cars?.plate_no || row.order_no}_${String(row.finish_at || row.start_at || new Date().toISOString()).slice(0, 10)}`}
+                              />
+                              <ReceiptExportButton
+                                source={{
+                                  quotationId: row.quotations?.id || null,
+                                  orderNo: row.order_no,
+                                  quoteNo: row.quotations?.quote_no || null,
+                                  shopId: row.shop_id || null,
+                                  customerName: row.cars?.customer_name || null,
+                                  customerPhone: row.cars?.customer_phone || null,
+                                  plateNo: row.cars?.plate_no || null,
+                                  totalAmount: Number(row.total_amount || row.quotations?.final_amount || 0),
+                                  createdAt: row.finish_at || row.start_at
+                                }}
+                                fallbackItems={[
+                                  {
+                                    name: row.remark || `施工工單 ${row.order_no}`,
+                                    quantity: 1,
+                                    unitPrice: Number(row.total_amount || 0),
+                                    subtotal: Number(row.total_amount || 0)
+                                  }
+                                ]}
                               />
                             </div>
                             <button

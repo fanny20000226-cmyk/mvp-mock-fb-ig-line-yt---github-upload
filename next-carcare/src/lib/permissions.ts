@@ -41,13 +41,14 @@ export const roleMenus: Record<Role, string[]> = {
     "/finance/payments",
     "/finance/transactions",
     "/finance/reports",
+    "/finance/receipts",
     "/notifications",
     "/hr/employees",
     "/hr/attendance",
     "/bonus",
     "/permissions"
   ],
-  finance: ["/dashboard", "/finance/payments", "/finance/reports"],
+  finance: ["/dashboard", "/finance/payments", "/finance/reports", "/finance/receipts"],
   hr: ["/dashboard", "/hr/employees", "/hr/attendance"],
   shop_manager: [
     "/dashboard",
@@ -65,6 +66,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/finance/payments",
     "/finance/transactions",
     "/finance/reports",
+    "/finance/receipts",
     "/notifications",
     "/hr/employees",
     "/hr/attendance"
@@ -85,6 +87,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/finance/payments",
     "/finance/transactions",
     "/finance/reports",
+    "/finance/receipts",
     "/notifications",
     "/hr/employees",
     "/hr/attendance"

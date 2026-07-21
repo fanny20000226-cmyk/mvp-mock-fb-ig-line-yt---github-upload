@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   ListChecks,
   MessageSquareText,
+  ReceiptText,
   Shield,
   Sparkles,
   Users,
@@ -75,6 +76,7 @@ const menuGroups = [
       { href: "/finance/payments", label: "收款核銷", icon: Wallet },
       { href: "/finance/transactions", label: "交易明細", icon: ListChecks },
       { href: "/finance/reports", label: "財務報表", icon: BadgeDollarSign },
+      { href: "/finance/receipts", label: "收據開立紀錄", icon: ReceiptText },
       { href: "/bonus", label: "獎金設定", icon: Gift }
     ]
   },
