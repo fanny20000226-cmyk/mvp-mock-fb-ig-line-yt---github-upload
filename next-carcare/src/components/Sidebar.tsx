@@ -16,6 +16,7 @@ import {
   Image,
   LayoutDashboard,
   ListChecks,
+  MessageSquareText,
   Shield,
   Sparkles,
   Users,
@@ -76,6 +77,11 @@ const menuGroups = [
       { href: "/finance/reports", label: "財務報表", icon: BadgeDollarSign },
       { href: "/bonus", label: "獎金設定", icon: Gift }
     ]
+  },
+  {
+    label: "通知紀錄管理",
+    icon: MessageSquareText,
+    items: [{ href: "/notifications", label: "通知紀錄管理", icon: MessageSquareText }]
   },
   {
     label: "人員打卡",

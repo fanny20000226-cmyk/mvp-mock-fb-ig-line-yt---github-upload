@@ -4,12 +4,20 @@ import { Fragment, useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import ConstructionOrderCreator from "@/components/ConstructionOrderCreator";
 import PeiwayWorkOrderPdf from "@/components/PeiwayWorkOrderPdf";
+import PhotoZipButton from "@/components/PhotoZipButton";
 import { listConstructionOrders } from "@/lib/db";
+import {
+  createMockSmsNotification,
+  defaultPickupTemplates,
+  photoPreviewLink,
+  renderNotifyTemplate
+} from "@/lib/notifications";
 import { exportElementToPdf } from "@/lib/pdf";
 import { supabase } from "@/lib/supabase";
 
 type OrderRow = {
   id: string;
+  shop_id?: string | null;
   order_no: string;
   status: string;
   start_at: string | null;
@@ -26,6 +34,7 @@ type OrderRow = {
     year?: string | null;
   } | null;
   quotations?: {
+    id?: string | null;
     quote_no?: string | null;
     final_amount?: number | null;
     remark?: string | null;
@@ -43,6 +52,7 @@ const statusText: Record<string, string> = {
   scheduled: "已排程",
   working: "施工中",
   finished: "已完工",
+  ready_pickup: "完工待取車",
   picked_up: "已牽車",
   cancelled: "取消"
 };
@@ -65,10 +75,15 @@ export default function ConstructionPage() {
   async function updateStatus(row: OrderRow, status: string) {
     const patch: Record<string, string | null> = { status };
     if (status === "working" && !row.start_at) patch.start_at = new Date().toISOString();
-    if (status === "finished" && !row.finish_at) patch.finish_at = new Date().toISOString();
+    if ((status === "finished" || status === "ready_pickup") && !row.finish_at) {
+      patch.finish_at = new Date().toISOString();
+    }
 
     const { error } = await supabase.from("construction_orders").update(patch).eq("id", row.id);
     if (error) return alert(error.message);
+    if (status === "ready_pickup") {
+      await promptPickupNotice(row);
+    }
     load();
   }
 
@@ -81,11 +96,12 @@ export default function ConstructionPage() {
   }
 
   async function loadWorkOrderPhotos(row: OrderRow) {
-    if (photoMap[row.id]) return;
+    if (photoMap[row.id]) return photoMap[row.id];
     const plateNo = row.cars?.plate_no;
     if (!plateNo) {
-      setPhotoMap((current) => ({ ...current, [row.id]: { before: [], after: [] } }));
-      return;
+      const empty = { before: [], after: [] };
+      setPhotoMap((current) => ({ ...current, [row.id]: empty }));
+      return empty;
     }
     const { data } = await supabase
       .from("image_annotations")
@@ -104,6 +120,33 @@ export default function ConstructionPage() {
       { before: [], after: [] }
     );
     setPhotoMap((current) => ({ ...current, [row.id]: photos }));
+    return photos;
+  }
+
+  async function promptPickupNotice(row: OrderRow) {
+    const phone = row.cars?.customer_phone || "";
+    const ok = window.confirm(
+      `施工單已切換為「完工待取車」。\n\n是否建立取車簡訊通知紀錄？\n客戶電話：${phone || "未填"}`
+    );
+    if (!ok) return;
+
+    const photos = await loadWorkOrderPhotos(row);
+    const photoLink = photoPreviewLink([...(photos.before || []), ...(photos.after || [])]);
+    const content = renderNotifyTemplate(defaultPickupTemplates.first, photoLink);
+    try {
+      await createMockSmsNotification({
+        quotationId: row.quotations?.id || null,
+        storeId: row.shop_id || null,
+        customerPhone: phone,
+        photoLink,
+        content
+      });
+      alert("已建立 Mock 簡訊通知紀錄，可至「通知紀錄管理」查看。");
+    } catch (error) {
+      alert(
+        `${error instanceof Error ? error.message : "建立通知紀錄失敗。"}\n\n若資料表尚未建立，請先在 Supabase SQL 執行 supabase-step9-notifications.sql。`
+      );
+    }
   }
 
   async function toggleExpanded(row: OrderRow, isExpanded: boolean) {
@@ -203,6 +246,7 @@ export default function ConstructionPage() {
                           <option value="scheduled">已排程</option>
                           <option value="working">施工中</option>
                           <option value="finished">已完工</option>
+                          <option value="ready_pickup">完工待取車</option>
                           <option value="picked_up">已牽車</option>
                           <option value="cancelled">取消</option>
                         </select>
@@ -227,10 +271,10 @@ export default function ConstructionPage() {
                           </button>
                           <button
                             className="rounded-xl bg-carcare-yellow px-3 py-2 text-sm font-black text-carcare-black"
-                            onClick={() => updateStatus(row, "finished")}
-                            disabled={row.status === "finished"}
+                            onClick={() => updateStatus(row, "ready_pickup")}
+                            disabled={row.status === "ready_pickup" || row.status === "picked_up"}
                           >
-                            完工
+                            完工待取車
                           </button>
                           <button
                             className="rounded-xl border border-neutral-900 px-3 py-2 text-sm font-black"
@@ -314,6 +358,12 @@ export default function ConstructionPage() {
                             </div>
                           </div>
                           <div className="mt-3">
+                            <div className="mb-3 flex flex-wrap gap-2">
+                              <PhotoZipButton
+                                urls={[...(photoMap[row.id]?.before || []), ...(photoMap[row.id]?.after || [])]}
+                                filename={`PEIWAY_${row.cars?.plate_no || row.order_no}_${String(row.finish_at || row.start_at || new Date().toISOString()).slice(0, 10)}`}
+                              />
+                            </div>
                             <button
                               type="button"
                               className="rounded-xl bg-carcare-yellow px-5 py-3 font-black text-carcare-black transition duration-200"

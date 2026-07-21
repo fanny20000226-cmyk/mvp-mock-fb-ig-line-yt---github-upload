@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
+import PhotoZipButton from "@/components/PhotoZipButton";
 import { getCurrentProfile } from "@/lib/auth";
 import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listQuotations, listServiceItems } from "@/lib/db";
@@ -45,6 +46,12 @@ const statusText: Record<string, string> = {
   converted: "已轉工單",
   void: "作廢"
 };
+
+function extractPhotoUrls(text?: string | null) {
+  if (!text) return [];
+  const matches = text.match(/https?:\/\/[^\s)]+/g) || [];
+  return matches.filter((url) => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url));
+}
 
 export default function QuotationsPage() {
   const [rows, setRows] = useState<QuoteRow[]>([]);
@@ -412,7 +419,13 @@ export default function QuotationsPage() {
                               <p className="text-sm font-black text-carcare-yellow">報價明細</p>
                               <h3 className="text-lg font-black text-neutral-900">{row.quote_no}</h3>
                             </div>
-                            <PdfExportButton targetId="quotation-pdf-area" filename={`${row.quote_no || "報價單"}.pdf`} />
+                            <div className="flex flex-wrap gap-2">
+                              <PhotoZipButton
+                                urls={extractPhotoUrls(row.remark)}
+                                filename={`PEIWAY_${row.plate_no || row.quote_no}_${String(row.created_at || new Date().toISOString()).slice(0, 10)}`}
+                              />
+                              <PdfExportButton targetId="quotation-pdf-area" filename={`${row.quote_no || "報價單"}.pdf`} />
+                            </div>
                           </div>
                           <div className="table-wrap">
                             <table className="data-table">

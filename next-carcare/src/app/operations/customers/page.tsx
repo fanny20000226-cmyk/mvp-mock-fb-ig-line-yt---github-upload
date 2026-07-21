@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import PdfExportButton from "@/components/PdfExportButton";
+import PhotoZipButton from "@/components/PhotoZipButton";
 import { listCars, listQuotations } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
@@ -261,6 +262,10 @@ export default function CustomersPage() {
                                   <button type="button" className="primary-btn" onClick={() => createNewQuoteDraft(car)}>
                                     轉新報價單
                                   </button>
+                                  <PhotoZipButton
+                                    urls={carPhotos.map((photo) => photo.image_url)}
+                                    filename={`PEIWAY_${car.plate_no || car.customer_name}_${new Date().toISOString().slice(0, 10)}`}
+                                  />
                                 </div>
                                 <PhotoStrip
                                   title="施工前照片"
