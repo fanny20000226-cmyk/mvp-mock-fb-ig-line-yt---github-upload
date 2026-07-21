@@ -269,6 +269,13 @@ export default function InteriorQuoteBuilder({
     window.localStorage.removeItem(DRAFT_KEY);
   }
 
+  function focusSelectionArea() {
+    document.getElementById("quote-selection-area")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+
   function addManualItem() {
     const price = parseAmount(manualPrice);
     if (!manualName.trim()) return alert("請輸入補充項目名稱。");
@@ -460,14 +467,14 @@ export default function InteriorQuoteBuilder({
             <button type="button" className="secondary-btn" onClick={saveDraftToLocal}>
               存草稿
             </button>
-            <button type="button" className="primary-btn" onClick={() => generateQuote(true)}>
-              匯出報價單PDF
+            <button type="button" className="primary-btn" onClick={() => generateQuote(true)} disabled={saving}>
+              {saving ? "處理中..." : "匯出報價單PDF"}
             </button>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-3">
+      <section id="quote-selection-area" className="grid gap-5 xl:grid-cols-3">
         <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
           <h2 className="mb-3 text-lg font-black">車型與車輛資料</h2>
           <select className="form-input" value={carType} onChange={(e) => changeCarType(e.target.value)}>
@@ -527,7 +534,7 @@ export default function InteriorQuoteBuilder({
                   <td>{carpetLabelList.join("、") || "-"}</td>
                   <td>{categoryA}</td>
                   <td>
-                    <button type="button" className="primary-btn">
+                    <button type="button" className="primary-btn" onClick={focusSelectionArea}>
                       選作
                     </button>
                   </td>
@@ -771,7 +778,7 @@ export default function InteriorQuoteBuilder({
           <p className="text-sm text-white/60">最終應付金額</p>
           <p className="text-5xl font-black text-carcare-yellow">{money(finalTotal)}</p>
         </div>
-        <button type="button" onClick={() => generateQuote(true)} className="primary-btn mt-5 w-full text-lg">
+        <button type="button" onClick={() => generateQuote(true)} disabled={saving} className="primary-btn mt-5 w-full text-lg">
           {saving ? "處理中..." : "建議並匯出報價單PDF"}
         </button>
       </section>

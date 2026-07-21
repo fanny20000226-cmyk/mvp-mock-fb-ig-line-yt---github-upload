@@ -1,6 +1,7 @@
 "use client";
 
 import { exportElementToPdf } from "@/lib/pdf";
+import { useState } from "react";
 
 export default function PdfExportButton({
   targetId,
@@ -9,13 +10,29 @@ export default function PdfExportButton({
   targetId: string;
   filename: string;
 }) {
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportElementToPdf(targetId, filename);
+    } catch (error) {
+      console.error(error);
+      alert("PDF 匯出失敗，請確認圖片已載入完成後再試一次。");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <button
-      onClick={() => exportElementToPdf(targetId, filename)}
-      className="rounded-xl bg-carcare-yellow px-5 py-3 font-black text-carcare-black"
+      type="button"
+      onClick={handleExport}
+      disabled={exporting}
+      className="rounded-xl bg-carcare-yellow px-5 py-3 font-black text-carcare-black disabled:cursor-not-allowed disabled:opacity-60"
     >
-      匯出 PDF
+      {exporting ? "匯出中..." : "匯出 PDF"}
     </button>
   );
 }
-
