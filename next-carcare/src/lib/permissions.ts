@@ -30,6 +30,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/operations/paste-reservation",
     "/operations/evaluation",
     "/operations/orders",
+    "/operations/calendar",
     "/operations/cancellations",
     "/operations/customers",
     "/operations/cars",
@@ -38,6 +39,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/operations/construction",
     "/annotations",
     "/finance/payments",
+    "/finance/transactions",
     "/finance/reports",
     "/hr/employees",
     "/hr/attendance",
@@ -51,6 +53,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/operations/paste-reservation",
     "/operations/evaluation",
     "/operations/orders",
+    "/operations/calendar",
     "/operations/cancellations",
     "/operations/customers",
     "/operations/cars",
@@ -59,6 +62,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/operations/construction",
     "/annotations",
     "/finance/payments",
+    "/finance/transactions",
     "/finance/reports",
     "/hr/employees",
     "/hr/attendance"
@@ -68,6 +72,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/operations/paste-reservation",
     "/operations/evaluation",
     "/operations/orders",
+    "/operations/calendar",
     "/operations/cancellations",
     "/operations/customers",
     "/operations/cars",
@@ -76,11 +81,12 @@ export const roleMenus: Record<Role, string[]> = {
     "/operations/construction",
     "/annotations",
     "/finance/payments",
+    "/finance/transactions",
     "/finance/reports",
     "/hr/employees",
     "/hr/attendance"
   ],
-  worker: ["/dashboard", "/operations/construction", "/annotations"]
+  worker: ["/dashboard", "/operations/calendar", "/operations/construction", "/annotations"]
 };
 
 export function canAccess(role: Role, path: string) {

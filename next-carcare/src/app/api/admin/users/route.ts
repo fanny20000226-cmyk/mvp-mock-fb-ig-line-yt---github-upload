@@ -80,3 +80,65 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ id: data.user.id });
 }
+
+export async function PATCH(request: Request) {
+  const body = (await request.json()) as {
+    id: string;
+    active?: boolean;
+    password?: string;
+    role?: Role;
+    shop_id?: string | null;
+  };
+
+  const authHeader = request.headers.get("authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+
+  if (!token) {
+    return NextResponse.json({ message: "缺少登入權杖" }, { status: 401 });
+  }
+
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  });
+
+  const { data: authUser } = await userClient.auth.getUser(token);
+  const currentUserId = authUser.user?.id;
+
+  if (!currentUserId) {
+    return NextResponse.json({ message: "登入狀態失效" }, { status: 401 });
+  }
+
+  const { data: currentProfile } = await userClient
+    .from("users")
+    .select("role")
+    .eq("id", currentUserId)
+    .single();
+
+  if (currentProfile?.role !== "admin") {
+    return NextResponse.json({ message: "權限不足" }, { status: 403 });
+  }
+
+  const admin = getSupabaseAdmin();
+  const profilePatch: Record<string, boolean | string | null> = {};
+  if (typeof body.active === "boolean") profilePatch.active = body.active;
+  if (body.role) profilePatch.role = body.role;
+  if (Object.prototype.hasOwnProperty.call(body, "shop_id")) profilePatch.shop_id = body.shop_id || null;
+
+  if (Object.keys(profilePatch).length) {
+    const { error } = await admin.from("users").update(profilePatch).eq("id", body.id);
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+  }
+
+  if (body.password) {
+    const { error } = await admin.auth.admin.updateUserById(body.id, {
+      password: body.password
+    });
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

@@ -43,6 +43,7 @@ const statusText: Record<string, string> = {
   scheduled: "已排程",
   working: "施工中",
   finished: "已完工",
+  picked_up: "已牽車",
   cancelled: "取消"
 };
 
@@ -202,6 +203,7 @@ export default function ConstructionPage() {
                           <option value="scheduled">已排程</option>
                           <option value="working">施工中</option>
                           <option value="finished">已完工</option>
+                          <option value="picked_up">已牽車</option>
                           <option value="cancelled">取消</option>
                         </select>
                       </td>
@@ -229,6 +231,13 @@ export default function ConstructionPage() {
                             disabled={row.status === "finished"}
                           >
                             完工
+                          </button>
+                          <button
+                            className="rounded-xl border border-neutral-900 px-3 py-2 text-sm font-black"
+                            onClick={() => updateStatus(row, "picked_up")}
+                            disabled={row.status === "picked_up"}
+                          >
+                            已牽車
                           </button>
                           <button
                             className="rounded-xl border border-neutral-900 px-3 py-2 text-sm font-black"

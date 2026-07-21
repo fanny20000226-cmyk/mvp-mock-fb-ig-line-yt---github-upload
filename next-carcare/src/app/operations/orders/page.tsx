@@ -36,6 +36,7 @@ const statusText: Record<string, string> = {
   scheduled: "已排車",
   working: "施工中",
   finished: "已完工",
+  picked_up: "已牽車",
   cancelled: "取消",
   cancel_requested: "取消待審核",
   reschedule_requested: "改期待審核"
@@ -178,6 +179,7 @@ export default function OrdersPage() {
               <option value="scheduled">已排車</option>
               <option value="working">施工中</option>
               <option value="finished">已完工</option>
+              <option value="picked_up">已牽車</option>
               <option value="cancel_requested">取消待審核</option>
               <option value="reschedule_requested">改期待審核</option>
               <option value="cancelled">取消</option>
@@ -241,6 +243,7 @@ export default function OrdersPage() {
                           <option value="scheduled">已排車</option>
                           <option value="working">施工中</option>
                           <option value="finished">已完工</option>
+                          <option value="picked_up">已牽車</option>
                           <option value="cancel_requested">取消待審核</option>
                           <option value="reschedule_requested">改期待審核</option>
                           <option value="cancelled">取消</option>

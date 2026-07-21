@@ -38,6 +38,7 @@ const menuGroups = [
       { href: "/operations/evaluation", label: "預約評估", icon: ClipboardList },
       { href: "/operations/paste-reservation", label: "貼上填單", icon: ClipboardPaste },
       { href: "/operations/orders", label: "訂單管理", icon: ListChecks },
+      { href: "/operations/calendar", label: "預約行事曆", icon: CalendarCheck },
       { href: "/operations/cancellations", label: "取消 / 改期", icon: CalendarX }
     ]
   },
@@ -71,6 +72,7 @@ const menuGroups = [
     icon: BadgeDollarSign,
     items: [
       { href: "/finance/payments", label: "收款核銷", icon: Wallet },
+      { href: "/finance/transactions", label: "交易明細", icon: ListChecks },
       { href: "/finance/reports", label: "財務報表", icon: BadgeDollarSign },
       { href: "/bonus", label: "獎金設定", icon: Gift }
     ]

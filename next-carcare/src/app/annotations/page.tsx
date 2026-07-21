@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
-import ImageAnnotator, { type AnnotationBox } from "@/components/ImageAnnotator";
+import ImageAnnotator, { type AnnotationMark } from "@/components/ImageAnnotator";
 import { supabase } from "@/lib/supabase";
 import { getCurrentProfile } from "@/lib/auth";
 
 export default function AnnotationsPage() {
   const [imageUrl, setImageUrl] = useState("");
-  const [boxes, setBoxes] = useState<AnnotationBox[]>([]);
+  const [plateNo, setPlateNo] = useState("");
+  const [boxes, setBoxes] = useState<AnnotationMark[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const image = searchParams.get("image");
+    const plate = searchParams.get("plate");
+    if (image) setImageUrl(image);
+    if (plate) setPlateNo(plate);
+  }, []);
 
   async function uploadImage(file: File) {
     const profile = await getCurrentProfile();
@@ -41,6 +50,8 @@ export default function AnnotationsPage() {
       shop_id: profile.shop_id,
       image_url: imageUrl,
       annot_data: {
+        type: "annotated",
+        plate_no: plateNo.trim(),
         boxes,
         total_price: boxes.reduce((sum, box) => sum + box.price, 0)
       },
@@ -72,6 +83,12 @@ export default function AnnotationsPage() {
             {saving ? "儲存中..." : "儲存標註"}
           </button>
         </div>
+        <input
+          className="form-input mb-4"
+          value={plateNo}
+          onChange={(event) => setPlateNo(event.target.value)}
+          placeholder="車牌號碼，填寫後會歸到該車雲端相簿"
+        />
         <label className="mb-4 block rounded-2xl border border-dashed border-neutral-300 bg-white p-5 text-center font-black">
           {uploading ? "圖片上傳中..." : "上傳車況照片"}
           <input

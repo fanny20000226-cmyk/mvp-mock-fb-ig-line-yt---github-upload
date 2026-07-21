@@ -248,6 +248,7 @@ export default function CustomersPage() {
                             const carPhotos = photosForCar(car);
                             const before = carPhotos.filter((photo) => String(photo.annot_data?.type || "").includes("before"));
                             const after = carPhotos.filter((photo) => String(photo.annot_data?.type || "").includes("after"));
+                            const annotated = carPhotos.filter((photo) => String(photo.annot_data?.type || "").includes("annotated"));
                             return (
                               <div key={car.id} className="rounded-2xl border border-neutral-200 bg-white p-4">
                                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -264,12 +265,21 @@ export default function CustomersPage() {
                                 <PhotoStrip
                                   title="施工前照片"
                                   photos={before}
+                                  plateNo={car.plate_no || ""}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
                                 <PhotoStrip
                                   title="施工後照片"
                                   photos={after}
+                                  plateNo={car.plate_no || ""}
+                                  onPreview={setPreviewPhoto}
+                                  onDelete={deletePhoto}
+                                />
+                                <PhotoStrip
+                                  title="標註圖片"
+                                  photos={annotated}
+                                  plateNo={car.plate_no || ""}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
@@ -278,8 +288,10 @@ export default function CustomersPage() {
                                   photos={carPhotos.filter(
                                     (photo) =>
                                       !String(photo.annot_data?.type || "").includes("before") &&
-                                      !String(photo.annot_data?.type || "").includes("after")
+                                      !String(photo.annot_data?.type || "").includes("after") &&
+                                      !String(photo.annot_data?.type || "").includes("annotated")
                                   )}
+                                  plateNo={car.plate_no || ""}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
@@ -385,11 +397,13 @@ function latestDate(left: string, right: string) {
 function PhotoStrip({
   title,
   photos,
+  plateNo,
   onPreview,
   onDelete
 }: {
   title: string;
   photos: AlbumPhoto[];
+  plateNo: string;
   onPreview: (url: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -417,6 +431,12 @@ function PhotoStrip({
               >
                 刪除
               </button>
+              <Link
+                href={`/annotations?image=${encodeURIComponent(photo.image_url)}&plate=${encodeURIComponent(plateNo)}`}
+                className="absolute bottom-1 left-1 rounded-full bg-carcare-yellow px-2 py-1 text-xs font-black text-carcare-black opacity-100 md:opacity-0 md:group-hover:opacity-100"
+              >
+                標註
+              </Link>
             </div>
           ))}
         </div>

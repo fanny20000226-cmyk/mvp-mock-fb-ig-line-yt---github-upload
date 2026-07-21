@@ -12,19 +12,30 @@ type OrderRow = {
   order_no: string;
   status: string;
   start_at: string | null;
+  paid_amount?: number | null;
+  total_amount?: number | null;
+};
+
+type QuoteTodo = {
+  id: string;
+  quote_no: string;
+  status: string;
 };
 
 const quickLinks = [
   { href: "/operations/paste-reservation", title: "貼上填單", desc: "複製客戶預約資料，自動填好並建立訂單" },
   { href: "/operations/evaluation", title: "預約評估", desc: "12 欄評估表，可貼上文字自動帶入" },
   { href: "/operations/cars", title: "客戶車輛", desc: "建立客戶、電話、車牌與車型資料" },
+  { href: "/operations/customers", title: "客戶資料查詢", desc: "搜尋姓名、電話、車牌，查看歷史報價與相簿" },
   { href: "/operations/services", title: "服務價目", desc: "管理套餐、加購、贈送、外包與備註項目" },
   { href: "/operations/quotations", title: "製作報價單", desc: "建立報價、產生 PDF、轉施工單" },
   { href: "/operations/orders", title: "訂單管理", desc: "查看、篩選、改狀態與取消訂單" },
+  { href: "/operations/calendar", title: "預約行事曆", desc: "依門市查看日/週施工排程與改期" },
   { href: "/operations/cancellations", title: "取消 / 改期", desc: "審核取消申請與改期紀錄" },
   { href: "/operations/construction", title: "施工訂單", desc: "追蹤待施工、施工中、完工狀態" },
   { href: "/annotations", title: "車況圖片標註", desc: "上傳照片並圈選施工區域" },
   { href: "/finance/payments", title: "收款核銷", desc: "登記現金、匯款、刷卡與訂金" },
+  { href: "/finance/transactions", title: "交易明細", desc: "查詢週/月收支流水並匯出 CSV" },
   { href: "/hr/attendance", title: "員工打卡", desc: "上下班打卡與出勤紀錄" },
   { href: "/permissions", title: "權限管理", desc: "新增帳號、設定角色與門市" }
 ];
@@ -35,6 +46,8 @@ export default function DashboardPage() {
   const [attendance, setAttendance] = useState(0);
   const [quoteCount, setQuoteCount] = useState(0);
   const [chartRows, setChartRows] = useState<{ date: string; amount: number }[]>([]);
+  const [quoteTodos, setQuoteTodos] = useState<QuoteTodo[]>([]);
+  const [doneTodos, setDoneTodos] = useState<string[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -42,7 +55,7 @@ export default function DashboardPage() {
 
       const { data: orderRows } = await supabase
         .from("construction_orders")
-        .select("id, order_no, status, start_at")
+        .select("id, order_no, status, start_at, paid_amount, total_amount")
         .order("created_at", { ascending: false })
         .limit(8);
 
@@ -60,10 +73,19 @@ export default function DashboardPage() {
         .from("quotations")
         .select("id", { count: "exact", head: true });
 
+      const { data: pendingQuotes } = await supabase
+        .from("quotations")
+        .select("id, quote_no, status")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(8);
+
       setOrders((orderRows || []) as OrderRow[]);
       setRevenue((payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0));
       setAttendance(attendanceRows?.length || 0);
       setQuoteCount(count || 0);
+      setQuoteTodos((pendingQuotes || []) as QuoteTodo[]);
+      setDoneTodos(JSON.parse(window.localStorage.getItem("carcare-dashboard-done-todos") || "[]") as string[]);
 
       const grouped = new Map<string, number>();
       (payments || []).forEach((row) => {
@@ -75,6 +97,45 @@ export default function DashboardPage() {
 
     load();
   }, []);
+
+  const todos = [
+    ...orders
+      .filter((order) => order.start_at?.slice(0, 10) === new Date().toISOString().slice(0, 10) && !["finished", "picked_up", "cancelled"].includes(order.status))
+      .map((order) => ({
+        id: `order-${order.id}`,
+        title: `今日待施工：${order.order_no}`,
+        href: "/operations/calendar",
+        urgent: order.status === "pending"
+      })),
+    ...orders
+      .filter((order) => order.status === "finished")
+      .map((order) => ({
+        id: `pickup-${order.id}`,
+        title: `今日到期牽車：${order.order_no}`,
+        href: "/operations/construction",
+        urgent: true
+      })),
+    ...quoteTodos.map((quote) => ({
+      id: `quote-${quote.id}`,
+      title: `待確認報價單：${quote.quote_no}`,
+      href: "/operations/quotations",
+      urgent: true
+    })),
+    ...orders
+      .filter((order) => Number(order.total_amount || 0) > Number(order.paid_amount || 0))
+      .map((order) => ({
+        id: `pay-${order.id}`,
+        title: `未結帳訂單：${order.order_no}`,
+        href: "/finance/payments",
+        urgent: false
+      }))
+  ].filter((todo) => !doneTodos.includes(todo.id));
+
+  function markTodoDone(id: string) {
+    const next = [...doneTodos, id];
+    setDoneTodos(next);
+    window.localStorage.setItem("carcare-dashboard-done-todos", JSON.stringify(next));
+  }
 
   return (
     <RequireAuth>
@@ -144,6 +205,40 @@ export default function DashboardPage() {
                 </p>
               ) : null}
             </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-black">門市人員待辦提醒</h2>
+            <span className="rounded-full bg-carcare-yellow px-3 py-1 text-xs font-black text-carcare-black">
+              {todos.length} 件
+            </span>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {todos.map((todo) => (
+              <div
+                key={todo.id}
+                className={`rounded-2xl border p-4 ${
+                  todo.urgent ? "border-carcare-yellow bg-carcare-yellow/10" : "border-neutral-200 bg-white"
+                }`}
+              >
+                <p className="font-black">{todo.title}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link href={todo.href} className="primary-btn">
+                    立即處理
+                  </Link>
+                  <button className="secondary-btn" type="button" onClick={() => markTodoDone(todo.id)}>
+                    標記完成
+                  </button>
+                </div>
+              </div>
+            ))}
+            {!todos.length ? (
+              <p className="rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-neutral-500 md:col-span-2">
+                目前沒有待辦事項。
+              </p>
+            ) : null}
           </div>
         </section>
       </div>
