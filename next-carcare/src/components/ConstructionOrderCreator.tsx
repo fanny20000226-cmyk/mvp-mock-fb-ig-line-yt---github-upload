@@ -20,13 +20,22 @@ type QuoteRow = {
   total_amount: number;
 };
 
+type StaffRow = {
+  employee_no: string;
+  name: string;
+  position: string | null;
+  resigned: boolean;
+};
+
 export default function ConstructionOrderCreator({ onCreated }: { onCreated: () => void }) {
   const [cars, setCars] = useState<CarRow[]>([]);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
+  const [staffRows, setStaffRows] = useState<StaffRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     car_id: "",
     quotation_id: "",
+    responsible_staff_id: "",
     service_note: "",
     total_amount: "",
     paid_amount: ""
@@ -34,12 +43,18 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
 
   useEffect(() => {
     async function load() {
-      const [{ data: carData }, { data: quoteData }] = await Promise.all([
+      const [{ data: carData }, { data: quoteData }, { data: staffData }] = await Promise.all([
         listCars(),
-        listQuotations()
+        listQuotations(),
+        supabase
+          .from("staff_info")
+          .select("employee_no, name, position, resigned")
+          .eq("resigned", false)
+          .order("name")
       ]);
       setCars((carData || []) as CarRow[]);
       setQuotes((quoteData || []) as QuoteRow[]);
+      setStaffRows((staffData || []) as StaffRow[]);
     }
     load();
   }, []);
@@ -68,12 +83,20 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       status: "pending",
       total_amount: Number(form.total_amount || 0),
       paid_amount: Number(form.paid_amount || 0),
+      responsible_staff_id: form.responsible_staff_id || null,
       remark: form.service_note,
       created_by: profile.id
     });
     setSaving(false);
     if (error) return alert(error.message);
-    setForm({ car_id: "", quotation_id: "", service_note: "", total_amount: "", paid_amount: "" });
+    setForm({
+      car_id: "",
+      quotation_id: "",
+      responsible_staff_id: "",
+      service_note: "",
+      total_amount: "",
+      paid_amount: ""
+    });
     onCreated();
   }
 
@@ -108,6 +131,18 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
           {quotes.map((quote) => (
             <option key={quote.id} value={quote.id}>
               {quote.quote_no} / {quote.customer_name || quote.plate_no || "未命名"}
+            </option>
+          ))}
+        </select>
+        <select
+          className="form-input"
+          value={form.responsible_staff_id}
+          onChange={(e) => setForm({ ...form, responsible_staff_id: e.target.value })}
+        >
+          <option value="">選擇負責技師，可不選</option>
+          {staffRows.map((staff) => (
+            <option key={staff.employee_no} value={staff.employee_no}>
+              {staff.name} / {staff.employee_no}
             </option>
           ))}
         </select>
