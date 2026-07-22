@@ -9,8 +9,8 @@ const encoder = new TextEncoder();
 
 function crc32(bytes: Uint8Array) {
   let crc = -1;
-  for (const byte of bytes) {
-    crc ^= byte;
+  for (let byteIndex = 0; byteIndex < bytes.length; byteIndex += 1) {
+    crc ^= bytes[byteIndex];
     for (let index = 0; index < 8; index += 1) {
       crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
     }
