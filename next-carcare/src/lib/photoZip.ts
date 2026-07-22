@@ -53,6 +53,11 @@ function concat(chunks: Uint8Array[]) {
   return merged;
 }
 
+function toBlobPart(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.length);
+  copy.set(bytes);
+  return copy.buffer;
+}
 function buildZip(files: ZipFile[]) {
   const localChunks: Uint8Array[] = [];
   const centralChunks: Uint8Array[] = [];
@@ -107,7 +112,7 @@ function buildZip(files: ZipFile[]) {
   writeUint16(end, 10, files.length);
   writeUint32(end, 12, centralDirectory.length);
   writeUint32(end, 16, offset);
-  return new Blob([...localChunks, centralDirectory, end], { type: "application/zip" });
+  return new Blob([...localChunks, centralDirectory, end].map(toBlobPart), { type: "application/zip" });
 }
 
 function extensionFromUrl(url: string) {
@@ -123,18 +128,18 @@ export function sanitizeFilename(value: string) {
 export async function downloadPhotosAsZip(
   urls: string[],
   filename: string,
-  prefix = "施工照片"
+  prefix = "photos"
 ) {
   const uniqueUrls = Array.from(new Set(urls.filter(Boolean)));
   if (!uniqueUrls.length) {
-    window.alert("目前沒有可下載的施工照片。");
+    window.alert("No photos to download.");
     return;
   }
 
   const files = await Promise.all(
     uniqueUrls.map(async (url, index) => {
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`照片下載失敗：${url}`);
+      if (!response.ok) throw new Error(`Photo download failed: ${url}`);
       const data = new Uint8Array(await response.arrayBuffer());
       return {
         name: `${sanitizeFilename(prefix)}_${String(index + 1).padStart(2, "0")}.${extensionFromUrl(url)}`,
