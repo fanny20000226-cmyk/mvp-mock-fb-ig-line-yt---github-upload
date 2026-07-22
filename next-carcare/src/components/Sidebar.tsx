@@ -90,6 +90,7 @@ const menuGroups = [
     icon: CalendarCheck,
     items: [
       { href: "/hr/attendance", label: "出勤打卡", icon: CalendarCheck },
+      { href: "/hr/staff-accounts", label: "員工帳號", icon: Users },
       { href: "/hr/employees", label: "人員資料", icon: Users },
       { href: "/hr/payroll", label: "薪資績效", icon: BadgeDollarSign }
     ]

@@ -113,9 +113,12 @@ export async function staffLogin(employeeNo: string, password: string) {
     .eq("employee_no", employeeNo)
     .eq("resigned", false)
     .single();
+
   if (error || !data) throw new Error("找不到員工帳號，請確認員工編號。");
+
   const staff = data as StaffInfo;
   if (staff.password_hash !== password) throw new Error("員工密碼不正確。");
+
   saveStaffSession(staff);
   return staff;
 }
@@ -131,7 +134,9 @@ export async function loadStaffProfile(employeeNo: string) {
 export async function loadStaffSalary(employeeNo: string) {
   return supabase
     .from("staff_salary")
-    .select("id, employee_no, salary_month, base_salary, construction_bonus, overtime_pay, late_deduction, leave_deduction, photo_penalty, other_deduction, net_salary, created_at")
+    .select(
+      "id, employee_no, salary_month, base_salary, construction_bonus, overtime_pay, late_deduction, leave_deduction, photo_penalty, other_deduction, net_salary, created_at"
+    )
     .eq("employee_no", employeeNo)
     .order("salary_month", { ascending: false });
 }

@@ -37,6 +37,8 @@ const quickLinks = [
   { href: "/finance/payments", title: "收款核銷", desc: "登記現金、匯款、刷卡與訂金" },
   { href: "/finance/transactions", title: "交易明細", desc: "查詢週/月收支流水並匯出 CSV" },
   { href: "/hr/attendance", title: "員工打卡", desc: "上下班打卡與出勤紀錄" },
+  { href: "/hr/staff-accounts", title: "員工帳號", desc: "建立員工編號、初始密碼與停用帳號" },
+  { href: "/staff/login", title: "員工後台登入", desc: "員工用編號與密碼查看薪資、出勤與提醒" },
   { href: "/permissions", title: "權限管理", desc: "新增帳號、設定角色與門市" }
 ];
 
