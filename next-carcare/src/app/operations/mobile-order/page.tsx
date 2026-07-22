@@ -9,8 +9,7 @@ import { supabase } from "@/lib/supabase";
 
 type CarSearchRow = {
   id: string;
-  customer_id: string | null;
-  owner_name: string | null;
+  customer_name: string | null;
   customer_phone: string | null;
   plate_no: string | null;
   brand: string | null;
@@ -152,7 +151,7 @@ export default function MobileOrderPage() {
     if (!keyword) return;
     const { data, error } = await supabase
       .from("cars")
-      .select("id,customer_id,owner_name,customer_phone,plate_no,brand,model")
+      .select("id,customer_name,customer_phone,plate_no,brand,model")
       .or(`plate_no.ilike.%${keyword}%,customer_phone.ilike.%${keyword}%`)
       .limit(8);
 
@@ -164,7 +163,7 @@ export default function MobileOrderPage() {
   }
 
   function applyCustomer(row: CarSearchRow) {
-    setCustomerName(row.owner_name || "");
+    setCustomerName(row.customer_name || "");
     setCustomerPhone(row.customer_phone || "");
     setPlateNo(row.plate_no || "");
     setBrand(row.brand || "");
@@ -225,25 +224,23 @@ export default function MobileOrderPage() {
       const nextQuoteNo = `Q${Date.now()}`;
       setQuoteNo(nextQuoteNo);
 
-      const archive = await ensureCustomerVehicleArchive({
-        ownerName: customerName,
-        phone: customerPhone,
-        plateNo,
-        brand,
-        model: carModel,
-        shopId: profile?.shop_id || null,
-        beforePhotos,
-        afterPhotos,
-      });
+      const carId = profile
+        ? await ensureCustomerVehicleArchive(profile, {
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            plate_no: plateNo,
+            brand,
+            model: carModel,
+          })
+        : null;
 
       const { data: quotation, error } = await supabase
         .from("quotations")
         .insert({
           shop_id: profile?.shop_id || null,
-          customer_id: archive.customerId,
-          car_id: archive.carId,
+          car_id: carId,
           quote_no: nextQuoteNo,
-          owner_name: customerName,
+          customer_name: customerName,
           customer_phone: customerPhone,
           plate_no: plateNo,
           brand,
@@ -330,7 +327,7 @@ export default function MobileOrderPage() {
                   onClick={() => applyCustomer(row)}
                 >
                   <span>
-                    <strong>{row.owner_name || "Unnamed customer"}</strong>
+                    <strong>{row.customer_name || "Unnamed customer"}</strong>
                     <span className="block text-neutral-500">
                       {row.customer_phone || "-"} / {row.plate_no || "-"}
                     </span>
