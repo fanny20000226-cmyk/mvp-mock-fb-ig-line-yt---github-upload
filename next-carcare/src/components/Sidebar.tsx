@@ -20,6 +20,7 @@ import {
   MessageSquareText,
   ReceiptText,
   Shield,
+  Smartphone,
   Sparkles,
   Users,
   Wallet,
@@ -32,6 +33,11 @@ const menuGroups = [
     label: "工作台",
     icon: LayoutDashboard,
     items: [{ href: "/dashboard", label: "工作台總覽", icon: LayoutDashboard }]
+  },
+  {
+    label: "現場作業",
+    icon: Smartphone,
+    items: [{ href: "/operations/mobile-order", label: "行動快速開單", icon: Smartphone }]
   },
   {
     label: "預約管理",
@@ -58,7 +64,7 @@ const menuGroups = [
     icon: Hammer,
     items: [
       { href: "/operations/construction", label: "施工單管理", icon: Hammer },
-      { href: "/annotations", label: "圖片標註工具", icon: Image }
+      { href: "/annotations", label: "圖片標註", icon: Image }
     ]
   },
   {
@@ -76,7 +82,7 @@ const menuGroups = [
       { href: "/finance/payments", label: "收款登記", icon: Wallet },
       { href: "/finance/transactions", label: "交易流水", icon: ListChecks },
       { href: "/finance/reports", label: "財務報表", icon: BadgeDollarSign },
-      { href: "/finance/receipts", label: "收據開立紀錄", icon: ReceiptText },
+      { href: "/finance/receipts", label: "收據紀錄", icon: ReceiptText },
       { href: "/bonus", label: "獎金設定", icon: Gift }
     ]
   },

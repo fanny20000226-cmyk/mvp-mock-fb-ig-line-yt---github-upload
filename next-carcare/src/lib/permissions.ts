@@ -21,12 +21,13 @@ export const roleLabels: Record<Role, string> = {
   hr: "人資",
   shop_manager: "店長",
   vice_manager: "副店長",
-  worker: "員工"
+  worker: "施工人員",
 };
 
 export const roleMenus: Record<Role, string[]> = {
   admin: [
     "/dashboard",
+    "/operations/mobile-order",
     "/operations/paste-reservation",
     "/operations/evaluation",
     "/operations/orders",
@@ -50,7 +51,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/staff/login",
     "/staff/dashboard",
     "/bonus",
-    "/permissions"
+    "/permissions",
   ],
   finance: [
     "/dashboard",
@@ -59,7 +60,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/finance/reports",
     "/finance/receipts",
     "/staff/login",
-    "/staff/dashboard"
+    "/staff/dashboard",
   ],
   hr: [
     "/dashboard",
@@ -68,10 +69,11 @@ export const roleMenus: Record<Role, string[]> = {
     "/hr/staff-accounts",
     "/hr/payroll",
     "/staff/login",
-    "/staff/dashboard"
+    "/staff/dashboard",
   ],
   shop_manager: [
     "/dashboard",
+    "/operations/mobile-order",
     "/operations/paste-reservation",
     "/operations/evaluation",
     "/operations/orders",
@@ -92,10 +94,11 @@ export const roleMenus: Record<Role, string[]> = {
     "/hr/staff-accounts",
     "/hr/payroll",
     "/staff/login",
-    "/staff/dashboard"
+    "/staff/dashboard",
   ],
   vice_manager: [
     "/dashboard",
+    "/operations/mobile-order",
     "/operations/paste-reservation",
     "/operations/evaluation",
     "/operations/orders",
@@ -114,16 +117,17 @@ export const roleMenus: Record<Role, string[]> = {
     "/notifications",
     "/hr/attendance",
     "/staff/login",
-    "/staff/dashboard"
+    "/staff/dashboard",
   ],
   worker: [
     "/dashboard",
+    "/operations/mobile-order",
     "/operations/calendar",
     "/operations/construction",
     "/annotations",
     "/staff/login",
-    "/staff/dashboard"
-  ]
+    "/staff/dashboard",
+  ],
 };
 
 export function canAccess(role: Role, path: string) {

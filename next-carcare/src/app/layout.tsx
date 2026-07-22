@@ -3,11 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CarCare System",
-  description: "多門店汽車內裝管理系統"
+  description: "PEIWAY 多門店汽車美容管理系統",
 };
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
@@ -17,4 +17,3 @@ export default function RootLayout({
     </html>
   );
 }
-

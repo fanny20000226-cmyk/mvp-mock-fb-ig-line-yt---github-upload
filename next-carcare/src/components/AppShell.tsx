@@ -9,7 +9,7 @@ import type { UserProfile } from "@/lib/permissions";
 
 export default function AppShell({
   profile,
-  children
+  children,
 }: {
   profile: UserProfile;
   children: React.ReactNode;

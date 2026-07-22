@@ -4,9 +4,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AppShell from "./AppShell";
 import { getCurrentProfile } from "@/lib/auth";
-import { canAccess, type UserProfile } from "@/lib/permissions";
+import { canAccess, type Role, type UserProfile } from "@/lib/permissions";
 
-export default function RequireAuth({ children }: { children: React.ReactNode }) {
+export default function RequireAuth({
+  children,
+  allow,
+}: {
+  children: React.ReactNode;
+  allow?: Role[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -18,21 +24,19 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
         router.push("/login");
         return;
       }
-      if (!canAccess(user.role, pathname)) {
+      if ((allow && !allow.includes(user.role)) || !canAccess(user.role, pathname)) {
         router.push("/dashboard");
         return;
       }
       setProfile(user);
       setLoading(false);
     });
-  }, [pathname, router]);
+  }, [allow, pathname, router]);
 
   if (loading || !profile) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-carcare-bg">
-        <div className="rounded-2xl bg-white p-8 font-black shadow-soft">
-          載入中...
-        </div>
+        <div className="rounded-2xl bg-white p-8 font-black shadow-soft">載入中...</div>
       </main>
     );
   }

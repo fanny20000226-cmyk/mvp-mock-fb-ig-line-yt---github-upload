@@ -28,7 +28,7 @@ export default function PhotoZipButton({
 
   return (
     <button type="button" className="primary-btn" onClick={handleDownload} disabled={downloading}>
-      {downloading ? "打包中..." : label}
+      {downloading ? "下載中..." : label}
     </button>
   );
 }

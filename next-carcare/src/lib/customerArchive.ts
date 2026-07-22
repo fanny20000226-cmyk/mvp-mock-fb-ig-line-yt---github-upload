@@ -36,19 +36,22 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
     updated_at: new Date().toISOString()
   };
 
-  const carId = existingId || "";
-  if (carId) {
+  if (existingId) {
     const { error } = await supabase
       .from("cars")
       .update({
         customer_name: payload.customer_name,
         customer_phone: payload.customer_phone,
+        brand: payload.brand,
+        model: payload.model,
+        year: payload.year,
+        color: payload.color,
         updated_at: payload.updated_at
       })
-      .eq("id", carId);
+      .eq("id", existingId);
     if (error) throw error;
-    await attachPlateImagesToCar(profile.shop_id, carId, plateNo);
-    return carId;
+    await attachPlateImagesToCar(profile.shop_id, existingId, plateNo);
+    return existingId;
   }
 
   const { data, error } = await supabase
@@ -60,7 +63,7 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
     .select("id")
     .single();
 
-  if (error || !data) throw error || new Error("建立車輛資料失敗");
+  if (error || !data) throw error || new Error("建立車輛資料失敗。");
   const newCarId = data.id as string;
   await attachPlateImagesToCar(profile.shop_id, newCarId, plateNo);
   return newCarId;

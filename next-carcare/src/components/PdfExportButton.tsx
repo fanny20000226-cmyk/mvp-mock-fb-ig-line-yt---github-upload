@@ -1,7 +1,7 @@
 "use client";
 
-import { exportElementToPdf } from "@/lib/pdf";
 import { useState } from "react";
+import { exportElementToPdf } from "@/lib/pdf";
 
 export default function PdfExportButton({
   targetId,
@@ -19,7 +19,7 @@ export default function PdfExportButton({
       await exportElementToPdf(targetId, filename);
     } catch (error) {
       console.error(error);
-      alert("PDF 匯出失敗，請確認圖片已載入完成後再試一次。");
+      alert("PDF 匯出失敗，請確認頁面內容或圖片是否已載入完成。");
     } finally {
       setExporting(false);
     }
