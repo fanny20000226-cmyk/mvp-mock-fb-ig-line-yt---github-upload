@@ -11,8 +11,36 @@ export type StaffInfo = {
   position: string;
   phone?: string | null;
   identity_info?: string | null;
+  id_number?: string | null;
+  household_address?: string | null;
+  mailing_address?: string | null;
+  email?: string | null;
+  emergency_contact?: string | null;
+  emergency_phone?: string | null;
+  bank_account?: string | null;
+  bank_branch?: string | null;
+  avatar_url?: string | null;
   hire_date?: string | null;
+  probation_end_date?: string | null;
+  labor_insurance_status?: string | null;
+  labor_health_no?: string | null;
+  contract_end_date?: string | null;
+  created_by?: string | null;
   resigned: boolean;
+};
+
+export type StaffModifyRequest = {
+  id: string;
+  staff_id: string;
+  employee_no?: string | null;
+  field_name: string;
+  new_value: string;
+  request_note?: string | null;
+  requested_at: string;
+  review_status: "pending" | "approved" | "rejected";
+  reviewer_id?: string | null;
+  review_note?: string | null;
+  reviewed_at?: string | null;
 };
 
 export type StaffSalary = {
@@ -126,7 +154,9 @@ export async function staffLogin(employeeNo: string, password: string) {
 export async function loadStaffProfile(employeeNo: string) {
   return supabase
     .from("staff_info")
-    .select("id, employee_no, name, shop_id, position, phone, identity_info, hire_date, resigned")
+    .select(
+      "id, employee_no, name, shop_id, position, phone, identity_info, id_number, household_address, mailing_address, email, emergency_contact, emergency_phone, bank_account, bank_branch, avatar_url, hire_date, probation_end_date, labor_insurance_status, labor_health_no, contract_end_date, created_by, resigned"
+    )
     .eq("employee_no", employeeNo)
     .single();
 }
@@ -155,4 +185,12 @@ export async function loadStaffPhotoReminders(employeeNo: string) {
     .select("id, employee_no, construction_order_id, due_at, remind_sent_at, photo_completed, penalty_applied, penalty_amount")
     .eq("employee_no", employeeNo)
     .order("due_at", { ascending: false });
+}
+
+export async function loadStaffModifyRequests(staffId: string) {
+  return supabase
+    .from("staff_info_modify_request")
+    .select("id, staff_id, employee_no, field_name, new_value, request_note, requested_at, review_status, reviewer_id, review_note, reviewed_at")
+    .eq("staff_id", staffId)
+    .order("requested_at", { ascending: false });
 }

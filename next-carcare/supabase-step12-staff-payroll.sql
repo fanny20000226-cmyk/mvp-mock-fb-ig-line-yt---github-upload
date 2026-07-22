@@ -13,6 +13,22 @@ create table if not exists public.staff_info (
   updated_at timestamptz not null default now()
 );
 
+alter table public.staff_info
+  add column if not exists id_number text,
+  add column if not exists household_address text,
+  add column if not exists mailing_address text,
+  add column if not exists email text,
+  add column if not exists emergency_contact text,
+  add column if not exists emergency_phone text,
+  add column if not exists bank_account text,
+  add column if not exists bank_branch text,
+  add column if not exists avatar_url text,
+  add column if not exists probation_end_date date,
+  add column if not exists labor_insurance_status text,
+  add column if not exists labor_health_no text,
+  add column if not exists contract_end_date date,
+  add column if not exists created_by uuid references public.users(id) on delete set null;
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -26,6 +42,27 @@ $$;
 drop trigger if exists set_staff_info_updated_at on public.staff_info;
 create trigger set_staff_info_updated_at
 before update on public.staff_info
+for each row execute function public.set_updated_at();
+
+create table if not exists public.staff_info_modify_request (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff_info(id) on delete cascade,
+  employee_no text references public.staff_info(employee_no) on delete cascade,
+  field_name text not null,
+  new_value text not null,
+  request_note text,
+  requested_at timestamptz not null default now(),
+  review_status text not null default 'pending' check (review_status in ('pending','approved','rejected')),
+  reviewer_id uuid references public.users(id) on delete set null,
+  review_note text,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists set_staff_info_modify_request_updated_at on public.staff_info_modify_request;
+create trigger set_staff_info_modify_request_updated_at
+before update on public.staff_info_modify_request
 for each row execute function public.set_updated_at();
 
 create table if not exists public.staff_salary (
@@ -97,11 +134,14 @@ alter table public.construction_orders
   add column if not exists responsible_staff_id text references public.staff_info(employee_no) on delete set null;
 
 create index if not exists idx_staff_info_shop on public.staff_info(shop_id);
+create index if not exists idx_staff_info_employee_no on public.staff_info(employee_no);
+create index if not exists idx_staff_modify_staff_status on public.staff_info_modify_request(staff_id, review_status);
 create index if not exists idx_staff_salary_employee_month on public.staff_salary(employee_no, salary_month desc);
 create index if not exists idx_staff_attendance_employee_date on public.staff_attendance(employee_no, work_date desc);
 create index if not exists idx_work_photo_remind_employee_due on public.work_photo_remind(employee_no, due_at desc);
 
 alter table public.staff_info enable row level security;
+alter table public.staff_info_modify_request enable row level security;
 alter table public.staff_salary enable row level security;
 alter table public.staff_attendance enable row level security;
 alter table public.work_photo_remind enable row level security;
@@ -130,6 +170,43 @@ with check (
     where u.id = auth.uid()
       and u.active = true
       and (u.role in ('admin','hr') or (u.shop_id = staff_info.shop_id and u.role in ('shop_manager','vice_manager')))
+  )
+);
+
+drop policy if exists "staff modify request readable" on public.staff_info_modify_request;
+create policy "staff modify request readable"
+on public.staff_info_modify_request
+for select
+using (
+  true
+);
+
+drop policy if exists "staff modify request insert" on public.staff_info_modify_request;
+create policy "staff modify request insert"
+on public.staff_info_modify_request
+for insert
+with check (
+  field_name in ('phone','mailing_address','email','emergency_contact','emergency_phone','avatar_url')
+);
+
+drop policy if exists "staff modify request hr review" on public.staff_info_modify_request;
+create policy "staff modify request hr review"
+on public.staff_info_modify_request
+for update
+using (
+  exists (
+    select 1 from public.users u
+    where u.id = auth.uid()
+      and u.active = true
+      and u.role in ('admin','hr')
+  )
+)
+with check (
+  exists (
+    select 1 from public.users u
+    where u.id = auth.uid()
+      and u.active = true
+      and u.role in ('admin','hr')
   )
 );
 
