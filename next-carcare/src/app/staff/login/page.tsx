@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { staffLogin } from "@/lib/staff";
 
 export default function StaffLoginPage() {
@@ -20,7 +20,7 @@ export default function StaffLoginPage() {
       await staffLogin(employeeNo.trim(), password);
       router.push("/staff/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "登入失敗，請稍後再試。");
+      setError(err instanceof Error ? err.message : "登入失敗，請重新確認帳號密碼。");
     } finally {
       setLoading(false);
     }
@@ -34,7 +34,7 @@ export default function StaffLoginPage() {
             <p className="text-sm font-black text-carcare-yellow">PEIWAY Staff</p>
             <h1 className="mt-2 text-2xl font-black">員工個人後台登入</h1>
             <p className="mt-2 text-sm text-white/70">
-              使用人資建立的員工編號與專屬密碼登入。
+              請輸入人資建立的員工編號與專屬密碼，登入後可查看個人資料、薪資、出勤與施工照片提醒。
             </p>
           </div>
 

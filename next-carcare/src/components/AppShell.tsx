@@ -34,7 +34,7 @@ export default function AppShell({
         <header className="mb-5 flex items-center justify-between rounded-xl bg-white p-4 shadow-soft">
           <button
             onClick={() => setOpen(true)}
-            aria-label="打開選單"
+            aria-label="開啟選單"
             className="rounded-lg border border-neutral-300 bg-white p-3 text-carcare-black transition duration-200 hover:border-carcare-yellow lg:hidden"
           >
             <Menu />

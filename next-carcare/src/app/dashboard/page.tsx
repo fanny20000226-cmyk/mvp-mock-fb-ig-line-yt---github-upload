@@ -23,23 +23,21 @@ type QuoteTodo = {
 };
 
 const quickLinks = [
-  { href: "/operations/paste-reservation", title: "貼上填單", desc: "複製客戶預約資料，自動填好並建立訂單" },
-  { href: "/operations/evaluation", title: "預約評估", desc: "12 欄評估表，可貼上文字自動帶入" },
-  { href: "/operations/cars", title: "客戶車輛", desc: "建立客戶、電話、車牌與車型資料" },
-  { href: "/operations/customers", title: "客戶資料查詢", desc: "搜尋姓名、電話、車牌，查看歷史報價與相簿" },
-  { href: "/operations/services", title: "服務價目", desc: "管理套餐、加購、贈送、外包與備註項目" },
-  { href: "/operations/quotations", title: "製作報價單", desc: "建立報價、產生 PDF、轉施工單" },
-  { href: "/operations/orders", title: "訂單管理", desc: "查看、篩選、改狀態與取消訂單" },
-  { href: "/operations/calendar", title: "預約行事曆", desc: "依門市查看日/週施工排程與改期" },
-  { href: "/operations/cancellations", title: "取消 / 改期", desc: "審核取消申請與改期紀錄" },
-  { href: "/operations/construction", title: "施工訂單", desc: "追蹤待施工、施工中、完工狀態" },
-  { href: "/annotations", title: "車況圖片標註", desc: "上傳照片並圈選施工區域" },
-  { href: "/finance/payments", title: "收款核銷", desc: "登記現金、匯款、刷卡與訂金" },
-  { href: "/finance/transactions", title: "交易明細", desc: "查詢週/月收支流水並匯出 CSV" },
-  { href: "/hr/attendance", title: "員工打卡", desc: "上下班打卡與出勤紀錄" },
-  { href: "/hr/staff-accounts", title: "員工帳號", desc: "建立員工編號、初始密碼與停用帳號" },
-  { href: "/staff/login", title: "員工後台登入", desc: "員工用編號與密碼查看薪資、出勤與提醒" },
-  { href: "/permissions", title: "權限管理", desc: "新增帳號、設定角色與門市" }
+  { href: "/operations/paste-reservation", title: "貼上填單", desc: "複製客戶預約資料後貼上，自動整理成預約單。" },
+  { href: "/operations/evaluation", title: "預約評估", desc: "建立完整 12 項預約評估表。" },
+  { href: "/operations/quotations", title: "製作報價單", desc: "打翻評估、車內選區計價、產生 PDF。" },
+  { href: "/operations/services", title: "服務價格設定", desc: "管理地毯、座椅、加購與外包項目價格。" },
+  { href: "/operations/construction", title: "施工開單", desc: "建立施工單、綁定報價與上傳施工照片。" },
+  { href: "/operations/cars", title: "車輛相簿", desc: "依車牌查看施工前後照片與歷史紀錄。" },
+  { href: "/operations/customers", title: "客戶資料查詢", desc: "搜尋姓名、電話、車牌與客戶標籤。" },
+  { href: "/operations/orders", title: "訂單管理", desc: "查看、篩選與調整訂單狀態。" },
+  { href: "/operations/calendar", title: "行事曆", desc: "查看門市預約排程與時段衝突。" },
+  { href: "/finance/payments", title: "收款登記", desc: "登記收款、訂金、尾款與核銷紀錄。" },
+  { href: "/finance/reports", title: "財務報表", desc: "查看營收、支出、稅額與匯出報表。" },
+  { href: "/hr/staff-accounts", title: "人資員工建檔", desc: "建立員工編號、密碼、個人資料與變更審核。" },
+  { href: "/hr/payroll", title: "薪資作業", desc: "建立薪資單、出勤扣款與照片逾期罰扣。" },
+  { href: "/staff/login", title: "員工後台登入", desc: "員工用編號登入，查看個人資料、薪資與待辦。" },
+  { href: "/permissions", title: "權限管理", desc: "管理後台角色與可用功能。" }
 ];
 
 export default function DashboardPage() {
@@ -113,13 +111,13 @@ export default function DashboardPage() {
       .filter((order) => order.status === "finished")
       .map((order) => ({
         id: `pickup-${order.id}`,
-        title: `今日到期牽車：${order.order_no}`,
+        title: `完工待牽車：${order.order_no}`,
         href: "/operations/construction",
         urgent: true
       })),
     ...quoteTodos.map((quote) => ({
       id: `quote-${quote.id}`,
-      title: `待確認報價單：${quote.quote_no}`,
+      title: `待確認報價：${quote.quote_no}`,
       href: "/operations/quotations",
       urgent: true
     })),
@@ -150,20 +148,18 @@ export default function DashboardPage() {
         </section>
 
         <section className="card">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-black text-carcare-yellow">CarCare System</p>
-              <h1 className="text-2xl font-black">工作台總覽</h1>
-              <p className="mt-1 text-sm text-neutral-500">
-                常用功能已補回到這裡，也可以從左側選單進入各模組。
-              </p>
-            </div>
+          <div className="mb-4">
+            <p className="text-sm font-black text-carcare-yellow">CarCare System</p>
+            <h1 className="text-2xl font-black">工作台總覽</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              常用功能都放在這裡，也可以從左側選單進入各模組。
+            </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {quickLinks.map((item) => (
               <Link
-                key={item.href}
+                key={`${item.href}-${item.title}`}
                 href={item.href}
                 className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-carcare-yellow"
               >
@@ -190,29 +186,22 @@ export default function DashboardPage() {
           </div>
 
           <div className="card">
-            <h2 className="mb-4 text-xl font-black">待處理施工單</h2>
+            <h2 className="mb-4 text-xl font-black">近期施工單</h2>
             <div className="space-y-3">
               {orders.map((order) => (
-                <div
-                  key={order.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                >
+                <div key={order.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="font-black">{order.order_no}</p>
                   <p className="mt-1 text-sm text-neutral-500">狀態：{order.status}</p>
                 </div>
               ))}
-              {!orders.length ? (
-                <p className="rounded-2xl bg-neutral-50 p-6 text-center text-neutral-500">
-                  目前沒有待處理施工單
-                </p>
-              ) : null}
+              {!orders.length ? <p className="rounded-2xl bg-neutral-50 p-6 text-center text-neutral-500">目前沒有施工單</p> : null}
             </div>
           </div>
         </section>
 
         <section className="card">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-black">門市人員待辦提醒</h2>
+            <h2 className="text-xl font-black">待辦提醒</h2>
             <span className="rounded-full bg-carcare-yellow px-3 py-1 text-xs font-black text-carcare-black">
               {todos.length} 件
             </span>
@@ -236,11 +225,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-            {!todos.length ? (
-              <p className="rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-neutral-500 md:col-span-2">
-                目前沒有待辦事項。
-              </p>
-            ) : null}
+            {!todos.length ? <p className="rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-neutral-500 md:col-span-2">目前沒有待辦事項</p> : null}
           </div>
         </section>
       </div>

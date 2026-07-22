@@ -111,14 +111,16 @@ export function money(amount: number) {
 }
 
 export function saveStaffSession(staff: StaffInfo) {
-  const session = {
-    employee_no: staff.employee_no,
-    name: staff.name,
-    shop_id: staff.shop_id,
-    position: staff.position,
-    login_at: new Date().toISOString()
-  };
-  window.localStorage.setItem(staffSessionKey, JSON.stringify(session));
+  window.localStorage.setItem(
+    staffSessionKey,
+    JSON.stringify({
+      employee_no: staff.employee_no,
+      name: staff.name,
+      shop_id: staff.shop_id,
+      position: staff.position,
+      login_at: new Date().toISOString()
+    })
+  );
 }
 
 export function getStaffSession(): Pick<StaffInfo, "employee_no" | "name" | "shop_id" | "position"> | null {
@@ -142,7 +144,7 @@ export async function staffLogin(employeeNo: string, password: string) {
     .eq("resigned", false)
     .single();
 
-  if (error || !data) throw new Error("找不到員工帳號，請確認員工編號。");
+  if (error || !data) throw new Error("找不到此員工帳號，請確認員工編號。");
 
   const staff = data as StaffInfo;
   if (staff.password_hash !== password) throw new Error("員工密碼不正確。");

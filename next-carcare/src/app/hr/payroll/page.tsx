@@ -27,7 +27,7 @@ type ReminderRow = {
   penalty_amount: number;
 };
 
-const positionOptions = ["admin", "shop_manager", "frontdesk", "technician", "worker"];
+const positionOptions = ["admin", "shop_manager", "vice_manager", "frontdesk", "technician", "worker"];
 
 export default function PayrollPage() {
   const [profileRole, setProfileRole] = useState("");
@@ -129,6 +129,7 @@ export default function PayrollPage() {
     const { error } = await supabase.from("staff_info").insert({
       ...staffForm,
       shop_id: staffForm.shop_id || profileShopId,
+      hire_date: staffForm.hire_date || null,
       resigned: false
     });
     if (error) return alert(error.message);
@@ -177,7 +178,7 @@ export default function PayrollPage() {
 
   async function createReminder(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!isHrAdmin && !canViewShop) return alert("沒有建立照片提醒權限。");
+    if (!isHrAdmin && !canViewShop) return alert("沒有建立照片提醒的權限。");
     const { error } = await supabase.from("work_photo_remind").insert({
       employee_no: reminderForm.employee_no,
       construction_order_id: reminderForm.construction_order_id || null,
@@ -201,30 +202,30 @@ export default function PayrollPage() {
       <div className="space-y-6">
         <section className="card">
           <p className="text-sm font-black text-carcare-yellow">HR Payroll</p>
-          <h1 className="text-2xl font-black">人資薪資績效管理</h1>
+          <h1 className="text-2xl font-black">薪資作業與施工照片監控</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            管理員建立員工帳號、薪資單、出勤紀錄與施工照片罰扣提醒；店長可查看自家門市狀態。
+            這裡可建立員工、薪資單、出勤紀錄與施工照片逾期提醒。員工登入後只能查看自己的資料。
           </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-4">
-          <div className="card"><p className="text-sm text-neutral-500">員工數</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{staffRows.length}</p></div>
-          <div className="card"><p className="text-sm text-neutral-500">薪資單</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{salaryRows.length}</p></div>
-          <div className="card"><p className="text-sm text-neutral-500">出勤筆數</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{attendanceRows.length}</p></div>
-          <div className="card"><p className="text-sm text-neutral-500">待補照片</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{reminders.filter((row) => !row.photo_completed).length}</p></div>
+          <Summary title="員工總數" value={staffRows.length} />
+          <Summary title="薪資單" value={salaryRows.length} />
+          <Summary title="出勤紀錄" value={attendanceRows.length} />
+          <Summary title="照片待補" value={reminders.filter((row) => !row.photo_completed).length} />
         </section>
 
         {isHrAdmin ? (
           <section className="grid gap-5 xl:grid-cols-2">
             <form onSubmit={createStaff} className="card space-y-3">
-              <h2 className="text-xl font-black">新增員工帳號</h2>
+              <h2 className="text-xl font-black">快速新增員工帳號</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 <input className="form-input" placeholder="員工編號" value={staffForm.employee_no} onChange={(e) => setStaffForm({ ...staffForm, employee_no: e.target.value })} />
-                <input className="form-input" type="password" placeholder="初始化密碼" value={staffForm.password_hash} onChange={(e) => setStaffForm({ ...staffForm, password_hash: e.target.value })} />
+                <input className="form-input" type="password" placeholder="初始密碼" value={staffForm.password_hash} onChange={(e) => setStaffForm({ ...staffForm, password_hash: e.target.value })} />
                 <input className="form-input" placeholder="姓名" value={staffForm.name} onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })} />
                 <input className="form-input" placeholder="聯絡電話" value={staffForm.phone} onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })} />
                 <select className="form-input" value={staffForm.shop_id} onChange={(e) => setStaffForm({ ...staffForm, shop_id: e.target.value })}>
-                  <option value="">使用目前門市</option>
+                  <option value="">選擇門市</option>
                   {shops.map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
                 </select>
                 <select className="form-input" value={staffForm.position} onChange={(e) => setStaffForm({ ...staffForm, position: e.target.value })}>
@@ -233,7 +234,7 @@ export default function PayrollPage() {
                 <input className="form-input" type="date" value={staffForm.hire_date} onChange={(e) => setStaffForm({ ...staffForm, hire_date: e.target.value })} />
                 <input className="form-input" placeholder="身分資料備註" value={staffForm.identity_info} onChange={(e) => setStaffForm({ ...staffForm, identity_info: e.target.value })} />
               </div>
-              <button className="primary-btn" type="submit">建立員工</button>
+              <button className="primary-btn" type="submit">新增員工</button>
             </form>
 
             <form onSubmit={saveSalary} className="card space-y-3">
@@ -249,7 +250,7 @@ export default function PayrollPage() {
                 ))}
               </div>
               <div className="rounded-2xl bg-carcare-black p-4 text-white">
-                <p className="text-sm text-white/70">本月實發薪資</p>
+                <p className="text-sm text-white/70">預估實發薪資</p>
                 <p className="text-3xl font-black text-carcare-yellow">{money(salaryNet)}</p>
               </div>
               <button className="primary-btn" type="submit">儲存薪資單</button>
@@ -267,14 +268,14 @@ export default function PayrollPage() {
                   {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
                 </select>
                 <input className="form-input" type="date" value={attendanceForm.work_date} onChange={(e) => setAttendanceForm({ ...attendanceForm, work_date: e.target.value })} />
-                <input className="form-input" placeholder="上班時段" value={attendanceForm.clock_in_at} onChange={(e) => setAttendanceForm({ ...attendanceForm, clock_in_at: e.target.value })} />
-                <input className="form-input" placeholder="下班時段" value={attendanceForm.clock_out_at} onChange={(e) => setAttendanceForm({ ...attendanceForm, clock_out_at: e.target.value })} />
+                <input className="form-input" placeholder="上班時間" value={attendanceForm.clock_in_at} onChange={(e) => setAttendanceForm({ ...attendanceForm, clock_in_at: e.target.value })} />
+                <input className="form-input" placeholder="下班時間" value={attendanceForm.clock_out_at} onChange={(e) => setAttendanceForm({ ...attendanceForm, clock_out_at: e.target.value })} />
                 <input className="form-input" type="number" placeholder="遲到分鐘" value={attendanceForm.late_minutes} onChange={(e) => setAttendanceForm({ ...attendanceForm, late_minutes: e.target.value })} />
                 <input className="form-input" placeholder="請假類型" value={attendanceForm.leave_type} onChange={(e) => setAttendanceForm({ ...attendanceForm, leave_type: e.target.value })} />
                 <input className="form-input" type="number" placeholder="請假時數" value={attendanceForm.leave_hours} onChange={(e) => setAttendanceForm({ ...attendanceForm, leave_hours: e.target.value })} />
                 <input className="form-input" type="number" placeholder="加班時數" value={attendanceForm.overtime_hours} onChange={(e) => setAttendanceForm({ ...attendanceForm, overtime_hours: e.target.value })} />
               </div>
-              <button className="primary-btn" type="submit">新增出勤</button>
+              <button className="primary-btn" type="submit">新增出勤紀錄</button>
             </form>
 
             <form onSubmit={createReminder} className="card space-y-3">
@@ -283,7 +284,7 @@ export default function PayrollPage() {
                 <option value="">選擇技師</option>
                 {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
               </select>
-              <input className="form-input" placeholder="工單 ID，可留空" value={reminderForm.construction_order_id} onChange={(e) => setReminderForm({ ...reminderForm, construction_order_id: e.target.value })} />
+              <input className="form-input" placeholder="施工單 ID，可留空" value={reminderForm.construction_order_id} onChange={(e) => setReminderForm({ ...reminderForm, construction_order_id: e.target.value })} />
               <input className="form-input" type="datetime-local" value={reminderForm.due_at} onChange={(e) => setReminderForm({ ...reminderForm, due_at: e.target.value })} />
               <input className="form-input" type="number" placeholder="逾期罰扣金額" value={reminderForm.penalty_amount} onChange={(e) => setReminderForm({ ...reminderForm, penalty_amount: e.target.value })} />
               <button className="primary-btn" type="submit">建立提醒</button>
@@ -305,7 +306,7 @@ export default function PayrollPage() {
         </section>
 
         <section className="card">
-          <h2 className="text-xl font-black">薪資單紀錄</h2>
+          <h2 className="text-xl font-black">薪資清單</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead><tr className="bg-neutral-100 text-left"><th className="p-3">員工</th><th className="p-3">月份</th><th className="p-3">實發</th><th className="p-3">PDF</th></tr></thead>
@@ -328,26 +329,26 @@ export default function PayrollPage() {
 
         <section className="grid gap-5 xl:grid-cols-2">
           <div className="card">
-            <h2 className="text-xl font-black">出勤明細</h2>
+            <h2 className="text-xl font-black">出勤紀錄</h2>
             <div className="mt-4 space-y-3">
               {attendanceRows.map((row) => (
                 <div key={row.id} className="rounded-2xl border border-neutral-200 p-4">
                   <p className="font-black">{row.employee_no} / {row.work_date}</p>
-                  <p className="text-sm text-neutral-600">遲到 {row.late_minutes || 0} 分 / 請假 {row.leave_type || "無"} {row.leave_hours || 0} 小時 / 加班 {row.overtime_hours || 0} 小時</p>
+                  <p className="text-sm text-neutral-600">遲到 {row.late_minutes || 0} 分鐘 / 請假 {row.leave_type || "無"} {row.leave_hours || 0} 小時 / 加班 {row.overtime_hours || 0} 小時</p>
                 </div>
               ))}
             </div>
           </div>
           <div className="card">
-            <h2 className="text-xl font-black">照片上傳監控</h2>
+            <h2 className="text-xl font-black">施工照片監控</h2>
             <div className="mt-4 space-y-3">
               {reminders.map((row) => (
                 <div key={row.id} className={`rounded-2xl border p-4 ${row.photo_completed ? "border-neutral-200" : "border-carcare-yellow bg-carcare-yellow/10"}`}>
                   <p className="font-black">{row.employee_no} / {row.construction_order_id || "未指定工單"}</p>
                   <p className="text-sm text-neutral-600">截止：{row.due_at} / 罰扣：{money(row.penalty_amount)}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button className="secondary-btn" type="button" onClick={() => toggleReminder(row, "photo_completed")}>{row.photo_completed ? "改為未補" : "標記已補"}</button>
-                    {isHrAdmin ? <button className="secondary-btn" type="button" onClick={() => toggleReminder(row, "penalty_applied")}>{row.penalty_applied ? "取消扣薪" : "列入扣薪"}</button> : null}
+                    <button className="secondary-btn" type="button" onClick={() => toggleReminder(row, "photo_completed")}>{row.photo_completed ? "改回待補" : "標記已補齊"}</button>
+                    {isHrAdmin ? <button className="secondary-btn" type="button" onClick={() => toggleReminder(row, "penalty_applied")}>{row.penalty_applied ? "取消扣薪" : "納入扣薪"}</button> : null}
                   </div>
                 </div>
               ))}
@@ -356,5 +357,14 @@ export default function PayrollPage() {
         </section>
       </div>
     </RequireAuth>
+  );
+}
+
+function Summary({ title, value }: { title: string; value: number }) {
+  return (
+    <div className="card">
+      <p className="text-sm text-neutral-500">{title}</p>
+      <p className="mt-2 text-3xl font-black text-carcare-yellow">{value}</p>
+    </div>
   );
 }

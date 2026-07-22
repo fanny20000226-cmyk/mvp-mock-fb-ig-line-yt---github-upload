@@ -27,7 +27,7 @@ const changeableFields = [
   { key: "email", label: "電子信箱" },
   { key: "emergency_contact", label: "緊急聯絡人" },
   { key: "emergency_phone", label: "緊急聯絡電話" },
-  { key: "avatar_url", label: "個人頭像 URL" }
+  { key: "avatar_url", label: "員工大頭照 URL" }
 ] as const;
 
 const lockedFields: Array<{ key: keyof StaffInfo; label: string }> = [
@@ -37,7 +37,7 @@ const lockedFields: Array<{ key: keyof StaffInfo; label: string }> = [
   { key: "bank_branch", label: "銀行分行" },
   { key: "labor_insurance_status", label: "勞保投保狀態" },
   { key: "labor_health_no", label: "勞健保號碼" },
-  { key: "hire_date", label: "到職日期" },
+  { key: "hire_date", label: "到職日" },
   { key: "probation_end_date", label: "試用到期日" },
   { key: "contract_end_date", label: "合約到期日" },
   { key: "position", label: "職位" },
@@ -45,6 +45,12 @@ const lockedFields: Array<{ key: keyof StaffInfo; label: string }> = [
 ];
 
 const currentMonth = new Date().toISOString().slice(0, 7);
+
+function requestStatusLabel(status: StaffModifyRequest["review_status"]) {
+  if (status === "approved") return "已核准";
+  if (status === "rejected") return "已駁回";
+  return "待審核";
+}
 
 export default function StaffDashboardPage() {
   const router = useRouter();
@@ -134,7 +140,7 @@ export default function StaffDashboardPage() {
   }
 
   if (loading) return <main className="min-h-screen bg-carcare-bg p-4">載入員工資料中...</main>;
-  if (!staff) return <main className="min-h-screen bg-carcare-bg p-4">找不到員工資料。</main>;
+  if (!staff) return <main className="min-h-screen bg-carcare-bg p-4">找不到員工資料，請回登入頁重新登入。</main>;
 
   return (
     <main className="min-h-screen bg-carcare-bg p-4">
@@ -159,7 +165,7 @@ export default function StaffDashboardPage() {
                 <p className="text-sm font-black text-carcare-yellow">PEIWAY Staff Card</p>
                 <h1 className="mt-2 text-3xl font-black">{staff.name}</h1>
                 <p className="mt-2 text-white/70">
-                  員工編號 {staff.employee_no} / {staff.position} / 所屬門市 {staff.shop_id || "未綁定"}
+                  員工編號 {staff.employee_no} / {staff.position} / 門市 {staff.shop_id || "未指定"}
                 </p>
               </div>
             </div>
@@ -170,28 +176,16 @@ export default function StaffDashboardPage() {
         </section>
 
         <section className="grid gap-4 md:grid-cols-4">
-          <div className="card">
-            <p className="text-sm text-neutral-500">薪資月份</p>
-            <p className="mt-2 text-3xl font-black text-carcare-yellow">{salaryRows.length}</p>
-          </div>
-          <div className="card">
-            <p className="text-sm text-neutral-500">出勤紀錄</p>
-            <p className="mt-2 text-3xl font-black text-carcare-yellow">{attendanceRows.length}</p>
-          </div>
-          <div className="card">
-            <p className="text-sm text-neutral-500">施工照片待辦</p>
-            <p className="mt-2 text-3xl font-black text-carcare-yellow">{pendingReminders.length}</p>
-          </div>
-          <div className="card">
-            <p className="text-sm text-neutral-500">最新實發薪資</p>
-            <p className="mt-2 text-3xl font-black text-carcare-yellow">{money(salaryRows[0]?.net_salary || 0)}</p>
-          </div>
+          <div className="card"><p className="text-sm text-neutral-500">薪資月份</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{salaryRows.length}</p></div>
+          <div className="card"><p className="text-sm text-neutral-500">出勤紀錄</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{attendanceRows.length}</p></div>
+          <div className="card"><p className="text-sm text-neutral-500">施工照片待辦</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{pendingReminders.length}</p></div>
+          <div className="card"><p className="text-sm text-neutral-500">最近實發薪資</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{money(salaryRows[0]?.net_salary || 0)}</p></div>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
           <div className="card">
-            <h2 className="text-xl font-black">個人人事資料總覽</h2>
-            <p className="mt-1 text-sm text-neutral-500">下列核心欄位僅可檢視，需由人資維護。</p>
+            <h2 className="text-xl font-black">個人人事資料</h2>
+            <p className="mt-1 text-sm text-neutral-500">以下欄位僅可查看，如需修改請送出變更申請。</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {lockedFields.map((field) => (
                 <div key={field.key} className="rounded-2xl border border-neutral-200 p-3">
@@ -204,7 +198,7 @@ export default function StaffDashboardPage() {
 
           <div className="card">
             <h2 className="text-xl font-black">申請修改個人資料</h2>
-            <p className="mt-1 text-sm text-neutral-500">送出後需人資審核，核准後才會更新正式資料。</p>
+            <p className="mt-1 text-sm text-neutral-500">送出後會交由人資審核，核准前正式資料不會變動。</p>
             <form onSubmit={submitModifyRequest} className="mt-4 space-y-3">
               <select
                 className="form-input"
@@ -212,26 +206,12 @@ export default function StaffDashboardPage() {
                 onChange={(event) => setRequestForm({ ...requestForm, field_name: event.target.value })}
               >
                 {changeableFields.map((field) => (
-                  <option key={field.key} value={field.key}>
-                    {field.label}
-                  </option>
+                  <option key={field.key} value={field.key}>{field.label}</option>
                 ))}
               </select>
-              <textarea
-                className="form-input min-h-24"
-                placeholder="新內容"
-                value={requestForm.new_value}
-                onChange={(event) => setRequestForm({ ...requestForm, new_value: event.target.value })}
-              />
-              <textarea
-                className="form-input min-h-20"
-                placeholder="申請備註"
-                value={requestForm.request_note}
-                onChange={(event) => setRequestForm({ ...requestForm, request_note: event.target.value })}
-              />
-              <button type="submit" className="primary-btn w-full">
-                送出變更申請
-              </button>
+              <textarea className="form-input min-h-24" placeholder="新內容" value={requestForm.new_value} onChange={(event) => setRequestForm({ ...requestForm, new_value: event.target.value })} />
+              <textarea className="form-input min-h-20" placeholder="申請備註" value={requestForm.request_note} onChange={(event) => setRequestForm({ ...requestForm, request_note: event.target.value })} />
+              <button type="submit" className="primary-btn w-full">送出變更申請</button>
             </form>
             <div className="mt-5 space-y-2">
               {requests.slice(0, 5).map((request) => (
@@ -239,7 +219,7 @@ export default function StaffDashboardPage() {
                   <p className="font-black">
                     {changeableFields.find((item) => item.key === request.field_name)?.label || request.field_name}
                     <span className="ml-2 rounded-full bg-carcare-yellow px-2 py-1 text-xs text-carcare-black">
-                      {request.review_status === "pending" ? "待審核" : request.review_status === "approved" ? "核准" : "駁回"}
+                      {requestStatusLabel(request.review_status)}
                     </span>
                   </p>
                   <p className="mt-1 text-neutral-600">{request.new_value}</p>
@@ -251,12 +231,8 @@ export default function StaffDashboardPage() {
         </section>
 
         <section className="card">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-xl font-black">薪資專區</h2>
-              <p className="mt-1 text-sm text-neutral-500">僅顯示自己的薪資單，支援 PDF 下載與列印。</p>
-            </div>
-          </div>
+          <h2 className="text-xl font-black">薪資專區</h2>
+          <p className="mt-1 text-sm text-neutral-500">查看每月薪資明細，也可以下載薪資單 PDF。</p>
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -264,8 +240,8 @@ export default function StaffDashboardPage() {
                   <th className="p-3">月份</th>
                   <th className="p-3">本薪</th>
                   <th className="p-3">施工獎金</th>
-                  <th className="p-3">加班津貼</th>
-                  <th className="p-3">扣減合計</th>
+                  <th className="p-3">加班費</th>
+                  <th className="p-3">扣款合計</th>
                   <th className="p-3">實發薪資</th>
                   <th className="p-3">薪資單</th>
                 </tr>
@@ -285,9 +261,7 @@ export default function StaffDashboardPage() {
                       <td className="p-3">{money(salary.overtime_pay)}</td>
                       <td className="p-3">{money(deductions)}</td>
                       <td className="p-3 font-black text-carcare-yellow">{money(salary.net_salary)}</td>
-                      <td className="p-3">
-                        <SalaryPdfButton staff={staff} salary={salary} />
-                      </td>
+                      <td className="p-3"><SalaryPdfButton staff={staff} salary={salary} /></td>
                     </tr>
                   );
                 })}
@@ -307,51 +281,30 @@ export default function StaffDashboardPage() {
               {monthAttendance.map((row) => (
                 <div key={row.id} className="rounded-2xl border border-neutral-200 p-4">
                   <p className="font-black">{row.work_date}</p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    上班 {row.clock_in_at || "-"} / 下班 {row.clock_out_at || "-"} / 遲到 {row.late_minutes || 0} 分
-                  </p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    請假 {row.leave_type || "無"} {row.leave_hours || 0} 小時 / 加班 {row.overtime_hours || 0} 小時
-                  </p>
+                  <p className="mt-1 text-sm text-neutral-600">上班 {row.clock_in_at || "-"} / 下班 {row.clock_out_at || "-"} / 遲到 {row.late_minutes || 0} 分鐘</p>
+                  <p className="mt-1 text-sm text-neutral-600">請假 {row.leave_type || "無"} {row.leave_hours || 0} 小時 / 加班 {row.overtime_hours || 0} 小時</p>
                 </div>
               ))}
-              {!monthAttendance.length ? <p className="text-neutral-500">目前沒有此月份出勤紀錄。</p> : null}
+              {!monthAttendance.length ? <p className="text-neutral-500">目前沒有這個月份的出勤紀錄。</p> : null}
             </div>
           </div>
 
           <div className="card">
-            <h2 className="text-xl font-black">施工待辦提醒</h2>
-            <p className="mt-1 text-sm text-neutral-500">施工完畢 24 小時內需補齊施工前後照片。</p>
+            <h2 className="text-xl font-black">施工照片待辦提醒</h2>
+            <p className="mt-1 text-sm text-neutral-500">施工完成後 24 小時內請補齊施工前後照片。</p>
             <div className="mt-4 space-y-3">
               {reminders.map((row) => (
-                <div
-                  key={row.id}
-                  className={`rounded-2xl border p-4 ${
-                    row.photo_completed ? "border-neutral-200" : "border-carcare-yellow bg-carcare-yellow/10"
-                  }`}
-                >
-                  <p className="font-black">工單：{row.construction_order_id || "未綁定"}</p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    應補齊期限：{row.due_at} / 罰扣：{money(row.penalty_amount)}
-                  </p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    狀態：{row.photo_completed ? "已補齊" : row.penalty_applied ? "已逾期扣薪" : "待補照片"}
-                  </p>
+                <div key={row.id} className={`rounded-2xl border p-4 ${row.photo_completed ? "border-neutral-200" : "border-carcare-yellow bg-carcare-yellow/10"}`}>
+                  <p className="font-black">工單：{row.construction_order_id || "未指定"}</p>
+                  <p className="mt-1 text-sm text-neutral-600">截止時間：{row.due_at} / 罰扣：{money(row.penalty_amount)}</p>
+                  <p className="mt-1 text-sm text-neutral-600">狀態：{row.photo_completed ? "已補齊" : row.penalty_applied ? "已逾期扣薪" : "待補照片"}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {row.construction_order_id ? (
-                      <Link href="/operations/construction" className="secondary-btn">
-                        前往施工單
-                      </Link>
-                    ) : null}
-                    {!row.photo_completed ? (
-                      <button type="button" className="primary-btn" onClick={() => markPhotoCompleted(row.id)}>
-                        標記已補齊照片
-                      </button>
-                    ) : null}
+                    {row.construction_order_id ? <Link href="/operations/construction" className="secondary-btn">前往施工單</Link> : null}
+                    {!row.photo_completed ? <button type="button" className="primary-btn" onClick={() => markPhotoCompleted(row.id)}>標記已補齊照片</button> : null}
                   </div>
                 </div>
               ))}
-              {!reminders.length ? <p className="text-neutral-500">目前沒有施工照片提醒。</p> : null}
+              {!reminders.length ? <p className="text-neutral-500">目前沒有施工照片待辦。</p> : null}
             </div>
           </div>
         </section>

@@ -10,9 +10,10 @@ import { supabase } from "@/lib/supabase";
 type ShopRow = { id: string; name: string };
 
 const positionOptions = [
+  { value: "admin", label: "總管理員" },
   { value: "shop_manager", label: "店長" },
   { value: "vice_manager", label: "副店長" },
-  { value: "frontdesk", label: "前台接待" },
+  { value: "frontdesk", label: "前台人員" },
   { value: "technician", label: "施工技師" },
   { value: "worker", label: "一般員工" }
 ];
@@ -23,7 +24,7 @@ const requestFieldLabels: Record<string, string> = {
   email: "電子信箱",
   emergency_contact: "緊急聯絡人",
   emergency_phone: "緊急聯絡電話",
-  avatar_url: "個人頭像 URL"
+  avatar_url: "員工大頭照 URL"
 };
 
 const emptyForm = {
@@ -53,6 +54,12 @@ const emptyForm = {
 function cleanValue(value: string) {
   const nextValue = value.trim();
   return nextValue || null;
+}
+
+function reviewLabel(status: StaffModifyRequest["review_status"]) {
+  if (status === "approved") return "已核准";
+  if (status === "rejected") return "已駁回";
+  return "待審核";
 }
 
 export default function StaffAccountsPage() {
@@ -109,7 +116,7 @@ export default function StaffAccountsPage() {
 
   async function createStaff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canManage) return alert("只有人資或總管理員可以建立員工帳號。");
+    if (!canManage) return alert("只有總管理員或人資可以新增員工。");
     if (!form.employee_no.trim()) return alert("請輸入員工編號。");
     if (!form.password_hash.trim()) return alert("請輸入員工初始密碼。");
     if (!form.name.trim()) return alert("請輸入員工姓名。");
@@ -149,28 +156,28 @@ export default function StaffAccountsPage() {
   }
 
   async function updateResigned(staff: StaffInfo, resigned: boolean) {
-    if (!canManage) return alert("只有人資或總管理員可以停用或恢復員工帳號。");
+    if (!canManage) return alert("只有總管理員或人資可以停用員工帳號。");
     const { error } = await supabase.from("staff_info").update({ resigned }).eq("id", staff.id);
     if (error) return alert(error.message);
     await load();
   }
 
   async function resetPassword(staff: StaffInfo) {
-    if (!canManage) return alert("只有人資或總管理員可以重設密碼。");
+    if (!canManage) return alert("只有總管理員或人資可以重設密碼。");
     const nextPassword = resetPasswords[staff.employee_no]?.trim();
-    if (!nextPassword) return alert("請先輸入新密碼。");
+    if (!nextPassword) return alert("請輸入新密碼。");
     const { error } = await supabase.from("staff_info").update({ password_hash: nextPassword }).eq("id", staff.id);
     if (error) return alert(error.message);
     setResetPasswords({ ...resetPasswords, [staff.employee_no]: "" });
-    alert("密碼已重設，員工可用新密碼登入。");
+    alert("密碼已更新，請員工使用新密碼登入。");
   }
 
   async function reviewRequest(request: StaffModifyRequest, approved: boolean) {
-    if (!canManage) return alert("只有人資或總管理員可以審核變更申請。");
+    if (!canManage) return alert("只有總管理員或人資可以審核變更申請。");
     const note = reviewNotes[request.id] || "";
 
     if (approved) {
-      if (!requestFieldLabels[request.field_name]) return alert("此欄位不在允許變更清單內。");
+      if (!requestFieldLabels[request.field_name]) return alert("此欄位不允許由員工自行申請變更。");
       const updateResult = await supabase
         .from("staff_info")
         .update({ [request.field_name]: request.new_value })
@@ -199,13 +206,13 @@ export default function StaffAccountsPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-sm font-black text-carcare-yellow">HR Staff Portal</p>
-              <h1 className="text-2xl font-black">員工帳號與人事總檔</h1>
+              <h1 className="text-2xl font-black">員工建檔與資料審核</h1>
               <p className="mt-1 text-sm text-neutral-500">
-                人資在這裡建立完整員工資料，員工再用員工編號與密碼登入個人後台。
+                先在人資這裡建立員工編號與密碼，員工才可以從員工後台登入。
               </p>
             </div>
             <Link href="/staff/login" className="primary-btn text-center">
-              打開員工後台登入
+              開啟員工後台登入
             </Link>
           </div>
         </section>
@@ -213,27 +220,23 @@ export default function StaffAccountsPage() {
         {canManage ? (
           <form onSubmit={createStaff} className="card space-y-4">
             <div>
-              <h2 className="text-xl font-black">新增完整員工資料</h2>
-              <p className="mt-1 text-sm text-neutral-500">員工編號會作為登入帳號，密碼日後可在清單中重設。</p>
+              <h2 className="text-xl font-black">新增員工資料</h2>
+              <p className="mt-1 text-sm text-neutral-500">員工編號就是登入帳號，初始密碼可之後重設。</p>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Field label="員工編號" value={form.employee_no} onChange={(value) => setForm({ ...form, employee_no: value })} />
-              <Field label="初始密碼" type="password" value={form.password_hash} onChange={(value) => setForm({ ...form, password_hash: value })} />
+              <Field label="初始登入密碼" type="password" value={form.password_hash} onChange={(value) => setForm({ ...form, password_hash: value })} />
               <Field label="姓名" value={form.name} onChange={(value) => setForm({ ...form, name: value })} />
               <Field label="聯絡手機" value={form.phone} onChange={(value) => setForm({ ...form, phone: value })} />
               <select className="form-input" value={form.shop_id} onChange={(event) => setForm({ ...form, shop_id: event.target.value })}>
-                <option value="">使用目前登入門市</option>
+                <option value="">選擇所屬門市</option>
                 {shops.map((shop) => (
-                  <option key={shop.id} value={shop.id}>
-                    {shop.name}
-                  </option>
+                  <option key={shop.id} value={shop.id}>{shop.name}</option>
                 ))}
               </select>
               <select className="form-input" value={form.position} onChange={(event) => setForm({ ...form, position: event.target.value })}>
                 {positionOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
+                  <option key={item.value} value={item.value}>{item.label}</option>
                 ))}
               </select>
               <Field label="身分證字號" value={form.id_number} onChange={(value) => setForm({ ...form, id_number: value })} />
@@ -252,24 +255,22 @@ export default function StaffAccountsPage() {
               <Field label="合約到期日" type="date" value={form.contract_end_date} onChange={(value) => setForm({ ...form, contract_end_date: value })} />
               <Field label="身分資料備註" value={form.identity_info} onChange={(value) => setForm({ ...form, identity_info: value })} />
             </div>
-            <button className="primary-btn" type="submit">
-              建立員工帳號與人事資料
-            </button>
+            <button className="primary-btn" type="submit">建立員工帳號</button>
           </form>
         ) : null}
 
         <section className="grid gap-4 md:grid-cols-4">
-          <Stat title="員工帳號數" value={staffRows.length} />
-          <Stat title="可登入" value={staffRows.filter((row) => !row.resigned).length} />
-          <Stat title="已停用" value={staffRows.filter((row) => row.resigned).length} />
-          <Stat title="待審核變更" value={pendingRequests.length} />
+          <Stat title="員工總數" value={staffRows.length} />
+          <Stat title="在職" value={staffRows.filter((row) => !row.resigned).length} />
+          <Stat title="離職 / 停用" value={staffRows.filter((row) => row.resigned).length} />
+          <Stat title="待審核申請" value={pendingRequests.length} />
         </section>
 
         <section className="card">
           <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
               <h2 className="text-xl font-black">員工帳號清單</h2>
-              <p className="mt-1 text-sm text-neutral-500">員工使用「員工編號 + 密碼」登入，不需要電子信箱。</p>
+              <p className="mt-1 text-sm text-neutral-500">可重設密碼、停用離職帳號，也可確認員工是否能登入。</p>
             </div>
             {loading ? <p className="text-sm text-neutral-500">載入中...</p> : null}
           </div>
@@ -280,8 +281,8 @@ export default function StaffAccountsPage() {
                   <th>員工編號</th>
                   <th>姓名</th>
                   <th>職位</th>
-                  <th>電話</th>
-                  <th>信箱</th>
+                  <th>手機</th>
+                  <th>Email</th>
                   <th>到職日</th>
                   <th>狀態</th>
                   <th>重設密碼</th>
@@ -297,7 +298,7 @@ export default function StaffAccountsPage() {
                     <td>{staff.phone || "-"}</td>
                     <td>{staff.email || "-"}</td>
                     <td>{staff.hire_date || "-"}</td>
-                    <td>{staff.resigned ? "已停用" : "可登入"}</td>
+                    <td>{staff.resigned ? "已停用" : "啟用中"}</td>
                     <td>
                       {canManage ? (
                         <input
@@ -305,40 +306,26 @@ export default function StaffAccountsPage() {
                           type="password"
                           placeholder="輸入新密碼"
                           value={resetPasswords[staff.employee_no] || ""}
-                          onChange={(event) =>
-                            setResetPasswords({ ...resetPasswords, [staff.employee_no]: event.target.value })
-                          }
+                          onChange={(event) => setResetPasswords({ ...resetPasswords, [staff.employee_no]: event.target.value })}
                         />
-                      ) : (
-                        "-"
-                      )}
+                      ) : "-"}
                     </td>
                     <td>
                       <div className="flex flex-wrap gap-2">
                         {canManage ? (
                           <>
-                            <button className="secondary-btn" type="button" onClick={() => resetPassword(staff)}>
-                              重設
-                            </button>
-                            <button
-                              className="secondary-btn"
-                              type="button"
-                              onClick={() => updateResigned(staff, !staff.resigned)}
-                            >
+                            <button className="secondary-btn" type="button" onClick={() => resetPassword(staff)}>重設</button>
+                            <button className="secondary-btn" type="button" onClick={() => updateResigned(staff, !staff.resigned)}>
                               {staff.resigned ? "恢復" : "停用"}
                             </button>
                           </>
-                        ) : (
-                          <span className="text-sm text-neutral-500">僅可查看</span>
-                        )}
+                        ) : <span className="text-sm text-neutral-500">僅可查看</span>}
                       </div>
                     </td>
                   </tr>
                 ))}
                 {!staffRows.length ? (
-                  <tr>
-                    <td colSpan={9}>目前還沒有員工帳號，請先由人資新增第一位員工。</td>
-                  </tr>
+                  <tr><td colSpan={9}>目前沒有員工資料，請先新增員工。</td></tr>
                 ) : null}
               </tbody>
             </table>
@@ -347,23 +334,19 @@ export default function StaffAccountsPage() {
 
         <section className="card">
           <h2 className="text-xl font-black">員工資料變更申請審核</h2>
-          <p className="mt-1 text-sm text-neutral-500">核准後才會寫回員工正式人事資料；駁回則保留申請紀錄。</p>
+          <p className="mt-1 text-sm text-neutral-500">員工送出的手機、地址、信箱、緊急聯絡人等資料變更會集中在這裡審核。</p>
           <div className="mt-4 space-y-3">
             {requests.map((request) => (
               <div key={request.id} className="rounded-2xl border border-neutral-200 p-4">
                 <div className="grid gap-3 lg:grid-cols-[1fr_1fr_220px]">
                   <div>
-                    <p className="font-black">
-                      {request.employee_no || request.staff_id} / {requestFieldLabels[request.field_name] || request.field_name}
-                    </p>
+                    <p className="font-black">{request.employee_no || request.staff_id} / {requestFieldLabels[request.field_name] || request.field_name}</p>
                     <p className="mt-1 text-sm text-neutral-600">新內容：{request.new_value}</p>
                     <p className="mt-1 text-sm text-neutral-500">申請備註：{request.request_note || "-"}</p>
                   </div>
                   <div>
                     <p className="text-sm text-neutral-500">狀態</p>
-                    <p className="mt-1 font-black text-carcare-yellow">
-                      {request.review_status === "pending" ? "待審核" : request.review_status === "approved" ? "已核准" : "已駁回"}
-                    </p>
+                    <p className="mt-1 font-black text-carcare-yellow">{reviewLabel(request.review_status)}</p>
                     {request.review_note ? <p className="mt-1 text-sm text-neutral-500">審核備註：{request.review_note}</p> : null}
                   </div>
                   <div className="space-y-2">
@@ -376,17 +359,11 @@ export default function StaffAccountsPage() {
                           onChange={(event) => setReviewNotes({ ...reviewNotes, [request.id]: event.target.value })}
                         />
                         <div className="flex gap-2">
-                          <button className="primary-btn flex-1" type="button" onClick={() => reviewRequest(request, true)}>
-                            核准
-                          </button>
-                          <button className="secondary-btn flex-1" type="button" onClick={() => reviewRequest(request, false)}>
-                            駁回
-                          </button>
+                          <button className="primary-btn flex-1" type="button" onClick={() => reviewRequest(request, true)}>核准</button>
+                          <button className="secondary-btn flex-1" type="button" onClick={() => reviewRequest(request, false)}>駁回</button>
                         </div>
                       </>
-                    ) : (
-                      <span className="text-sm text-neutral-500">已完成審核</span>
-                    )}
+                    ) : <span className="text-sm text-neutral-500">已處理</span>}
                   </div>
                 </div>
               </div>
