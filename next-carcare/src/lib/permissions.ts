@@ -16,12 +16,12 @@ export type UserProfile = {
 };
 
 export const roleLabels: Record<Role, string> = {
-  admin: "總管理員",
-  finance: "財務",
-  hr: "人資",
-  shop_manager: "店長",
-  vice_manager: "副店長",
-  worker: "施工人員",
+  admin: "Admin",
+  finance: "Finance",
+  hr: "HR",
+  shop_manager: "Shop Manager",
+  vice_manager: "Vice Manager",
+  worker: "Worker",
 };
 
 export const roleMenus: Record<Role, string[]> = {
