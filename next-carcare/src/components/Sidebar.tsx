@@ -98,6 +98,11 @@ const menuGroups = [
     label: "系統設定",
     icon: Shield,
     items: [{ href: "/permissions", label: "系統設定", icon: Shield }]
+  },
+  {
+    label: "員工後台",
+    icon: Users,
+    items: [{ href: "/staff/login", label: "員工後台登入", icon: Users }]
   }
 ];
 

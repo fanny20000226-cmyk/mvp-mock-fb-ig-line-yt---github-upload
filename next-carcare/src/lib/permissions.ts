@@ -46,11 +46,13 @@ export const roleMenus: Record<Role, string[]> = {
     "/hr/employees",
     "/hr/attendance",
     "/hr/payroll",
+    "/staff/login",
+    "/staff/dashboard",
     "/bonus",
     "/permissions"
   ],
-  finance: ["/dashboard", "/finance/payments", "/finance/reports", "/finance/receipts"],
-  hr: ["/dashboard", "/hr/employees", "/hr/attendance", "/hr/payroll"],
+  finance: ["/dashboard", "/finance/payments", "/finance/reports", "/finance/receipts", "/staff/login", "/staff/dashboard"],
+  hr: ["/dashboard", "/hr/employees", "/hr/attendance", "/hr/payroll", "/staff/login", "/staff/dashboard"],
   shop_manager: [
     "/dashboard",
     "/operations/paste-reservation",
@@ -71,7 +73,9 @@ export const roleMenus: Record<Role, string[]> = {
     "/notifications",
     "/hr/employees",
     "/hr/attendance",
-    "/hr/payroll"
+    "/hr/payroll",
+    "/staff/login",
+    "/staff/dashboard"
   ],
   vice_manager: [
     "/dashboard",
@@ -93,9 +97,11 @@ export const roleMenus: Record<Role, string[]> = {
     "/notifications",
     "/hr/employees",
     "/hr/attendance",
-    "/hr/payroll"
+    "/hr/payroll",
+    "/staff/login",
+    "/staff/dashboard"
   ],
-  worker: ["/dashboard", "/operations/calendar", "/operations/construction", "/annotations"]
+  worker: ["/dashboard", "/operations/calendar", "/operations/construction", "/annotations", "/staff/login", "/staff/dashboard"]
 };
 
 export function canAccess(role: Role, path: string) {
