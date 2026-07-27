@@ -55,6 +55,20 @@ function money(value: number) {
   return `$${value.toLocaleString("en-US")}`;
 }
 
+function getErrorMessage(error: unknown) {
+  if (!error) return "";
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  if (typeof error === "object") {
+    const detail = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    return [detail.message, detail.details, detail.hint, detail.code]
+      .filter(Boolean)
+      .map(String)
+      .join(" / ");
+  }
+  return String(error);
+}
+
 function PhotoGrid({
   title,
   photos,
@@ -224,32 +238,42 @@ export default function MobileOrderPage() {
       const nextQuoteNo = `Q${Date.now()}`;
       setQuoteNo(nextQuoteNo);
 
-      const carId = profile
-        ? await ensureCustomerVehicleArchive(profile, {
+      let carId: string | null = null;
+      if (profile) {
+        try {
+          carId = await ensureCustomerVehicleArchive(profile, {
             customer_name: customerName,
             customer_phone: customerPhone,
             plate_no: plateNo,
             brand,
             model: carModel,
-          })
-        : null;
+          });
+        } catch (archiveError) {
+          console.warn("Mobile quick order archive skipped:", archiveError);
+        }
+      }
+
+      const baseQuotation = {
+        shop_id: profile?.shop_id || null,
+        quote_no: nextQuoteNo,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        plate_no: plateNo,
+        total_amount: total,
+        final_amount: total,
+        status: "draft",
+        remark,
+      };
 
       const { data: quotation, error } = await supabase
         .from("quotations")
         .insert({
-          shop_id: profile?.shop_id || null,
+          ...baseQuotation,
           car_id: carId,
-          quote_no: nextQuoteNo,
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          plate_no: plateNo,
           brand,
           model: carModel,
-          status: "draft",
           category: serviceCategory,
-          total_amount: total,
           deposit_amount: deposit,
-          remark,
           selected_area: {
             source: "mobile-order",
             selected_items: selectedItems,
@@ -260,11 +284,24 @@ export default function MobileOrderPage() {
         .select("id")
         .single();
 
-      if (error) throw error;
+      let quotationId = quotation?.id as string | undefined;
+      if (error || !quotationId) {
+        console.warn("Mobile quick order rich insert failed, retrying with base fields:", error);
+        const fallback = await supabase
+          .from("quotations")
+          .insert(baseQuotation)
+          .select("id")
+          .single();
 
-      if (quotation?.id) {
+        if (fallback.error || !fallback.data?.id) {
+          throw new Error(getErrorMessage(fallback.error || error) || "報價單儲存失敗");
+        }
+        quotationId = fallback.data.id as string;
+      }
+
+      if (quotationId) {
         const rows = selectedItems.map((item) => ({
-          quotation_id: quotation.id,
+          quotation_id: quotationId,
           shop_id: profile?.shop_id || null,
           service_item_id: null,
           item_name: item.label,
@@ -274,7 +311,10 @@ export default function MobileOrderPage() {
           subtotal: item.price,
           remark: "行動快速開單",
         }));
-        if (rows.length) await supabase.from("quotation_items").insert(rows);
+        if (rows.length) {
+          const { error: itemError } = await supabase.from("quotation_items").insert(rows);
+          if (itemError) console.warn("Mobile quick order item insert skipped:", itemError);
+        }
       }
 
       window.alert("行動開單已儲存，可在電腦版後台查看。");
@@ -282,7 +322,7 @@ export default function MobileOrderPage() {
         await exportElementToPdf("mobile-order-pdf", `PEIWAY_mobile_quote_${plateNo || nextQuoteNo}.pdf`);
       }
     } catch (error) {
-      window.alert(`儲存失敗：${error instanceof Error ? error.message : "未知錯誤"}`);
+      window.alert(`儲存失敗：${getErrorMessage(error) || "未知錯誤"}`);
     } finally {
       setSaving(false);
     }
