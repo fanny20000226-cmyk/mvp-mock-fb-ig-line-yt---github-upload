@@ -1,0 +1,289 @@
+{
+  "name": "PEIWAY N8N LINE Notify Bridge",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "peiway-line-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "WebhookTrigger",
+      "name": "Receive System Event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 240],
+      "webhookId": "peiway-line-events"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.body.event_type}}",
+                    "rightValue": "todo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "todo"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.body.event_type}}",
+                    "rightValue": "abnormal",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "abnormal"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.body.event_type}}",
+                    "rightValue": "broadcast",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "broadcast"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "SwitchByEventType",
+      "name": "Switch By Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [240, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst params = body.content_params || {};\nconst staff = body.staff_info || {};\nconst templates = {\n  todo: `[PEIWAY TODO] ${params.title || 'New task'}\\nStore: ${body.store_name || body.store_id || '-'}\\nPlate: ${body.plate || '-'}\\nDetail: ${params.detail || body.message_template || '-'}`,\n  abnormal: `[PEIWAY ALERT] ${params.title || 'Abnormal event'}\\nStore: ${body.store_name || body.store_id || '-'}\\nWork order: ${body.work_order_id || '-'}\\nPlate: ${body.plate || '-'}\\nDetail: ${params.detail || '-'}`,\n  broadcast: `[PEIWAY BROADCAST] ${params.title || 'Store broadcast'}\\nStore: ${body.store_name || body.store_id || '-'}\\nDetail: ${params.detail || body.message_template || '-'}`,\n  connection_test: `[PEIWAY N8N TEST] ${params.message || 'Webhook connection test'}\\nTime: ${params.tested_at || new Date().toISOString()}`\n};\nconst token = params.line_notify_token || staff.line_notify_token || body.line_notify_token || '';\nreturn [{\n  json: {\n    ...body,\n    line_notify_token: token,\n    line_message: templates[body.event_type] || templates.todo,\n    receiver: body.receiver || staff.employee_name || staff.name || body.store_name || 'PEIWAY',\n    callback_webhook_url: body.callback_webhook_url\n  }\n}];"
+      },
+      "id": "BuildMessage",
+      "name": "Build Message And Token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://notify-api.line.me/api/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.line_notify_token}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "message",
+              "value": "={{$json.line_message}}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": false,
+          "timeout": 30000
+        }
+      },
+      "id": "SendLineNotify",
+      "name": "Send LINE Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 240],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Build Message And Token').item.json;\nconst apiResult = $json || {};\nconst failed = Boolean(apiResult.error || apiResult.message?.includes?.('error'));\nreturn [{\n  json: {\n    event_no: original.event_no,\n    event_type: original.event_type,\n    send_time: new Date().toISOString(),\n    receiver: original.receiver,\n    message_content: original.line_message,\n    send_status: failed ? 'failed' : 'success',\n    error_note: failed ? JSON.stringify(apiResult) : '',\n    store_id: original.store_id || null,\n    work_order_id: original.work_order_id || original.quotation_id || null,\n    plate: original.plate || null,\n    model: original.model || null,\n    n8n_execution_id: $execution.id,\n    callback_webhook_url: original.callback_webhook_url,\n    raw_payload: apiResult\n  }\n}];"
+      },
+      "id": "BuildCallback",
+      "name": "Build Callback Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.callback_webhook_url}}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{JSON.stringify($json)}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "CallbackSystem",
+      "name": "Callback System",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 240],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, event_no: $('Build Callback Payload').item.json.event_no, status: $('Build Callback Payload').item.json.send_status } }}",
+        "options": {}
+      },
+      "id": "RespondToSystem",
+      "name": "Respond To System",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1580, 240]
+    }
+  ],
+  "connections": {
+    "Receive System Event": {
+      "main": [
+        [
+          {
+            "node": "Switch By Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch By Event Type": {
+      "main": [
+        [
+          {
+            "node": "Build Message And Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Message And Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Message And Token",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Message And Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Message And Token": {
+      "main": [
+        [
+          {
+            "node": "Send LINE Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send LINE Notify": {
+      "main": [
+        [
+          {
+            "node": "Build Callback Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Callback Payload": {
+      "main": [
+        [
+          {
+            "node": "Callback System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback System": {
+      "main": [
+        [
+          {
+            "node": "Respond To System",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-07-27T00:00:00.000Z",
+  "versionId": "peiway-n8n-line-notify-template"
+}
