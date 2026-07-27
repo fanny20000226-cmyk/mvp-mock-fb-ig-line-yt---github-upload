@@ -23,32 +23,32 @@ type QuickOption = {
   price: number;
 };
 
-const carTypes = ["5 Seat Sedan", "7 Seat 2-3-2", "9 Seat Van"];
-const categoryOptions = ["Base Service", "Add-on", "Gift", "Outsource", "Note"];
+const carTypes = ["一般5人座轎車", "七人座2-3-2", "九人座商務車"];
+const categoryOptions = ["基礎保養", "加購", "贈送", "外包", "其他備註"];
 
 const quickOptions: QuickOption[] = [
-  { id: "base-9999", label: "9999 Interior + Exterior", group: "base", price: 9999 },
-  { id: "base-interior", label: "Interior Deep Clean", group: "base", price: 6800 },
-  { id: "carpet-driver", label: "Driver Carpet", group: "carpet", price: 600 },
-  { id: "carpet-passenger", label: "Passenger Carpet", group: "carpet", price: 600 },
-  { id: "carpet-left", label: "Left Rear Carpet", group: "carpet", price: 600 },
-  { id: "carpet-right", label: "Right Rear Carpet", group: "carpet", price: 600 },
-  { id: "carpet-all", label: "Full Carpet", group: "carpet", price: 2200 },
-  { id: "seat-driver", label: "Driver Seat", group: "seat", price: 800 },
-  { id: "seat-passenger", label: "Passenger Seat", group: "seat", price: 800 },
-  { id: "seat-rear", label: "Rear Seats", group: "seat", price: 1200 },
-  { id: "seat-bench", label: "Rear Bench Seats", group: "seat", price: 1600 },
-  { id: "extra-smell", label: "Odor Treatment", group: "extra", price: 1500 },
-  { id: "extra-pet", label: "Pet Hair Treatment", group: "extra", price: 1200 },
-  { id: "gift-coating", label: "Gift Coating Warranty", group: "gift", price: 0 },
+  { id: "base-9999", label: "9999內外超值方案", group: "base", price: 9999 },
+  { id: "base-interior", label: "內裝深層清潔", group: "base", price: 6800 },
+  { id: "carpet-driver", label: "駕駛座地毯", group: "carpet", price: 600 },
+  { id: "carpet-passenger", label: "副駕地毯", group: "carpet", price: 600 },
+  { id: "carpet-left", label: "左半邊地毯", group: "carpet", price: 600 },
+  { id: "carpet-right", label: "右半邊地毯", group: "carpet", price: 600 },
+  { id: "carpet-all", label: "全車地毯", group: "carpet", price: 2200 },
+  { id: "seat-driver", label: "駕駛座椅", group: "seat", price: 800 },
+  { id: "seat-passenger", label: "副駕座椅", group: "seat", price: 800 },
+  { id: "seat-rear", label: "後排座椅", group: "seat", price: 1200 },
+  { id: "seat-bench", label: "後排連體座椅", group: "seat", price: 1600 },
+  { id: "extra-smell", label: "煙味/異味處理", group: "extra", price: 1500 },
+  { id: "extra-pet", label: "寵物毛髮處理", group: "extra", price: 1200 },
+  { id: "gift-coating", label: "贈送鍍膜保固", group: "gift", price: 0 },
 ];
 
 const groupLabels: Record<QuickOption["group"], string> = {
-  base: "Base",
-  carpet: "Carpet",
-  seat: "Seat",
-  extra: "Add-on",
-  gift: "Gift",
+  base: "基礎保養",
+  carpet: "地毯",
+  seat: "座椅",
+  extra: "加購",
+  gift: "贈送",
 };
 
 function money(value: number) {
@@ -99,7 +99,7 @@ function PhotoGrid({
                       if (event.key === "Enter") onRemove(url);
                     }}
                   >
-                    Delete
+                    刪除
                   </span>
                 </button>
               ) : (
@@ -156,7 +156,7 @@ export default function MobileOrderPage() {
       .limit(8);
 
     if (error) {
-      window.alert(`Search failed: ${error.message}`);
+      window.alert(`搜尋失敗：${error.message}`);
       return;
     }
     setResults((data || []) as CarSearchRow[]);
@@ -174,7 +174,7 @@ export default function MobileOrderPage() {
   async function uploadPhoto(file: File) {
     const currentPhotos = photoPhase === "before" ? beforePhotos : afterPhotos;
     if (currentPhotos.length >= 8) {
-      window.alert("Each photo group supports up to 8 photos.");
+      window.alert("每個照片分類最多上傳8張。");
       return;
     }
 
@@ -198,7 +198,7 @@ export default function MobileOrderPage() {
         reader.onload = () => resolve(String(reader.result || ""));
         reader.readAsDataURL(file);
       });
-      window.alert("Photo is shown locally. Create Supabase Storage bucket car-images for permanent upload.");
+      window.alert("照片已先顯示在本機。若要永久保存，請確認 Supabase Storage 已建立 car-images bucket。");
     }
 
     if (photoPhase === "before") {
@@ -210,11 +210,11 @@ export default function MobileOrderPage() {
 
   async function saveQuotation(exportPdf = false) {
     if (!customerName.trim() || !customerPhone.trim() || !plateNo.trim() || !carModel.trim()) {
-      window.alert("Please fill name, phone, plate and car model.");
+      window.alert("請填寫車主姓名、電話、車牌與車型。");
       return;
     }
     if (!selectedItems.length) {
-      window.alert("Please select at least one service item.");
+      window.alert("請至少選擇一個施工項目。");
       return;
     }
 
@@ -272,17 +272,17 @@ export default function MobileOrderPage() {
           qty: 1,
           unit_price: item.price,
           subtotal: item.price,
-          remark: "Mobile quick order",
+          remark: "行動快速開單",
         }));
         if (rows.length) await supabase.from("quotation_items").insert(rows);
       }
 
-      window.alert("Mobile order saved. It is available in desktop backend.");
+      window.alert("行動開單已儲存，可在電腦版後台查看。");
       if (exportPdf) {
         await exportElementToPdf("mobile-order-pdf", `PEIWAY_mobile_quote_${plateNo || nextQuoteNo}.pdf`);
       }
     } catch (error) {
-      window.alert(`Save failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      window.alert(`儲存失敗：${error instanceof Error ? error.message : "未知錯誤"}`);
     } finally {
       setSaving(false);
     }
@@ -293,28 +293,28 @@ export default function MobileOrderPage() {
       <section className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-28">
         <header className="card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs text-neutral-500">PEIWAY mobile workflow</p>
-            <h1 className="text-2xl font-black text-neutral-950">Mobile Quick Order</h1>
+            <p className="text-xs text-neutral-500">PEIWAY 行動現場流程</p>
+            <h1 className="text-2xl font-black text-neutral-950">行動快速開單</h1>
             <p className="text-sm text-neutral-600">
-              Search customer, select services, upload photos, save quote and export PDF.
+              快速搜尋客戶、選擇施工項目、上傳照片、儲存報價並匯出PDF。
             </p>
           </div>
           <button type="button" className="secondary-btn" onClick={() => window.history.back()}>
-            Back
+            返回
           </button>
         </header>
 
         <section className="card space-y-4">
-          <h2 className="text-lg font-black">Customer and vehicle</h2>
+          <h2 className="text-lg font-black">客戶與車輛資料</h2>
           <div className="flex gap-2">
             <input
               value={searchKeyword}
               onChange={(event) => setSearchKeyword(event.target.value)}
-              placeholder="Search phone or plate"
+              placeholder="搜尋電話或車牌"
               className="input flex-1"
             />
             <button type="button" className="primary-btn min-w-[86px]" onClick={searchCustomer}>
-              Search
+              搜尋
             </button>
           </div>
           {results.length > 0 && (
@@ -327,21 +327,21 @@ export default function MobileOrderPage() {
                   onClick={() => applyCustomer(row)}
                 >
                   <span>
-                    <strong>{row.customer_name || "Unnamed customer"}</strong>
+                    <strong>{row.customer_name || "未命名客戶"}</strong>
                     <span className="block text-neutral-500">
                       {row.customer_phone || "-"} / {row.plate_no || "-"}
                     </span>
                   </span>
-                  <span className="text-carcare-yellow">Use</span>
+                  <span className="text-carcare-yellow">帶入</span>
                 </button>
               ))}
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
-            <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Customer name" className="input" />
-            <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="Phone" className="input" />
-            <input value={plateNo} onChange={(event) => setPlateNo(event.target.value)} placeholder="Plate number" className="input" />
-            <input value={brand} onChange={(event) => setBrand(event.target.value)} placeholder="Brand" className="input" />
+            <input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="車主姓名" className="input" />
+            <input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="聯絡電話" className="input" />
+            <input value={plateNo} onChange={(event) => setPlateNo(event.target.value)} placeholder="車牌號碼" className="input" />
+            <input value={brand} onChange={(event) => setBrand(event.target.value)} placeholder="車廠品牌" className="input" />
             <select value={carModel} onChange={(event) => setCarModel(event.target.value)} className="input sm:col-span-2">
               {carTypes.map((item) => (
                 <option key={item} value={item}>
@@ -354,7 +354,7 @@ export default function MobileOrderPage() {
 
         <section className="card space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-black">Service items</h2>
+            <h2 className="text-lg font-black">施工項目</h2>
             <select value={serviceCategory} onChange={(event) => setServiceCategory(event.target.value)} className="input sm:w-48">
               {categoryOptions.map((item) => (
                 <option key={item}>{item}</option>
@@ -386,35 +386,35 @@ export default function MobileOrderPage() {
           <textarea
             value={remark}
             onChange={(event) => setRemark(event.target.value)}
-            placeholder="On-site note"
+            placeholder="現場備註"
             className="input min-h-[110px]"
           />
         </section>
 
         <section className="card space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-black">Photos</h2>
+            <h2 className="text-lg font-black">施工照片</h2>
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-neutral-100 p-1">
               <button
                 type="button"
                 className={`rounded-lg px-3 py-2 text-sm font-bold ${photoPhase === "before" ? "bg-carcare-yellow" : "bg-white"}`}
                 onClick={() => setPhotoPhase("before")}
               >
-                Before
+                施工前
               </button>
               <button
                 type="button"
                 className={`rounded-lg px-3 py-2 text-sm font-bold ${photoPhase === "after" ? "bg-carcare-yellow" : "bg-white"}`}
                 onClick={() => setPhotoPhase("after")}
               >
-                After
+                施工後
               </button>
             </div>
           </div>
           <label className="flex min-h-[92px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-carcare-yellow bg-yellow-50 text-center">
             <span className="text-2xl font-black">+</span>
-            <span className="font-bold">Take photo / Upload</span>
-            <span className="text-xs text-neutral-500">Mobile devices will open camera first.</span>
+            <span className="font-bold">拍照 / 上傳照片</span>
+            <span className="text-xs text-neutral-500">手機會優先開啟相機。</span>
             <input
               type="file"
               accept="image/*"
@@ -427,18 +427,18 @@ export default function MobileOrderPage() {
               }}
             />
           </label>
-          <PhotoGrid title="Before photos" photos={beforePhotos} onRemove={(url) => setBeforePhotos((current) => current.filter((item) => item !== url))} />
-          <PhotoGrid title="After photos" photos={afterPhotos} onRemove={(url) => setAfterPhotos((current) => current.filter((item) => item !== url))} />
+          <PhotoGrid title="施工前照片" photos={beforePhotos} onRemove={(url) => setBeforePhotos((current) => current.filter((item) => item !== url))} />
+          <PhotoGrid title="施工後照片" photos={afterPhotos} onRemove={(url) => setAfterPhotos((current) => current.filter((item) => item !== url))} />
         </section>
 
         <section className="rounded-3xl bg-carcare-black p-5 text-white shadow-xl">
           <div className="grid gap-3 text-sm sm:grid-cols-3">
             <div>
-              Item subtotal
+              項目小計
               <strong className="block text-2xl text-carcare-yellow">{money(subtotal)}</strong>
             </div>
             <label>
-              Deposit
+              訂金
               <input
                 type="number"
                 value={deposit}
@@ -448,16 +448,16 @@ export default function MobileOrderPage() {
               />
             </label>
             <div>
-              Final amount
+              最終應付金額
               <strong className="block text-4xl text-carcare-yellow">{money(total)}</strong>
             </div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <button type="button" className="primary-btn text-lg" onClick={() => saveQuotation(false)} disabled={saving}>
-              {saving ? "Saving..." : "Save order"}
+              {saving ? "儲存中..." : "儲存單據"}
             </button>
             <button type="button" className="primary-btn text-lg" onClick={() => saveQuotation(true)} disabled={saving}>
-              {saving ? "Generating..." : "Save and export PDF"}
+              {saving ? "產生中..." : "儲存並匯出PDF"}
             </button>
           </div>
         </section>
@@ -469,21 +469,21 @@ export default function MobileOrderPage() {
                 PEI<span className="text-carcare-yellow">WAY</span>
               </div>
               <div className="text-right">
-                <h2 className="text-2xl font-black text-white">Mobile Quote</h2>
+                <h2 className="text-2xl font-black text-white">行動快速報價單</h2>
                 <p className="text-white/70">{quoteNo}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-xl border p-4">
-                <h3 className="mb-2 text-lg font-black">Customer Vehicle</h3>
-                <p>Name: {customerName}</p>
-                <p>Phone: {customerPhone}</p>
-                <p>Plate: {plateNo}</p>
-                <p>Brand: {brand || "-"}</p>
-                <p>Model: {carModel}</p>
+                <h3 className="mb-2 text-lg font-black">客戶車輛資訊</h3>
+                <p>車主：{customerName}</p>
+                <p>電話：{customerPhone}</p>
+                <p>車牌：{plateNo}</p>
+                <p>品牌：{brand || "-"}</p>
+                <p>車型：{carModel}</p>
               </div>
               <div className="rounded-xl border p-4">
-                <h3 className="mb-2 text-lg font-black">Service Items</h3>
+                <h3 className="mb-2 text-lg font-black">施工項目</h3>
                 {selectedItems.map((item) => (
                   <p key={item.id}>
                     {item.label} {money(item.price)}
@@ -492,11 +492,11 @@ export default function MobileOrderPage() {
               </div>
             </div>
             <div className="rounded-xl border p-4">
-              <h3 className="mb-2 text-lg font-black">Note</h3>
+              <h3 className="mb-2 text-lg font-black">備註</h3>
               <p>{remark || "-"}</p>
             </div>
             <div className="rounded-xl bg-carcare-yellow p-5 text-center text-4xl font-black">
-              Total {money(total)}
+              總金額 {money(total)}
             </div>
           </div>
         </section>
