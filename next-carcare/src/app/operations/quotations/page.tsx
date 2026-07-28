@@ -191,51 +191,22 @@ export default function QuotationsPage() {
     if (row.status === "converted") return alert("\u9019\u5f35\u5831\u50f9\u55ae\u5df2\u7d93\u8f49\u70ba\u5de5\u55ae\u3002");
     if (!window.confirm(`\u78ba\u8a8d\u5c07 ${row.quote_no} \u8f49\u70ba\u65bd\u5de5\u5de5\u55ae\uff1f`)) return;
 
-    const profile = await getCurrentProfile();
-    if (!profile?.shop_id) return alert("\u627e\u4e0d\u5230\u767b\u5165\u9580\u5e02\uff0c\u8acb\u91cd\u65b0\u767b\u5165\u3002");
-
     setSaving(true);
     try {
-      const carId = await ensureCustomerVehicleArchive(profile, {
-        customer_name: row.customer_name || "\u672a\u547d\u540d\u5ba2\u6236",
-        customer_phone: row.customer_phone || "",
-        plate_no: row.plate_no || "",
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("\u767b\u5165\u72c0\u614b\u5df2\u5931\u6548\uff0c\u8acb\u91cd\u65b0\u767b\u5165\u3002");
+
+      const response = await fetch("/api/operations/convert-quote", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ quoteId: row.id }),
       });
-      const amount = Number(row.final_amount || row.total_amount || 0);
-      const orderNo = `W${Date.now()}`;
-      const remark = `\u7531\u5831\u50f9\u55ae ${row.quote_no} \u8f49\u5165`;
-
-      const { error: fullError } = await supabase.from("construction_orders").insert({
-        shop_id: profile.shop_id,
-        store_id: profile.shop_id,
-        car_id: carId,
-        quotation_id: row.id,
-        order_no: orderNo,
-        status: "pending",
-        total_amount: amount,
-        paid_amount: 0,
-        remark,
-        created_by: profile.id,
-      });
-
-      if (fullError) {
-        const { error: fallbackError } = await supabase.from("construction_orders").insert({
-          shop_id: profile.shop_id,
-          car_id: carId,
-          quotation_id: row.id,
-          order_no: orderNo,
-          status: "pending",
-          total_amount: amount,
-          remark,
-        });
-        if (fallbackError) throw fallbackError;
-      }
-
-      const { error: quoteError } = await supabase
-        .from("quotations")
-        .update({ status: "converted" })
-        .eq("id", row.id);
-      if (quoteError) throw quoteError;
+      const result = (await response.json().catch(() => ({}))) as { message?: string };
+      if (!response.ok) throw new Error(result.message || "\u8f49\u5de5\u55ae\u5931\u6557\u3002");
 
       await load();
       alert("\u5df2\u8f49\u70ba\u65bd\u5de5\u5de5\u55ae\u3002");
