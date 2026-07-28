@@ -25,35 +25,14 @@ create trigger set_n8n_connection_settings_updated_at
 before update on public.n8n_connection_settings
 for each row execute function public.set_updated_at();
 
-create table if not exists public.line_notify_settings (
-  id uuid primary key default gen_random_uuid(),
-  staff_id text,
-  employee_name text not null,
-  line_notify_token text not null,
-  notify_todo boolean not null default true,
-  notify_abnormal boolean not null default true,
-  notify_broadcast boolean not null default true,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index if not exists idx_line_notify_settings_staff_id on public.line_notify_settings(staff_id);
-create index if not exists idx_line_notify_settings_employee_name on public.line_notify_settings(employee_name);
-
-drop trigger if exists set_line_notify_settings_updated_at on public.line_notify_settings;
-create trigger set_line_notify_settings_updated_at
-before update on public.line_notify_settings
-for each row execute function public.set_updated_at();
-
-create table if not exists public.line_notify_logs (
+create table if not exists public.n8n_callback_logs (
   id uuid primary key default gen_random_uuid(),
   event_no text not null,
   event_type text,
-  send_time timestamptz not null default now(),
+  callback_time timestamptz not null default now(),
   receiver text,
   message_content text,
-  send_status text not null default 'pending',
+  callback_status text not null default 'pending',
   error_note text,
   store_id uuid,
   work_order_id text,
@@ -65,12 +44,12 @@ create table if not exists public.line_notify_logs (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists idx_line_notify_logs_event_no on public.line_notify_logs(event_no);
-create index if not exists idx_line_notify_logs_status_time on public.line_notify_logs(send_status, send_time desc);
+create index if not exists idx_n8n_callback_logs_event_no on public.n8n_callback_logs(event_no);
+create index if not exists idx_n8n_callback_logs_status_time on public.n8n_callback_logs(callback_status, callback_time desc);
 
-drop trigger if exists set_line_notify_logs_updated_at on public.line_notify_logs;
-create trigger set_line_notify_logs_updated_at
-before update on public.line_notify_logs
+drop trigger if exists set_n8n_callback_logs_updated_at on public.n8n_callback_logs;
+create trigger set_n8n_callback_logs_updated_at
+before update on public.n8n_callback_logs
 for each row execute function public.set_updated_at();
 
 create table if not exists public.n8n_event_dispatch_logs (
@@ -111,8 +90,7 @@ create table if not exists public.n8n_event_dedup (
 );
 
 alter table public.n8n_connection_settings enable row level security;
-alter table public.line_notify_settings enable row level security;
-alter table public.line_notify_logs enable row level security;
+alter table public.n8n_callback_logs enable row level security;
 alter table public.n8n_event_dispatch_logs enable row level security;
 alter table public.n8n_event_dedup enable row level security;
 
@@ -123,22 +101,15 @@ for all to authenticated
 using (true)
 with check (true);
 
-drop policy if exists "authenticated manage line notify settings" on public.line_notify_settings;
-create policy "authenticated manage line notify settings"
-on public.line_notify_settings
-for all to authenticated
-using (true)
-with check (true);
-
-drop policy if exists "authenticated read line notify logs" on public.line_notify_logs;
-create policy "authenticated read line notify logs"
-on public.line_notify_logs
+drop policy if exists "authenticated read n8n callback logs" on public.n8n_callback_logs;
+create policy "authenticated read n8n callback logs"
+on public.n8n_callback_logs
 for select to authenticated
 using (true);
 
-drop policy if exists "service role manage line notify logs" on public.line_notify_logs;
-create policy "service role manage line notify logs"
-on public.line_notify_logs
+drop policy if exists "service role manage n8n callback logs" on public.n8n_callback_logs;
+create policy "service role manage n8n callback logs"
+on public.n8n_callback_logs
 for all to service_role
 using (true)
 with check (true);
@@ -162,3 +133,6 @@ on public.n8n_event_dedup
 for all to service_role
 using (true)
 with check (true);
+
+drop table if exists public.line_notify_settings;
+drop table if exists public.line_notify_logs;

@@ -92,12 +92,11 @@ const menuGroups = [
     items: [{ href: "/notifications", label: "通知紀錄管理", icon: MessageSquareText }]
   },
   {
-    label: "N8N / LINE",
+    label: "N8N 聯動",
     icon: MessageSquareText,
     items: [
       { href: "/settings/n8n", label: "N8N 連線設定", icon: MessageSquareText },
-      { href: "/settings/line-notify", label: "LINE 通知設定", icon: MessageSquareText },
-      { href: "/settings/line-notify-logs", label: "LINE 通知紀錄", icon: MessageSquareText }
+      { href: "/settings/n8n-logs", label: "N8N 回呼紀錄", icon: MessageSquareText }
     ]
   },
   {

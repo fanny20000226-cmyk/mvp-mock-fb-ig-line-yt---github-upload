@@ -156,7 +156,7 @@ export default function NotificationsPage() {
               <p className="text-sm font-black text-carcare-yellow">通知紀錄管理</p>
               <h1 className="text-2xl font-black">完工牽車通知</h1>
               <p className="mt-1 text-sm text-neutral-500">
-                目前為 Mock 簡訊紀錄，不串 LINE，也不呼叫外部簡訊 API。登入角色：{roleLabels[role]}
+                目前為 Mock 簡訊紀錄，不呼叫外部簡訊 API。登入角色：{roleLabels[role]}
               </p>
             </div>
             <button type="button" className="primary-btn" onClick={() => downloadCsv(filteredRows)}>

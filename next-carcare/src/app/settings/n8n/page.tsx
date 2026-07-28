@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
@@ -9,13 +9,15 @@ type N8nSettings = {
   is_enabled: boolean;
 };
 
-const defaultCallback =
-  typeof window === "undefined" ? "" : `${window.location.origin}/api/n8n/callback`;
+function getDefaultCallback() {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/api/n8n/callback`;
+}
 
 export default function N8nSettingsPage() {
   const [settings, setSettings] = useState<N8nSettings>({
     webhook_url: "",
-    callback_webhook_url: defaultCallback,
+    callback_webhook_url: "",
     is_enabled: false
   });
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,7 @@ export default function N8nSettingsPage() {
 
   async function load() {
     setLoading(true);
+    const defaultCallback = getDefaultCallback();
     const response = await fetch("/api/n8n/settings", { cache: "no-store" });
     const data = await response.json();
     setSettings({
@@ -43,24 +46,30 @@ export default function N8nSettingsPage() {
     });
     const data = await response.json();
     if (!response.ok) {
-      setResult(data.message || "儲存失敗");
-      return;
+      setResult(data.message || "Save failed");
+      return false;
     }
-    setResult("N8N 連線設定已儲存。");
+    setResult("N8N settings saved.");
     load();
+    return true;
   }
 
   async function test() {
     setTesting(true);
     setResult("");
-    await save();
+    const saved = await save();
+    if (!saved) {
+      setTesting(false);
+      return;
+    }
+
     const response = await fetch("/api/n8n/test", { method: "POST" });
     const data = await response.json();
     setTesting(false);
     setResult(
       data.ok
-        ? `連線測試已送出，事件編號：${data.event_no}`
-        : `連線測試失敗：${data.message || data.error || "N8N 未回應"}`
+        ? `Test event sent. Event no: ${data.event_no}`
+        : `Test failed: ${data.message || data.error || "N8N no response"}`
     );
   }
 
@@ -75,20 +84,20 @@ export default function N8nSettingsPage() {
           <p className="text-sm font-black text-carcare-yellow">N8N Integration</p>
           <h1 className="text-2xl font-black">N8N 連線設定</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            這裡只負責把事件丟給 N8N，LINE Notify 發送邏輯全部放在 N8N 工作流內。
+            系統只負責把事件送到 N8N。Telegram、簡訊或其他通知發送流程，統一交給 N8N 處理。
           </p>
         </div>
 
         <section className="card space-y-4">
           <div className="rounded-xl border border-carcare-yellow/40 bg-carcare-yellow/10 p-4 text-sm font-bold text-neutral-700">
-            權限提示：此頁請只開放總管理員使用。關閉聯動後，系統不會呼叫任何 N8N webhook，原本訂單、報價、財務、人資功能照常運作。
+            關閉 N8N 聯動後，系統不會送出任何外部通知事件，原本報價、工單、財務、人資功能仍會照常運作。
           </div>
 
           <label className="block">
             <span className="mb-2 block font-black">N8N Webhook 網址</span>
             <input
               className="form-input"
-              placeholder="https://你的-n8n/webhook/peiway-line-events"
+              placeholder="https://your-n8n/webhook/peiway-events"
               value={settings.webhook_url}
               onChange={(event) => setSettings({ ...settings, webhook_url: event.target.value })}
             />
@@ -104,14 +113,16 @@ export default function N8nSettingsPage() {
               }
             />
             <span className="mt-2 block text-xs text-neutral-500">
-              建議填：{defaultCallback || "https://你的系統網址/api/n8n/callback"}
+              預設為：{getDefaultCallback() || "https://your-domain/api/n8n/callback"}
             </span>
           </label>
 
           <label className="flex items-center justify-between rounded-xl border border-neutral-200 p-4">
             <span>
               <span className="block font-black">啟用 N8N 聯動</span>
-              <span className="text-sm text-neutral-500">關閉時所有事件只會在系統內記錄，不會送到 N8N。</span>
+              <span className="text-sm text-neutral-500">
+                關閉後不會呼叫 N8N，方便你維護工作流或暫停外部通知。
+              </span>
             </span>
             <input
               type="checkbox"

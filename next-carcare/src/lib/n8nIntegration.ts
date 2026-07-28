@@ -122,47 +122,6 @@ async function writeDispatchLog(input: {
   });
 }
 
-async function resolveLineToken(payload: N8nEventPayload) {
-  const params = payload.content_params || {};
-  if (typeof params.line_notify_token === "string" && params.line_notify_token) {
-    return { token: params.line_notify_token, blocked: false };
-  }
-
-  const staffId =
-    typeof payload.staff_info?.staff_id === "string" ? payload.staff_info.staff_id : "";
-  const staffName =
-    typeof payload.staff_info?.employee_name === "string"
-      ? payload.staff_info.employee_name
-      : typeof payload.staff_info?.name === "string"
-        ? payload.staff_info.name
-        : payload.receiver || "";
-
-  if (!staffId && !staffName) return { token: "", blocked: false };
-
-  const admin = getSupabaseAdmin();
-  let query = admin
-    .from("line_notify_settings")
-    .select("line_notify_token, notify_todo, notify_abnormal, notify_broadcast, is_active")
-    .eq("is_active", true)
-    .limit(1);
-
-  if (staffId) {
-    query = query.eq("staff_id", staffId);
-  } else {
-    query = query.eq("employee_name", staffName);
-  }
-
-  const { data } = await query.maybeSingle();
-  if (!data?.line_notify_token) return { token: "", blocked: false };
-
-  const blocked =
-    (payload.event_type === "todo" && !data.notify_todo) ||
-    (payload.event_type === "abnormal" && !data.notify_abnormal) ||
-    (payload.event_type === "broadcast" && !data.notify_broadcast);
-
-  return { token: data.line_notify_token as string, blocked };
-}
-
 async function blockedByDailyDedup(payload: N8nEventPayload) {
   if (payload.event_type !== "abnormal" || !payload.work_order_id) return false;
   const admin = getSupabaseAdmin();
@@ -191,22 +150,6 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
     ...input,
     event_no: input.event_no || eventNo(input.event_type.toUpperCase())
   };
-
-  const tokenState = await resolveLineToken(payload);
-  if (tokenState.blocked) {
-    await writeDispatchLog({
-      payload,
-      dispatch_status: "skipped",
-      error_message: "LINE notify switch is disabled for this employee and event type."
-    });
-    return { ok: true, skipped: true, event_no: payload.event_no };
-  }
-  if (tokenState.token) {
-    payload.content_params = {
-      ...(payload.content_params || {}),
-      line_notify_token: tokenState.token
-    };
-  }
 
   if (!settings?.is_enabled || !settings.webhook_url) {
     await writeDispatchLog({
@@ -264,14 +207,14 @@ export async function recordN8nCallback(input: N8nCallbackPayload) {
   const admin = getSupabaseAdmin();
   const sendStatus = input.send_status || "pending";
   const { data, error } = await admin
-    .from("line_notify_logs")
+    .from("n8n_callback_logs")
     .insert({
       event_no: input.event_no,
       event_type: input.event_type || null,
-      send_time: input.send_time || new Date().toISOString(),
+      callback_time: input.send_time || new Date().toISOString(),
       receiver: input.receiver || "",
       message_content: input.message_content || "",
-      send_status: sendStatus,
+      callback_status: sendStatus,
       error_note: input.error_note || "",
       store_id: input.store_id || null,
       work_order_id: input.work_order_id || null,
