@@ -56,6 +56,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
         .eq("resigned", false)
         .order("name"),
     ]);
+
     setCars((carData || []) as CarRow[]);
     setQuotes((quoteData || []) as QuoteRow[]);
     setStaffRows((staffData || []) as StaffRow[]);
@@ -72,6 +73,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
 
   useEffect(() => {
     if (!selectedQuote) return;
+
     const quotePlate = (selectedQuote.plate_no || "").trim().toLowerCase();
     const matchedCar = cars.find((car) => (car.plate_no || "").trim().toLowerCase() === quotePlate);
 
@@ -87,7 +89,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     if (!selectedQuote) return "";
 
     const profile = await getCurrentProfile();
-    if (!profile?.shop_id) throw new Error("找不到門店資料，請重新登入。");
+    if (!profile?.shop_id) throw new Error("找不到門市資料，請重新登入。");
 
     const carId = await ensureCustomerVehicleArchive(profile, {
       customer_name: selectedQuote.customer_name || "未命名客戶",
@@ -95,7 +97,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       plate_no: selectedQuote.plate_no || "",
     });
 
-    if (!carId) throw new Error("這張報價單沒有車牌，請先補車牌再建立施工單。");
+    if (!carId) throw new Error("這張報價單沒有車牌，請先補上車牌再轉施工單。");
     await loadOptions();
     return carId;
   }
@@ -106,10 +108,10 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
 
     try {
       const profile = await getCurrentProfile();
-      if (!profile?.shop_id) throw new Error("找不到門店資料，請重新登入。");
+      if (!profile?.shop_id) throw new Error("找不到門市資料，請重新登入。");
 
       const carId = await resolveCarId();
-      if (!carId) throw new Error("請先選擇車輛，或選擇有車牌的報價單。");
+      if (!carId) throw new Error("請先選擇車輛，或選擇一張有車牌的報價單。");
 
       const { error } = await supabase.from("construction_orders").insert({
         shop_id: profile.shop_id,
@@ -142,7 +144,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
         <p className="text-sm font-black text-carcare-yellow">施工開單</p>
         <h2 className="text-xl font-black">建立施工單</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          可先選報價單；若車輛尚未出現在下拉選單，系統會依報價單車牌自動建立車輛資料。
+          可綁定車輛與報價單。若車輛資料還沒建立，選擇有車牌的報價單後，系統會自動建立車輛資料再開施工單。
         </p>
       </div>
 
@@ -190,7 +192,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
           className="form-input"
           value={form.total_amount}
           onChange={(event) => setForm({ ...form, total_amount: event.target.value })}
-          placeholder="施工總金額"
+          placeholder="施工單總額"
         />
         <input
           className="form-input"
@@ -208,7 +210,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
 
       {selectedQuote && !form.car_id ? (
         <p className="mt-3 rounded-xl border border-carcare-yellow/40 bg-carcare-yellow/10 px-3 py-2 text-sm text-carcare-black">
-          已選報價單：{selectedQuote.quote_no}。建立施工單時會自動用車牌 {selectedQuote.plate_no || "未填車牌"} 建立車輛資料。
+          已選報價單 {selectedQuote.quote_no}。建立時會自動用車牌「{selectedQuote.plate_no || "未填車牌"}」建立車輛資料。
         </p>
       ) : null}
 
