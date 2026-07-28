@@ -26,14 +26,14 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
 
   const existingId = existingCars?.[0]?.id as string | undefined;
   const payload = {
-    customer_name: input.customer_name || "未命名客戶",
+    customer_name: input.customer_name || "\u672a\u547d\u540d\u5ba2\u6236",
     customer_phone: input.customer_phone || "",
     plate_no: plateNo,
     brand: input.brand || "",
     model: input.model || "",
     year: input.year || null,
     color: input.color || "",
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 
   if (existingId) {
@@ -46,9 +46,10 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
         model: payload.model,
         year: payload.year,
         color: payload.color,
-        updated_at: payload.updated_at
+        updated_at: payload.updated_at,
       })
       .eq("id", existingId);
+
     if (error) throw error;
     await attachPlateImagesToCar(profile.shop_id, existingId, plateNo);
     return existingId;
@@ -58,12 +59,13 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
     .from("cars")
     .insert({
       shop_id: profile.shop_id,
-      ...payload
+      ...payload,
     })
     .select("id")
     .single();
 
-  if (error || !data) throw error || new Error("建立車輛資料失敗。");
+  if (error || !data) throw error || new Error("\u5efa\u7acb\u8eca\u8f1b\u8cc7\u6599\u5931\u6557");
+
   const newCarId = data.id as string;
   await attachPlateImagesToCar(profile.shop_id, newCarId, plateNo);
   return newCarId;
