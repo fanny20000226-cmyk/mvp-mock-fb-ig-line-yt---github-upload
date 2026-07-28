@@ -12,6 +12,7 @@ type OrderRow = {
   order_no: string;
   status: string;
   start_at: string | null;
+  created_at?: string | null;
   paid_amount?: number | null;
   total_amount?: number | null;
 };
@@ -55,9 +56,9 @@ export default function DashboardPage() {
 
       const { data: orderRows } = await supabase
         .from("construction_orders")
-        .select("id, order_no, status, start_at, paid_amount, total_amount")
+        .select("id, order_no, status, start_at, created_at, paid_amount, total_amount")
         .order("created_at", { ascending: false })
-        .limit(8);
+        .limit(200);
 
       const { data: payments } = await supabase
         .from("payment")
@@ -80,8 +81,16 @@ export default function DashboardPage() {
         .order("created_at", { ascending: false })
         .limit(8);
 
-      setOrders((orderRows || []) as OrderRow[]);
-      setRevenue((payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0));
+      const validOrders = ((orderRows || []) as OrderRow[]).filter((row) => row.status !== "cancelled");
+      const todayOrders = validOrders.filter((row) => {
+        const dateValue = row.start_at || row.created_at || "";
+        return String(dateValue).slice(0, 10) === today;
+      });
+      const orderRevenue = todayOrders.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
+      const paidRevenue = (payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+      setOrders(validOrders.slice(0, 8));
+      setRevenue(orderRevenue || paidRevenue);
       setAttendance(attendanceRows?.length || 0);
       setQuoteCount(count || 0);
       setQuoteTodos((pendingQuotes || []) as QuoteTodo[]);
