@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/lib/supabase";
 
 type CallbackLog = {
   id: string;
