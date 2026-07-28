@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     const totalAmount = Number(typedQuote.final_amount || typedQuote.total_amount || 0);
     const remark = `由報價單 ${typedQuote.quote_no || typedQuote.id} 轉入`;
 
-    const insertAttempts = [
+    const insertAttempts: Record<string, unknown>[] = [
       {
         shop_id: quoteShopId,
         store_id: quoteShopId,
