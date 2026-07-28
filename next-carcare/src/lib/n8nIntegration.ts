@@ -5,6 +5,7 @@ export type N8nEventType = "todo" | "abnormal" | "broadcast" | "connection_test"
 export type N8nEventPayload = {
   event_no: string;
   event_type: N8nEventType;
+  channel?: "telegram" | "sms" | "system" | string;
   store_id?: string | null;
   store_name?: string | null;
   staff_info?: Record<string, unknown> | null;
@@ -18,11 +19,15 @@ export type N8nEventPayload = {
 };
 
 export type N8nCallbackPayload = {
-  event_no: string;
+  event_no?: string;
   event_type?: string | null;
   send_time?: string | null;
   receiver?: string | null;
   message_content?: string | null;
+  message?: string | null;
+  status?: string | null;
+  success?: boolean | null;
+  error?: string | null;
   send_status?: "success" | "failed" | "pending" | "skipped" | string;
   error_note?: string | null;
   store_id?: string | null;
@@ -205,17 +210,23 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
 
 export async function recordN8nCallback(input: N8nCallbackPayload) {
   const admin = getSupabaseAdmin();
-  const sendStatus = input.send_status || "pending";
+  const eventNoValue = input.event_no || eventNo("CALLBACK");
+  const sendStatus =
+    input.send_status ||
+    input.status ||
+    (typeof input.success === "boolean" ? (input.success ? "success" : "failed") : "pending");
+  const errorNote = input.error_note || input.error || "";
+  const messageContent = input.message_content || input.message || "";
   const { data, error } = await admin
     .from("n8n_callback_logs")
     .insert({
-      event_no: input.event_no,
+      event_no: eventNoValue,
       event_type: input.event_type || null,
       callback_time: input.send_time || new Date().toISOString(),
       receiver: input.receiver || "",
-      message_content: input.message_content || "",
+      message_content: messageContent,
       callback_status: sendStatus,
-      error_note: input.error_note || "",
+      error_note: errorNote,
       store_id: input.store_id || null,
       work_order_id: input.work_order_id || null,
       plate: input.plate || null,
@@ -230,14 +241,17 @@ export async function recordN8nCallback(input: N8nCallbackPayload) {
   return data;
 }
 
-export async function testN8nConnection() {
+export async function testN8nConnection(input?: { receiver?: string; message?: string }) {
   return sendEventToN8n({
     event_type: "connection_test",
+    channel: "telegram",
     store_name: "PEIWAY Test Store",
-    receiver: "System Admin",
-    message_template: "N8N connection test",
+    receiver: input?.receiver || "Telegram 測試群組",
+    message_template: "PEIWAY Telegram connection test",
     content_params: {
-      message: "This is a PEIWAY N8N webhook connection test.",
+      message:
+        input?.message ||
+        "PEIWAY 系統測試：如果你在 Telegram 收到這則訊息，代表系統 → N8N → Telegram 串聯成功。",
       tested_at: new Date().toISOString()
     }
   });
