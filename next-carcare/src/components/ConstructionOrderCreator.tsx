@@ -96,6 +96,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     }
 
     let cancelled = false;
+    const quoteId = selectedQuote.id;
 
     async function archiveQuoteCar() {
       setArchivingCar(true);
@@ -112,7 +113,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ quoteId: selectedQuote.id }),
+          body: JSON.stringify({ quoteId }),
         });
 
         const result = (await response.json()) as { carId?: string; message?: string };
@@ -123,7 +124,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
         if (cancelled) return;
 
         setForm((current) =>
-          current.quotation_id === selectedQuote.id
+          current.quotation_id === quoteId
             ? {
                 ...current,
                 car_id: result.carId || "",
