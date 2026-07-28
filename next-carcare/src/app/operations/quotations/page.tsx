@@ -186,6 +186,66 @@ export default function QuotationsPage() {
     }
   }
 
+  async function robustConvertToOrder(row: QuoteRow) {
+    if (saving) return;
+    if (row.status === "converted") return alert("\u9019\u5f35\u5831\u50f9\u55ae\u5df2\u7d93\u8f49\u70ba\u5de5\u55ae\u3002");
+    if (!window.confirm(`\u78ba\u8a8d\u5c07 ${row.quote_no} \u8f49\u70ba\u65bd\u5de5\u5de5\u55ae\uff1f`)) return;
+
+    const profile = await getCurrentProfile();
+    if (!profile?.shop_id) return alert("\u627e\u4e0d\u5230\u767b\u5165\u9580\u5e02\uff0c\u8acb\u91cd\u65b0\u767b\u5165\u3002");
+
+    setSaving(true);
+    try {
+      const carId = await ensureCustomerVehicleArchive(profile, {
+        customer_name: row.customer_name || "\u672a\u547d\u540d\u5ba2\u6236",
+        customer_phone: row.customer_phone || "",
+        plate_no: row.plate_no || "",
+      });
+      const amount = Number(row.final_amount || row.total_amount || 0);
+      const orderNo = `W${Date.now()}`;
+      const remark = `\u7531\u5831\u50f9\u55ae ${row.quote_no} \u8f49\u5165`;
+
+      const { error: fullError } = await supabase.from("construction_orders").insert({
+        shop_id: profile.shop_id,
+        store_id: profile.shop_id,
+        car_id: carId,
+        quotation_id: row.id,
+        order_no: orderNo,
+        status: "pending",
+        total_amount: amount,
+        paid_amount: 0,
+        remark,
+        created_by: profile.id,
+      });
+
+      if (fullError) {
+        const { error: fallbackError } = await supabase.from("construction_orders").insert({
+          shop_id: profile.shop_id,
+          car_id: carId,
+          quotation_id: row.id,
+          order_no: orderNo,
+          status: "pending",
+          total_amount: amount,
+          remark,
+        });
+        if (fallbackError) throw fallbackError;
+      }
+
+      const { error: quoteError } = await supabase
+        .from("quotations")
+        .update({ status: "converted" })
+        .eq("id", row.id);
+      if (quoteError) throw quoteError;
+
+      await load();
+      alert("\u5df2\u8f49\u70ba\u65bd\u5de5\u5de5\u55ae\u3002");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "\u8f49\u5de5\u55ae\u5931\u6557\u3002");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const summary = useMemo(() => {
     const total = rows.reduce((sum, row) => sum + Number(row.final_amount || row.total_amount || 0), 0);
     return {
@@ -252,7 +312,7 @@ export default function QuotationsPage() {
                         <button type="button" className="secondary-btn" onClick={() => toggleDetail(row)}>
                           {expandedId === row.id ? "收合明細" : "展開明細"}
                         </button>
-                        <button type="button" className="primary-btn" disabled={saving || row.status === "converted"} onClick={() => convertToOrder(row)}>
+                        <button type="button" className="primary-btn" disabled={saving || row.status === "converted"} onClick={() => robustConvertToOrder(row)}>
                           轉工單
                         </button>
                       </div>
