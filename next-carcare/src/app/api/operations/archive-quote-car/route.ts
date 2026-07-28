@@ -1,0 +1,131 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import type { Role } from "@/lib/permissions";
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  "https://qhbdjeiieeiynuvlrltp.supabase.co";
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "missing-supabase-anon-key";
+
+const allowedRoles: Role[] = ["admin", "shop_manager", "vice_manager", "worker"];
+
+type QuoteRecord = {
+  id: string;
+  shop_id?: string | null;
+  store_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  plate_no?: string | null;
+  brand?: string | null;
+  model?: string | null;
+};
+
+async function getCurrentProfile(token: string) {
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  });
+
+  const { data: authUser, error: authError } = await userClient.auth.getUser(token);
+  if (authError || !authUser.user?.id) {
+    throw new Error("登入狀態已失效，請重新登入。");
+  }
+
+  const { data, error } = await userClient
+    .from("users")
+    .select("id, shop_id, account, name, role, active")
+    .eq("id", authUser.user.id)
+    .eq("active", true)
+    .single();
+
+  if (error || !data) throw new Error("找不到登入使用者資料。");
+  if (!allowedRoles.includes(data.role as Role)) throw new Error("此帳號沒有建立施工車輛資料的權限。");
+
+  return data as { id: string; shop_id: string | null; role: Role };
+}
+
+async function ensureCar(profileShopId: string, quote: QuoteRecord) {
+  const admin = getSupabaseAdmin();
+  const plateNo = (quote.plate_no || "").trim();
+  if (!plateNo) throw new Error("這張報價單沒有車牌，請先補上車牌。");
+
+  const { data: existing, error: findError } = await admin
+    .from("cars")
+    .select("id")
+    .eq("shop_id", profileShopId)
+    .eq("plate_no", plateNo)
+    .limit(1);
+
+  if (findError) throw findError;
+  if (existing?.[0]?.id) return existing[0].id as string;
+
+  const { data, error } = await admin
+    .from("cars")
+    .insert({
+      shop_id: profileShopId,
+      customer_name: quote.customer_name || "未命名客戶",
+      customer_phone: quote.customer_phone || "",
+      plate_no: plateNo,
+      brand: quote.brand || "",
+      model: quote.model || "",
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) throw error || new Error("建立車輛資料失敗。");
+  return data.id as string;
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) return String((error as { message: unknown }).message);
+  return "建立車輛資料失敗。";
+}
+
+export async function POST(request: Request) {
+  try {
+    const authHeader = request.headers.get("authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) {
+      return NextResponse.json({ message: "請先登入後再建立車輛資料。" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as { quoteId?: string };
+    if (!body.quoteId) {
+      return NextResponse.json({ message: "缺少報價單 ID。" }, { status: 400 });
+    }
+
+    const profile = await getCurrentProfile(token);
+    if (!profile.shop_id) {
+      return NextResponse.json({ message: "找不到門市資料，請重新登入。" }, { status: 400 });
+    }
+
+    const admin = getSupabaseAdmin();
+    const { data: quote, error } = await admin
+      .from("quotations")
+      .select("id, shop_id, store_id, customer_name, customer_phone, plate_no, brand, model")
+      .eq("id", body.quoteId)
+      .single();
+
+    if (error || !quote) {
+      return NextResponse.json({ message: error?.message || "找不到報價單。" }, { status: 404 });
+    }
+
+    const typedQuote = quote as QuoteRecord;
+    const quoteShopId = typedQuote.shop_id || typedQuote.store_id || profile.shop_id;
+    if (profile.role !== "admin" && quoteShopId !== profile.shop_id) {
+      return NextResponse.json({ message: "不能建立其他門市的車輛資料。" }, { status: 403 });
+    }
+
+    const carId = await ensureCar(quoteShopId, typedQuote);
+    return NextResponse.json({ ok: true, carId });
+  } catch (error) {
+    return NextResponse.json({ message: errorMessage(error) }, { status: 400 });
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentProfile } from "@/lib/auth";
 import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listCars, listQuotations } from "@/lib/db";
@@ -44,9 +44,11 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [staffRows, setStaffRows] = useState<StaffRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [archivingCar, setArchivingCar] = useState(false);
+  const [archiveMessage, setArchiveMessage] = useState("");
   const [form, setForm] = useState(emptyForm);
 
-  async function loadOptions() {
+  const loadOptions = useCallback(async () => {
     const [{ data: carData }, { data: quoteData }, { data: staffData }] = await Promise.all([
       listCars(),
       listQuotations(),
@@ -60,11 +62,11 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     setCars((carData || []) as CarRow[]);
     setQuotes((quoteData || []) as QuoteRow[]);
     setStaffRows((staffData || []) as StaffRow[]);
-  }
+  }, []);
 
   useEffect(() => {
     loadOptions();
-  }, []);
+  }, [loadOptions]);
 
   const selectedQuote = useMemo(
     () => quotes.find((item) => item.id === form.quotation_id) || null,
@@ -82,7 +84,68 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       car_id: matchedCar?.id || "",
       total_amount: String(Number(selectedQuote.final_amount || selectedQuote.total_amount || 0)),
     }));
-  }, [selectedQuote, cars]);
+
+    if (matchedCar?.id) {
+      setArchiveMessage("已帶入報價單對應車輛。");
+      return;
+    }
+
+    if (!quotePlate) {
+      setArchiveMessage("這張報價單沒有車牌，請先回報價單補上車牌。");
+      return;
+    }
+
+    let cancelled = false;
+
+    async function archiveQuoteCar() {
+      setArchivingCar(true);
+      setArchiveMessage("正在用報價單車牌建立車輛資料...");
+
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) throw new Error("登入狀態已失效，請重新登入。");
+
+        const response = await fetch("/api/operations/archive-quote-car", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ quoteId: selectedQuote.id }),
+        });
+
+        const result = (await response.json()) as { carId?: string; message?: string };
+        if (!response.ok || !result.carId) throw new Error(result.message || "建立車輛資料失敗。");
+        if (cancelled) return;
+
+        await loadOptions();
+        if (cancelled) return;
+
+        setForm((current) =>
+          current.quotation_id === selectedQuote.id
+            ? {
+                ...current,
+                car_id: result.carId || "",
+              }
+            : current
+        );
+        setArchiveMessage("已自動建立並帶入車輛資料。");
+      } catch (error) {
+        if (!cancelled) {
+          setArchiveMessage(error instanceof Error ? error.message : "建立車輛資料失敗。");
+        }
+      } finally {
+        if (!cancelled) setArchivingCar(false);
+      }
+    }
+
+    archiveQuoteCar();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedQuote, cars, loadOptions]);
 
   async function resolveCarId() {
     if (form.car_id) return form.car_id;
@@ -210,12 +273,18 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
 
       {selectedQuote && !form.car_id ? (
         <p className="mt-3 rounded-xl border border-carcare-yellow/40 bg-carcare-yellow/10 px-3 py-2 text-sm text-carcare-black">
-          已選報價單 {selectedQuote.quote_no}。建立時會自動用車牌「{selectedQuote.plate_no || "未填車牌"}」建立車輛資料。
+          已選報價單 {selectedQuote.quote_no}。{archiveMessage || `系統會用車牌「${selectedQuote.plate_no || "未填車牌"}」建立車輛資料。`}
         </p>
       ) : null}
 
-      <button type="button" onClick={createOrder} disabled={saving} className="primary-btn mt-4">
-        {saving ? "建立中..." : "建立施工單"}
+      {selectedQuote && form.car_id ? (
+        <p className="mt-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+          {archiveMessage || "已帶入車輛資料，可以建立施工單。"}
+        </p>
+      ) : null}
+
+      <button type="button" onClick={createOrder} disabled={saving || archivingCar} className="primary-btn mt-4">
+        {archivingCar ? "車輛建立中..." : saving ? "建立中..." : "建立施工單"}
       </button>
     </section>
   );
