@@ -15,26 +15,28 @@ export type QuoteDraft = {
   customer_name: string;
   customer_phone: string;
   plate_no: string;
+  brand?: string;
+  car_type?: string;
   custom_item: string;
   final_amount: string;
   note: string;
   items?: QuoteOption[];
 };
 
-const carTypes = ["一般5人座轎車", "七人座2-3-2", "九人商務車"];
+const carTypes = ["一般5人座轎車", "七人座 2-3-2", "九人座商務車"];
 const stores = ["三重門市", "桃園門市", "新竹門市", "台南門市"];
 const categories = ["基礎保養", "加購", "贈送", "外包", "其他備註"];
 
 const carPreview: Record<string, string> = {
-  一般5人座轎車: "/car-diagram/car-preview-5seat.png",
-  "七人座2-3-2": "/car-diagram/car-preview-7seat.png",
-  九人商務車: "/car-diagram/car-preview-9seat.png"
+  "一般5人座轎車": "/car-diagram/car-preview-5seat.png",
+  "七人座 2-3-2": "/car-diagram/car-preview-7seat.png",
+  "九人座商務車": "/car-diagram/car-preview-9seat.png",
 };
 
 const carpetImage: Record<string, string> = {
-  一般5人座轎車: "/car-diagram/carpet-area-mark-5seat.png",
-  "七人座2-3-2": "/car-diagram/carpet-area-mark-7seat.png",
-  九人商務車: "/car-diagram/carpet-area-mark-9seat.png"
+  "一般5人座轎車": "/car-diagram/carpet-area-mark-5seat.png",
+  "七人座 2-3-2": "/car-diagram/carpet-area-mark-7seat.png",
+  "九人座商務車": "/car-diagram/carpet-area-mark-9seat.png",
 };
 
 const carpetOptions: QuoteOption[] = [
@@ -42,24 +44,24 @@ const carpetOptions: QuoteOption[] = [
   { id: "passenger-carpet", label: "副駕地毯", price: 600 },
   { id: "left-carpet", label: "左半邊地毯", price: 600 },
   { id: "right-carpet", label: "右半邊地毯", price: 600 },
-  { id: "all-carpet", label: "全車地毯", price: 2200 }
+  { id: "all-carpet", label: "全車地毯", price: 2200 },
 ];
 
 const seatOptions: QuoteOption[] = [
   { id: "driver-seat", label: "駕駛座椅", price: 800 },
   { id: "passenger-seat", label: "副駕駛座椅", price: 800 },
   { id: "rear-seat", label: "後座座椅", price: 1200 },
-  { id: "rear-combo-seat", label: "後排連體座椅", price: 1600 }
+  { id: "rear-combo-seat", label: "後排連體座椅", price: 1600 },
 ];
 
 const extraOptions: QuoteOption[] = [
-  { id: "odor", label: "煙味 / 異味處理", price: 1500 },
-  { id: "pet-hair", label: "寵物毛髮處理", price: 1200 },
-  { id: "white-interior", label: "白內裝重點處理", price: 2800 }
+  { id: "odor-addon", label: "煙味 / 異味處理", price: 1500 },
+  { id: "pet-hair-addon", label: "寵物毛髮處理", price: 1200 },
+  { id: "white-interior-addon", label: "白內裝重點處理", price: 2800 },
 ];
 
 function formatMoney(amount: number) {
-  return `$${amount.toLocaleString()}`;
+  return `$${Math.round(amount).toLocaleString()}`;
 }
 
 function parseAmount(value: string) {
@@ -84,9 +86,17 @@ function fileToDataUrl(file: File) {
   });
 }
 
+function toggleList(list: string[], id: string) {
+  return list.includes(id) ? list.filter((item) => item !== id) : [...list, id];
+}
+
+function optionButtonClass(active: boolean) {
+  return active ? "primary-btn justify-center" : "secondary-btn justify-center";
+}
+
 export default function InteriorQuoteBuilder({
   onGenerate,
-  compact = false
+  compact = false,
 }: {
   onGenerate: (draft: QuoteDraft) => Promise<void> | void;
   compact?: boolean;
@@ -96,6 +106,7 @@ export default function InteriorQuoteBuilder({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [plateNo, setPlateNo] = useState("");
+  const [brand, setBrand] = useState("");
   const [categoryA, setCategoryA] = useState(categories[0]);
   const [categoryB, setCategoryB] = useState(categories[1]);
   const [noteA, setNoteA] = useState("");
@@ -120,292 +131,275 @@ export default function InteriorQuoteBuilder({
     () => [
       ...selectedOptions(carpetOptions, carpets),
       ...selectedOptions(seatOptions, seats),
-      ...selectedOptions(extraOptions, extras)
+      ...selectedOptions(extraOptions, extras),
     ],
-    [carpets, seats, extras]
+    [carpets, extras, seats]
   );
 
-  function toggleList(current: string[], id: string, setter: (next: string[]) => void) {
-    if (id === "all-carpet") {
-      setter(current.includes(id) ? [] : [id]);
-      return;
-    }
-    setter(current.includes(id) ? current.filter((item) => item !== id) : [...current.filter((item) => item !== "all-carpet"), id]);
-  }
+  async function uploadFiles(files: FileList | null) {
+    if (!files?.length) return;
 
-  async function uploadPhoto(file: File) {
-    const current = photoPhase === "before" ? beforePhotos : afterPhotos;
-    if (current.length >= 8) return alert("每個分類最多上傳 8 張照片。");
     setUploading(true);
     try {
       const profile = await getCurrentProfile();
-      let imageUrl = "";
-      if (profile?.shop_id) {
-        const safeName = file.name.replace(/[^\w.-]+/g, "-");
-        const path = `${profile.shop_id}/mobile-order/${plateNo || "no-plate"}/${photoPhase}/${Date.now()}-${safeName}`;
-        const { error } = await supabase.storage.from("car-images").upload(path, file, { upsert: false });
-        if (!error) {
-          const { data } = supabase.storage.from("car-images").getPublicUrl(path);
-          imageUrl = data.publicUrl;
-          await supabase.from("image_annotations").insert({
-            shop_id: profile.shop_id,
-            image_url: imageUrl,
-            annot_data: {
-              type: photoPhase === "before" ? "quick_before_photo" : "quick_after_photo",
-              plate_no: plateNo,
-              car_type: carType,
-              uploaded_at: new Date().toISOString()
-            },
-            created_by: profile.id
-          });
+      const nextUrls: string[] = [];
+
+      for (const file of Array.from(files).slice(0, 8)) {
+        const extension = file.name.split(".").pop() || "jpg";
+        const safePlate = plateNo.trim() || "no-plate";
+        const path = `${profile?.shop_id || "public"}/${safePlate}/${photoPhase}/${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${extension}`;
+
+        const { error } = await supabase.storage.from("car-images").upload(path, file, { upsert: true });
+        if (error) {
+          nextUrls.push(await fileToDataUrl(file));
+          continue;
         }
+
+        const { data } = supabase.storage.from("car-images").getPublicUrl(path);
+        nextUrls.push(data.publicUrl);
       }
-      if (!imageUrl) imageUrl = await fileToDataUrl(file);
-      if (photoPhase === "before") {
-        setBeforePhotos((currentPhotos) => [...currentPhotos, imageUrl]);
-      } else {
-        setAfterPhotos((currentPhotos) => [...currentPhotos, imageUrl]);
-      }
-    } catch (error) {
-      console.error(error);
-      alert("照片上傳失敗，已保留頁面操作，請稍後再試。");
+
+      if (photoPhase === "before") setBeforePhotos((current) => [...current, ...nextUrls].slice(0, 8));
+      else setAfterPhotos((current) => [...current, ...nextUrls].slice(0, 8));
     } finally {
       setUploading(false);
     }
   }
 
-  async function generate(exportPdf = false) {
+  function removePhoto(phase: "before" | "after", url: string) {
+    if (phase === "before") setBeforePhotos((current) => current.filter((item) => item !== url));
+    else setAfterPhotos((current) => current.filter((item) => item !== url));
+  }
+
+  function buildNote() {
+    const beforeList = beforePhotos.map((url) => `施工前照片：${url}`).join("\n");
+    const afterList = afterPhotos.map((url) => `施工後照片：${url}`).join("\n");
+    const itemList = allItems.map((item) => `- ${item.label} ${formatMoney(item.price)}`).join("\n");
+    return [
+      `門市：${store}`,
+      `車型：${carType}`,
+      brand ? `車廠品牌：${brand}` : "",
+      `${categoryA}：${noteA || "無"}`,
+      `${categoryB}：${noteB || "無"}`,
+      itemList ? `施工項目：\n${itemList}` : "",
+      `地毯小計：${formatMoney(carpetSubtotal)}`,
+      `座椅小計：${formatMoney(seatSubtotal)}`,
+      `加購小計：${formatMoney(extraSubtotal)}`,
+      `訂金：${formatMoney(depositAmount)}`,
+      beforeList,
+      afterList,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  async function saveQuote(exportPdf: boolean) {
     if (saving) return;
-    if (!customerName || !customerPhone || !plateNo || !carType) {
-      alert("請先填寫姓名、電話、車牌與車型。");
-      return;
-    }
-    if (!allItems.length) {
-      alert("請至少選擇一個施工項目。");
-      return;
-    }
+    if (!customerName.trim()) return alert("請填寫車主姓名。");
+    if (!plateNo.trim()) return alert("請填寫車牌號碼。");
+
     setSaving(true);
     try {
       await onGenerate({
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        plate_no: plateNo,
-        custom_item: `行動快速開單 / ${carType}`,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        plate_no: plateNo.trim(),
+        brand: brand.trim(),
+        car_type: carType,
+        custom_item: `打翻評估 / ${carType}`,
         final_amount: String(totalAmount),
-        note: [
-          `報價單號：${quoteNo}`,
-          `門市：${store}`,
-          `車型：${carType}`,
-          `分類A：${categoryA} / ${noteA || "-"}`,
-          `分類B：${categoryB} / ${noteB || "-"}`,
-          `施工前照片：${beforePhotos.join("、") || "-"}`,
-          `施工後照片：${afterPhotos.join("、") || "-"}`,
-          `地毯小計：${formatMoney(carpetSubtotal)}`,
-          `座椅小計：${formatMoney(seatSubtotal)}`,
-          `附加小計：${formatMoney(extraSubtotal)}`,
-          `訂金：${formatMoney(depositAmount)}`,
-          `總金額：${formatMoney(totalAmount)}`
-        ].join("\n"),
-        items: allItems
+        note: buildNote(),
+        items: allItems,
       });
+
       if (exportPdf) {
-        await new Promise((resolve) => window.requestAnimationFrame(resolve));
-        await exportElementToPdf("quick-order-pdf", `PEIWAY_${plateNo || quoteNo}_報價單.pdf`);
+        await exportElementToPdf("interior-quote-preview", `PEIWAY_${plateNo || quoteNo}_報價單.pdf`);
       }
     } finally {
       setSaving(false);
     }
   }
 
-  function PhotoGrid({ urls }: { urls: string[] }) {
-    return (
-      <div className="grid grid-cols-4 gap-2">
-        {Array.from({ length: 8 }).map((_, index) => {
-          const url = urls[index];
-          return url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={url} src={url} alt="施工照片" className="h-20 w-full rounded-xl object-cover" />
-          ) : (
-            <label key={index} className="flex h-20 cursor-pointer items-center justify-center rounded-xl border-2 border-dashed border-neutral-300 text-2xl font-black text-neutral-400">
-              +
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) uploadPhoto(file);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </label>
-          );
-        })}
-      </div>
-    );
-  }
+  const activePhotos = photoPhase === "before" ? beforePhotos : afterPhotos;
 
   return (
-    <div className="space-y-5">
-      <section className="card">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-black text-carcare-yellow">PEIWAY 現場開單</p>
-            <h1 className="text-2xl font-black">打翻評估報價單</h1>
-            <p className="text-sm text-neutral-500">手機現場快速建立報價，資料會同步到正式報價紀錄。</p>
-          </div>
-          <select className="form-input max-w-xs" value={store} onChange={(e) => setStore(e.target.value)}>
-            {stores.map((item) => <option key={item}>{item}</option>)}
-          </select>
-        </div>
-      </section>
-
-      <section className={`grid gap-5 ${compact ? "" : "xl:grid-cols-3"}`}>
-        <div className="card space-y-3">
-          <h2 className="text-lg font-black">客戶與車輛資訊</h2>
-          <select className="form-input" value={carType} onChange={(e) => setCarType(e.target.value)}>
-            {carTypes.map((item) => <option key={item}>{item}</option>)}
-          </select>
-          <input className="form-input" placeholder="車主姓名" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-          <input className="form-input" placeholder="聯絡電話" inputMode="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
-          <input className="form-input" placeholder="車牌號碼" value={plateNo} onChange={(e) => setPlateNo(e.target.value.toUpperCase())} />
-          <div className="rounded-xl bg-neutral-50 p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={carPreview[carType] || carPreview[carTypes[0]]} alt={carType} loading="lazy" className="mx-auto max-h-48 w-full object-contain" />
+    <section className="space-y-5">
+      <div className="grid gap-4 xl:grid-cols-3">
+        <div className="card">
+          <h2 className="mb-4 text-xl font-black">車型與車輛資料</h2>
+          <div className="space-y-3">
+            <select className="form-input" value={carType} onChange={(event) => setCarType(event.target.value)}>
+              {carTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+            <input className="form-input" value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="車主姓名" />
+            <input className="form-input" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="聯絡電話" />
+            <input className="form-input" value={plateNo} onChange={(event) => setPlateNo(event.target.value)} placeholder="車牌號碼" />
+            <input className="form-input" value={brand} onChange={(event) => setBrand(event.target.value)} placeholder="車廠品牌，可留空" />
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+              <img src={carPreview[carType]} alt={carType} loading="lazy" className="mx-auto max-h-48 w-full object-contain" />
+            </div>
           </div>
         </div>
 
-        <div className="card space-y-4">
-          <h2 className="text-lg font-black">施工分類與地毯</h2>
+        <div className="card">
+          <h2 className="mb-4 text-xl font-black">施作分類左備註</h2>
+          <select className="form-input" value={categoryA} onChange={(event) => setCategoryA(event.target.value)}>
+            {categories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+          <textarea className="form-input mt-3 min-h-32" value={noteA} onChange={(event) => setNoteA(event.target.value)} placeholder="左排或第一組施作備註" />
+        </div>
+
+        <div className="card">
+          <h2 className="mb-4 text-xl font-black">施作分類右備註</h2>
+          <select className="form-input" value={categoryB} onChange={(event) => setCategoryB(event.target.value)}>
+            {categories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+          <textarea className="form-input mt-3 min-h-32" value={noteB} onChange={(event) => setNoteB(event.target.value)} placeholder="右排或第二組施作備註" />
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <div className="card">
+          <h2 className="mb-4 text-xl font-black">地毯選項</h2>
           <div className="grid gap-3 sm:grid-cols-2">
-            <select className="form-input" value={categoryA} onChange={(e) => setCategoryA(e.target.value)}>
-              {categories.map((item) => <option key={item}>{item}</option>)}
-            </select>
-            <select className="form-input" value={categoryB} onChange={(e) => setCategoryB(e.target.value)}>
-              {categories.map((item) => <option key={item}>{item}</option>)}
-            </select>
-          </div>
-          <textarea className="form-input" placeholder="左備註" value={noteA} onChange={(e) => setNoteA(e.target.value)} />
-          <textarea className="form-input" placeholder="右備註" value={noteB} onChange={(e) => setNoteB(e.target.value)} />
-          <div className="grid grid-cols-2 gap-2">
             {carpetOptions.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => toggleList(carpets, item.id, setCarpets)}
-                className={carpets.includes(item.id) ? "primary-btn" : "secondary-btn"}
+                className={optionButtonClass(carpets.includes(item.id))}
+                onClick={() => setCarpets((current) => toggleList(current, item.id))}
               >
-                {item.label}
-                <span className="ml-1 text-xs">{formatMoney(item.price)}</span>
+                {item.label} {formatMoney(item.price)}
               </button>
             ))}
           </div>
-          <div className="rounded-xl bg-neutral-50 p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={carpetImage[carType] || carpetImage[carTypes[0]]} alt="地毯示意圖" loading="lazy" className="mx-auto max-h-56 w-full object-contain" />
+          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+            <img src={carpetImage[carType]} alt={`${carType}地毯示意圖`} loading="lazy" className="mx-auto max-h-72 w-full object-contain" />
           </div>
+          <p className="mt-3 text-sm font-bold">地毯小計：<span className="text-carcare-yellow">{formatMoney(carpetSubtotal)}</span></p>
         </div>
 
-        <div className="card space-y-4">
-          <h2 className="text-lg font-black">座椅與附加項目</h2>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="card">
+          <h2 className="mb-4 text-xl font-black">座椅選項</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
             {seatOptions.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => toggleList(seats, item.id, setSeats)}
-                className={seats.includes(item.id) ? "primary-btn" : "secondary-btn"}
+                className={optionButtonClass(seats.includes(item.id))}
+                onClick={() => setSeats((current) => toggleList(current, item.id))}
               >
-                {item.label}
-                <span className="ml-1 text-xs">{formatMoney(item.price)}</span>
+                {item.label} {formatMoney(item.price)}
               </button>
             ))}
           </div>
-          <div className="rounded-xl bg-neutral-50 p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/car-diagram/seat-diagram.png" alt="座椅示意圖" loading="lazy" className="mx-auto max-h-56 w-full object-contain" />
+          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+            <img src="/car-diagram/seat-diagram.png" alt="座椅分區示意圖" loading="lazy" className="mx-auto max-h-72 w-full object-contain" />
           </div>
-          <div className="grid gap-2">
+          <p className="mt-3 text-sm font-bold">座椅小計：<span className="text-carcare-yellow">{formatMoney(seatSubtotal)}</span></p>
+        </div>
+
+        <div className="card">
+          <h2 className="mb-4 text-xl font-black">建議方案與照片</h2>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <button type="button" className={optionButtonClass(photoPhase === "before")} onClick={() => setPhotoPhase("before")}>施工前照片</button>
+            <button type="button" className={optionButtonClass(photoPhase === "after")} onClick={() => setPhotoPhase("after")}>施工後照片</button>
+          </div>
+          <label className="flex min-h-24 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 text-sm font-black text-neutral-500">
+            {uploading ? "上傳中..." : "點擊上傳照片"}
+            <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => uploadFiles(event.target.files)} />
+          </label>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {activePhotos.map((url) => (
+              <button key={url} type="button" className="relative overflow-hidden rounded-xl border border-neutral-200" onClick={() => window.open(url, "_blank")}>
+                <img src={url} alt="車況照片" className="aspect-square w-full object-cover" loading="lazy" />
+                <span
+                  className="absolute right-1 top-1 rounded bg-black/70 px-1 text-xs text-white"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    removePhoto(photoPhase, url);
+                  }}
+                >
+                  刪除
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 space-y-2">
             {extraOptions.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => toggleList(extras, item.id, setExtras)}
-                className={extras.includes(item.id) ? "primary-btn" : "secondary-btn"}
-              >
-                {item.label}
-                <span className="ml-1 text-xs">{formatMoney(item.price)}</span>
-              </button>
+              <label key={item.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-neutral-200 p-3">
+                <span className="font-bold">{item.label}</span>
+                <span className="flex items-center gap-3">
+                  <span className="text-sm text-neutral-500">{formatMoney(item.price)}</span>
+                  <input type="checkbox" checked={extras.includes(item.id)} onChange={() => setExtras((current) => toggleList(current, item.id))} />
+                </span>
+              </label>
             ))}
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="card space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className={photoPhase === "before" ? "primary-btn" : "secondary-btn"} onClick={() => setPhotoPhase("before")}>施工前照片</button>
-          <button type="button" className={photoPhase === "after" ? "primary-btn" : "secondary-btn"} onClick={() => setPhotoPhase("after")}>施工後照片</button>
-          {uploading ? <span className="rounded-lg bg-neutral-100 px-3 py-2 text-sm font-black">上傳中...</span> : null}
+      <section id="interior-quote-preview" className="card overflow-hidden p-0">
+        <div className="bg-carcare-black p-5 text-white">
+          <p className="text-sm text-carcare-yellow">PEIWAY 報價預覽</p>
+          <h2 className="text-2xl font-black">打翻評估報價單</h2>
+          <p className="text-sm text-neutral-300">{quoteNo} / {store} / {carType}</p>
         </div>
-        <PhotoGrid urls={photoPhase === "before" ? beforePhotos : afterPhotos} />
-      </section>
-
-      <section className="rounded-xl bg-carcare-black p-5 text-white shadow-soft">
-        <div className="grid gap-4 sm:grid-cols-4">
-          <div><p className="text-white/60">地毯小計</p><p className="text-2xl font-black text-carcare-yellow">{formatMoney(carpetSubtotal)}</p></div>
-          <div><p className="text-white/60">座椅小計</p><p className="text-2xl font-black text-carcare-yellow">{formatMoney(seatSubtotal)}</p></div>
-          <div><p className="text-white/60">附加項目</p><p className="text-2xl font-black text-carcare-yellow">{formatMoney(extraSubtotal)}</p></div>
+        <div className="grid gap-4 p-5 lg:grid-cols-2">
           <div>
-            <p className="text-white/60">訂金</p>
-            <input className="mt-1 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white" inputMode="numeric" value={deposit} onChange={(e) => setDeposit(e.target.value)} placeholder="0" />
+            <h3 className="font-black">客戶車輛資訊</h3>
+            <p>車主：{customerName || "-"}</p>
+            <p>電話：{customerPhone || "-"}</p>
+            <p>車牌：{plateNo || "-"}</p>
+            <p>車型：{carType}</p>
+          </div>
+          <div>
+            <h3 className="font-black">施工項目</h3>
+            {allItems.length ? (
+              <ul className="mt-2 space-y-1">
+                {allItems.map((item) => (
+                  <li key={item.id} className="flex justify-between border-b border-neutral-100 py-1">
+                    <span>{item.label}</span>
+                    <strong>{formatMoney(item.price)}</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-neutral-500">尚未選擇施工項目。</p>
+            )}
           </div>
         </div>
-        <div className="mt-4 rounded-xl border border-carcare-yellow/50 bg-white/5 p-4">
-          <p className="text-white/60">最終應付金額</p>
+        <div className="grid gap-4 border-t border-neutral-200 p-5 lg:grid-cols-4">
+          <p>地毯小計：<strong>{formatMoney(carpetSubtotal)}</strong></p>
+          <p>座椅小計：<strong>{formatMoney(seatSubtotal)}</strong></p>
+          <p>加購小計：<strong>{formatMoney(extraSubtotal)}</strong></p>
+          <label className="flex items-center gap-2">
+            訂金
+            <input className="form-input max-w-32" value={deposit} onChange={(event) => setDeposit(event.target.value)} inputMode="numeric" />
+          </label>
+        </div>
+        <div className="bg-carcare-black p-5 text-white">
+          <p className="text-sm">最終應付金額</p>
           <p className="text-5xl font-black text-carcare-yellow">{formatMoney(totalAmount)}</p>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <button className="primary-btn text-lg" type="button" disabled={saving} onClick={() => generate(false)}>
-            {saving ? "儲存中..." : "儲存單據"}
-          </button>
-          <button className="primary-btn text-lg" type="button" disabled={saving} onClick={() => generate(true)}>
-            {saving ? "匯出中..." : "儲存並匯出報價單 PDF"}
-          </button>
-        </div>
       </section>
 
-      <section className="fixed left-[-9999px] top-0 w-[794px] bg-white p-8 text-neutral-950">
-        <div id="quick-order-pdf" className="space-y-5 bg-white p-6">
-          <div className="flex items-center justify-between bg-carcare-black p-5 text-white">
-            <div className="text-4xl font-black italic">PEI<span className="text-carcare-yellow">WAY</span></div>
-            <div className="text-right">
-              <h2 className="text-2xl font-black text-white">汽車施工專業報價單</h2>
-              <p className="text-sm text-white/70">{quoteNo}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border p-4">
-              <h3 className="mb-2 text-lg font-black">客戶車輛資訊</h3>
-              <p>車主：{customerName}</p>
-              <p>電話：{customerPhone}</p>
-              <p>車牌：{plateNo}</p>
-              <p>車型：{carType}</p>
-            </div>
-            <div className="rounded-xl border p-4">
-              <h3 className="mb-2 text-lg font-black">施工項目</h3>
-              {allItems.map((item) => <p key={item.id}>{item.label} {formatMoney(item.price)}</p>)}
-            </div>
-          </div>
-          <div className="rounded-xl border p-4">
-            <h3 className="mb-2 text-lg font-black">備註</h3>
-            <p className="whitespace-pre-wrap">{[noteA, noteB].filter(Boolean).join("\n") || "-"}</p>
-          </div>
-          <div className="rounded-xl bg-carcare-yellow p-5 text-center text-4xl font-black">
-            總金額 {formatMoney(totalAmount)}
-          </div>
-        </div>
-      </section>
-    </div>
+      <div className={`grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
+        <button type="button" className="primary-btn w-full justify-center py-4 text-lg" disabled={saving} onClick={() => saveQuote(false)}>
+          {saving ? "儲存中..." : "儲存單據"}
+        </button>
+        <button type="button" className="primary-btn w-full justify-center py-4 text-lg" disabled={saving} onClick={() => saveQuote(true)}>
+          {saving ? "處理中..." : "儲存並匯出報價單 PDF"}
+        </button>
+      </div>
+    </section>
   );
 }

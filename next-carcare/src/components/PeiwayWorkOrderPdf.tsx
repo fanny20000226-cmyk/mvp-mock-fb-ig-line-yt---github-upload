@@ -14,6 +14,7 @@ type OrderRowForPdf = {
     customer_name?: string | null;
     customer_phone?: string | null;
     plate_no?: string | null;
+    license_plate?: string | null;
     brand?: string | null;
     model?: string | null;
     year?: string | null;
@@ -128,7 +129,7 @@ export default function PeiwayWorkOrderPdf({
             <InfoLine label="聯絡電話" value={row.cars?.customer_phone || ""} />
             <InfoLine label="車廠" value={row.cars?.brand || ""} />
             <InfoLine label="車型" value={carName(row)} />
-            <InfoLine label="車牌" value={row.cars?.plate_no || ""} />
+            <InfoLine label="車牌" value={row.cars?.plate_no || row.cars?.license_plate || ""} />
           </PdfPanel>
           <PdfPanel title="五大分類施工項目">
             <div className="grid grid-cols-1 gap-2 text-sm">

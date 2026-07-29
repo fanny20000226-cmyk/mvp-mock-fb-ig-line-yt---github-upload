@@ -1,6 +1,13 @@
 import { supabase } from "./supabase";
 
 export async function listCars() {
+  const result = await supabase
+    .from("cars")
+    .select("id, customer_name, customer_phone, plate_no, license_plate, brand, model, year, color, updated_at")
+    .order("updated_at", { ascending: false });
+
+  if (!result.error) return result;
+
   return supabase
     .from("cars")
     .select("id, customer_name, customer_phone, plate_no, brand, model, year, color, updated_at")
@@ -15,6 +22,15 @@ export async function listQuotations() {
 }
 
 export async function listConstructionOrders() {
+  const result = await supabase
+    .from("construction_orders")
+    .select(
+      "id, shop_id, order_no, status, start_at, finish_at, total_amount, paid_amount, remark, cars(customer_name, customer_phone, plate_no, license_plate, brand, model, year), quotations(id, quote_no, final_amount, remark, status)"
+    )
+    .order("created_at", { ascending: false });
+
+  if (!result.error) return result;
+
   return supabase
     .from("construction_orders")
     .select(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import RequireAuth from "@/components/RequireAuth";
 import StatCard from "@/components/StatCard";
@@ -38,11 +38,20 @@ const quickLinks = [
   { href: "/hr/staff-accounts", title: "人資員工建檔", desc: "建立員工編號、密碼、個人資料與變更審核。" },
   { href: "/hr/payroll", title: "薪資作業", desc: "建立薪資單、出勤扣款與照片逾期罰扣。" },
   { href: "/staff/login", title: "員工後台登入", desc: "員工用編號登入，查看個人資料、薪資與待辦。" },
-  { href: "/permissions", title: "權限管理", desc: "管理後台角色與可用功能。" }
+  { href: "/permissions", title: "權限管理", desc: "管理後台角色與可用功能。" },
 ];
+
+function money(value: number) {
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function DashboardPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [orderCount, setOrderCount] = useState(0);
   const [revenue, setRevenue] = useState(0);
   const [attendance, setAttendance] = useState(0);
   const [quoteCount, setQuoteCount] = useState(0);
@@ -52,34 +61,25 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function load() {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayString();
 
-      const { data: orderRows } = await supabase
-        .from("construction_orders")
-        .select("id, order_no, status, start_at, created_at, paid_amount, total_amount")
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      const { data: payments } = await supabase
-        .from("payment")
-        .select("amount, paid_at")
-        .gte("paid_at", today);
-
-      const { data: attendanceRows } = await supabase
-        .from("attendance")
-        .select("id")
-        .eq("work_date", today);
-
-      const { count } = await supabase
-        .from("quotations")
-        .select("id", { count: "exact", head: true });
-
-      const { data: pendingQuotes } = await supabase
-        .from("quotations")
-        .select("id, quote_no, status")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(8);
+      const [{ data: orderRows }, { data: payments }, { data: attendanceRows }, quoteResult, { data: pendingQuotes }] =
+        await Promise.all([
+          supabase
+            .from("construction_orders")
+            .select("id, order_no, status, start_at, created_at, paid_amount, total_amount")
+            .order("created_at", { ascending: false })
+            .limit(200),
+          supabase.from("payment").select("amount, paid_at").gte("paid_at", today),
+          supabase.from("attendance").select("id").eq("work_date", today),
+          supabase.from("quotations").select("id", { count: "exact", head: true }),
+          supabase
+            .from("quotations")
+            .select("id, quote_no, status")
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(8),
+        ]);
 
       const validOrders = ((orderRows || []) as OrderRow[]).filter((row) => row.status !== "cancelled");
       const todayOrders = validOrders.filter((row) => {
@@ -90,15 +90,16 @@ export default function DashboardPage() {
       const paidRevenue = (payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
       setOrders(validOrders.slice(0, 8));
+      setOrderCount(validOrders.length);
       setRevenue(orderRevenue || paidRevenue);
       setAttendance(attendanceRows?.length || 0);
-      setQuoteCount(count || 0);
+      setQuoteCount(quoteResult.count || 0);
       setQuoteTodos((pendingQuotes || []) as QuoteTodo[]);
       setDoneTodos(JSON.parse(window.localStorage.getItem("carcare-dashboard-done-todos") || "[]") as string[]);
 
       const grouped = new Map<string, number>();
       (payments || []).forEach((row) => {
-        const date = String(row.paid_at || "").slice(5, 10) || "今日";
+        const date = String(row.paid_at || "").slice(5, 10) || "未填日期";
         grouped.set(date, (grouped.get(date) || 0) + Number(row.amount || 0));
       });
       setChartRows(Array.from(grouped.entries()).map(([date, amount]) => ({ date, amount })));
@@ -107,38 +108,44 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  const todos = [
-    ...orders
-      .filter((order) => order.start_at?.slice(0, 10) === new Date().toISOString().slice(0, 10) && !["finished", "picked_up", "cancelled"].includes(order.status))
-      .map((order) => ({
-        id: `order-${order.id}`,
-        title: `今日待施工：${order.order_no}`,
-        href: "/operations/calendar",
-        urgent: order.status === "pending"
+  const todos = useMemo(() => {
+    const today = todayString();
+    return [
+      ...orders
+        .filter((order) => {
+          const dateValue = order.start_at || order.created_at || "";
+          return String(dateValue).slice(0, 10) === today && !["finished", "picked_up", "cancelled"].includes(order.status);
+        })
+        .map((order) => ({
+          id: `order-${order.id}`,
+          title: `今日待施工：${order.order_no}`,
+          href: "/operations/calendar",
+          urgent: order.status === "pending",
+        })),
+      ...orders
+        .filter((order) => order.status === "finished")
+        .map((order) => ({
+          id: `pickup-${order.id}`,
+          title: `完工待牽車：${order.order_no}`,
+          href: "/operations/construction",
+          urgent: true,
+        })),
+      ...quoteTodos.map((quote) => ({
+        id: `quote-${quote.id}`,
+        title: `待確認報價：${quote.quote_no}`,
+        href: "/operations/quotations",
+        urgent: true,
       })),
-    ...orders
-      .filter((order) => order.status === "finished")
-      .map((order) => ({
-        id: `pickup-${order.id}`,
-        title: `完工待牽車：${order.order_no}`,
-        href: "/operations/construction",
-        urgent: true
-      })),
-    ...quoteTodos.map((quote) => ({
-      id: `quote-${quote.id}`,
-      title: `待確認報價：${quote.quote_no}`,
-      href: "/operations/quotations",
-      urgent: true
-    })),
-    ...orders
-      .filter((order) => Number(order.total_amount || 0) > Number(order.paid_amount || 0))
-      .map((order) => ({
-        id: `pay-${order.id}`,
-        title: `未結帳訂單：${order.order_no}`,
-        href: "/finance/payments",
-        urgent: false
-      }))
-  ].filter((todo) => !doneTodos.includes(todo.id));
+      ...orders
+        .filter((order) => Number(order.total_amount || 0) > Number(order.paid_amount || 0))
+        .map((order) => ({
+          id: `pay-${order.id}`,
+          title: `未結帳訂單：${order.order_no}`,
+          href: "/finance/payments",
+          urgent: false,
+        })),
+    ].filter((todo) => !doneTodos.includes(todo.id));
+  }, [doneTodos, orders, quoteTodos]);
 
   function markTodoDone(id: string) {
     const next = [...doneTodos, id];
@@ -150,8 +157,8 @@ export default function DashboardPage() {
     <RequireAuth>
       <div className="space-y-6">
         <section className="grid gap-4 md:grid-cols-4">
-          <StatCard title="今日營業額" value={`$${revenue.toLocaleString()}`} />
-          <StatCard title="施工訂單" value={orders.length} />
+          <StatCard title="今日營業額" value={money(revenue)} />
+          <StatCard title="施工訂單" value={orderCount} />
           <StatCard title="報價單總數" value={quoteCount} />
           <StatCard title="今日出勤" value={attendance} />
         </section>
@@ -181,7 +188,7 @@ export default function DashboardPage() {
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="card">
-            <h2 className="mb-4 text-xl font-black">今日收款趨勢</h2>
+            <h2 className="mb-4 text-xl font-black">近期收款趨勢</h2>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRows}>
@@ -195,15 +202,16 @@ export default function DashboardPage() {
           </div>
 
           <div className="card">
-            <h2 className="mb-4 text-xl font-black">近期施工單</h2>
+            <h2 className="mb-4 text-xl font-black">最近施工單</h2>
             <div className="space-y-3">
               {orders.map((order) => (
                 <div key={order.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="font-black">{order.order_no}</p>
                   <p className="mt-1 text-sm text-neutral-500">狀態：{order.status}</p>
+                  <p className="text-sm text-neutral-500">金額：{money(Number(order.total_amount || 0))}</p>
                 </div>
               ))}
-              {!orders.length ? <p className="rounded-2xl bg-neutral-50 p-6 text-center text-neutral-500">目前沒有施工單</p> : null}
+              {!orders.length ? <p className="rounded-2xl bg-neutral-50 p-6 text-center text-neutral-500">目前沒有施工單。</p> : null}
             </div>
           </div>
         </section>
@@ -212,7 +220,7 @@ export default function DashboardPage() {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-black">待辦提醒</h2>
             <span className="rounded-full bg-carcare-yellow px-3 py-1 text-xs font-black text-carcare-black">
-              {todos.length} 件
+              {todos.length} 筆
             </span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -226,7 +234,7 @@ export default function DashboardPage() {
                 <p className="font-black">{todo.title}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link href={todo.href} className="primary-btn">
-                    立即處理
+                    前往處理
                   </Link>
                   <button className="secondary-btn" type="button" onClick={() => markTodoDone(todo.id)}>
                     標記完成
@@ -234,7 +242,11 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-            {!todos.length ? <p className="rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-neutral-500 md:col-span-2">目前沒有待辦事項</p> : null}
+            {!todos.length ? (
+              <p className="rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-neutral-500 md:col-span-2">
+                目前沒有待辦事項。
+              </p>
+            ) : null}
           </div>
         </section>
       </div>
