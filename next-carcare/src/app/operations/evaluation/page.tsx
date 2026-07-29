@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
+import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listServiceItems } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
@@ -146,35 +147,17 @@ export default function EvaluationPage() {
     setCreatedOrderNo("");
   }
 
-  async function ensureCar(profileShopId: string) {
+  async function ensureCar(profile: NonNullable<Awaited<ReturnType<typeof getCurrentProfile>>>) {
     const car = splitCarModel(form.car_model);
-    const existing = await supabase
-      .from("cars")
-      .select("id")
-      .eq("shop_id", profileShopId)
-      .eq("plate_no", form.plate_no)
-      .limit(1);
-
-    const payload = {
-      shop_id: profileShopId,
+    const carId = await ensureCustomerVehicleArchive(profile, {
       customer_name: form.customer_name,
       customer_phone: form.customer_phone,
       plate_no: form.plate_no,
       brand: car.brand,
-      model: car.model,
-      updated_at: new Date().toISOString()
-    };
-
-    const id = existing.data?.[0]?.id as string | undefined;
-    if (id) {
-      const { error } = await supabase.from("cars").update(payload).eq("id", id);
-      if (error) throw error;
-      return id;
-    }
-
-    const { data, error } = await supabase.from("cars").insert(payload).select("id").single();
-    if (error || !data) throw error || new Error("建立車輛資料失敗");
-    return data.id as string;
+      model: car.model
+    });
+    if (!carId) throw new Error("建立車輛資料失敗");
+    return carId;
   }
 
   async function createQuote(createOrder: boolean) {
@@ -187,7 +170,7 @@ export default function EvaluationPage() {
 
     setSaving(true);
     try {
-      const carId = await ensureCar(profile.shop_id);
+      const carId = await ensureCar(profile);
       const quoteNo = `E${Date.now()}`;
       const { data: quoteData, error: quoteError } = await supabase
         .from("quotations")

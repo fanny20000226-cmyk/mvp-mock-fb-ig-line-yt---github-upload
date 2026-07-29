@@ -15,6 +15,7 @@ type QuoteRecord = {
   id: string;
   shop_id?: string | null;
   store_id?: string | null;
+  customer_id?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
   plate_no?: string | null;
@@ -43,34 +44,78 @@ async function getCurrentProfile(token: string) {
     .eq("active", true)
     .single();
 
-  if (error || !data) throw new Error("找不到登入使用者資料。");
-  if (!allowedRoles.includes(data.role as Role)) throw new Error("此帳號沒有建立施工車輛資料的權限。");
+  if (error || !data) throw new Error("找不到可用的使用者權限。");
+  if (!allowedRoles.includes(data.role as Role)) throw new Error("此帳號沒有建立車輛資料權限。");
 
   return data as { id: string; shop_id: string | null; role: Role };
 }
 
-async function ensureCar(profileShopId: string, quote: QuoteRecord) {
-  const admin = getSupabaseAdmin();
-  const plateNo = (quote.plate_no || "").trim();
-  if (!plateNo) throw new Error("這張報價單沒有車牌，請先補上車牌。");
+async function ensureCustomer(profileShopId: string, quote: QuoteRecord) {
+  if (quote.customer_id) return quote.customer_id;
 
-  const { data: existing, error: findError } = await admin
-    .from("cars")
-    .select("id")
-    .eq("shop_id", profileShopId)
-    .eq("plate_no", plateNo)
-    .limit(1);
+  const admin = getSupabaseAdmin();
+  const phone = (quote.customer_phone || "").trim();
+  const name = (quote.customer_name || "").trim() || "未命名客戶";
+
+  const baseQuery = admin.from("customers").select("id").eq("store_id", profileShopId).limit(1);
+  const { data: existing, error: findError } = phone
+    ? await baseQuery.eq("phone", phone)
+    : await baseQuery.eq("name", name);
 
   if (findError) throw findError;
   if (existing?.[0]?.id) return existing[0].id as string;
 
   const { data, error } = await admin
+    .from("customers")
+    .insert({
+      name,
+      phone,
+      store_id: profileShopId,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) throw error || new Error("建立客戶資料失敗。");
+  return data.id as string;
+}
+
+async function ensureCar(profileShopId: string, quote: QuoteRecord) {
+  const admin = getSupabaseAdmin();
+  const plateNo = (quote.plate_no || "").trim();
+  if (!plateNo) throw new Error("這張報價單沒有車牌，請先補車牌。");
+
+  const customerId = await ensureCustomer(profileShopId, quote);
+
+  const { data: existing, error: findError } = await admin
+    .from("cars")
+    .select("id, customer_id")
+    .eq("shop_id", profileShopId)
+    .eq("plate_no", plateNo)
+    .limit(1);
+
+  if (findError) throw findError;
+  if (existing?.[0]?.id) {
+    if (!existing[0].customer_id) {
+      const { error: updateError } = await admin
+        .from("cars")
+        .update({ customer_id: customerId, updated_at: new Date().toISOString() })
+        .eq("id", existing[0].id);
+      if (updateError) throw updateError;
+    }
+    return existing[0].id as string;
+  }
+
+  const { data, error } = await admin
     .from("cars")
     .insert({
       shop_id: profileShopId,
+      store_id: profileShopId,
+      customer_id: customerId,
       customer_name: quote.customer_name || "未命名客戶",
       customer_phone: quote.customer_phone || "",
       plate_no: plateNo,
+      license_plate: plateNo,
       brand: quote.brand || "",
       model: quote.model || "",
       updated_at: new Date().toISOString(),
@@ -103,13 +148,13 @@ export async function POST(request: Request) {
 
     const profile = await getCurrentProfile(token);
     if (!profile.shop_id) {
-      return NextResponse.json({ message: "找不到門市資料，請重新登入。" }, { status: 400 });
+      return NextResponse.json({ message: "此帳號尚未綁定門市，無法建立車輛資料。" }, { status: 400 });
     }
 
     const admin = getSupabaseAdmin();
     const { data: quote, error } = await admin
       .from("quotations")
-      .select("id, shop_id, store_id, customer_name, customer_phone, plate_no, brand, model")
+      .select("id, shop_id, store_id, customer_id, customer_name, customer_phone, plate_no, brand, model")
       .eq("id", body.quoteId)
       .single();
 
@@ -120,11 +165,17 @@ export async function POST(request: Request) {
     const typedQuote = quote as QuoteRecord;
     const quoteShopId = typedQuote.shop_id || typedQuote.store_id || profile.shop_id;
     if (profile.role !== "admin" && quoteShopId !== profile.shop_id) {
-      return NextResponse.json({ message: "不能建立其他門市的車輛資料。" }, { status: 403 });
+      return NextResponse.json({ message: "沒有權限建立其他門市的車輛資料。" }, { status: 403 });
     }
 
     const carId = await ensureCar(quoteShopId, typedQuote);
-    return NextResponse.json({ ok: true, carId });
+    const customerId = await ensureCustomer(quoteShopId, typedQuote);
+    await admin
+      .from("quotations")
+      .update({ car_id: carId, customer_id: customerId, updated_at: new Date().toISOString() })
+      .eq("id", typedQuote.id);
+
+    return NextResponse.json({ ok: true, carId, customerId });
   } catch (error) {
     return NextResponse.json({ message: errorMessage(error) }, { status: 400 });
   }

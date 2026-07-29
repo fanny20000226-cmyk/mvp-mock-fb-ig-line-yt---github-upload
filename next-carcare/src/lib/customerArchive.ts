@@ -11,13 +11,44 @@ type ArchiveInput = {
   color?: string;
 };
 
+async function ensureCustomer(profile: UserProfile, input: ArchiveInput) {
+  if (!profile.shop_id) return null;
+
+  const name = input.customer_name?.trim() || "未命名客戶";
+  const phone = input.customer_phone?.trim() || "";
+
+  const baseQuery = supabase.from("customers").select("id").eq("store_id", profile.shop_id).limit(1);
+  const { data: existing, error: findError } = phone
+    ? await baseQuery.eq("phone", phone)
+    : await baseQuery.eq("name", name);
+
+  if (findError) throw findError;
+  if (existing?.[0]?.id) return existing[0].id as string;
+
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({
+      name,
+      phone,
+      store_id: profile.shop_id,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) throw error || new Error("建立客戶資料失敗");
+  return data.id as string;
+}
+
 export async function ensureCustomerVehicleArchive(profile: UserProfile, input: ArchiveInput) {
   const plateNo = input.plate_no.trim();
   if (!profile.shop_id || !plateNo) return null;
 
+  const customerId = await ensureCustomer(profile, input);
+
   const { data: existingCars, error: findError } = await supabase
     .from("cars")
-    .select("id")
+    .select("id, customer_id")
     .eq("shop_id", profile.shop_id)
     .eq("plate_no", plateNo)
     .limit(1);
@@ -26,9 +57,11 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
 
   const existingId = existingCars?.[0]?.id as string | undefined;
   const payload = {
-    customer_name: input.customer_name || "\u672a\u547d\u540d\u5ba2\u6236",
+    customer_id: customerId,
+    customer_name: input.customer_name || "未命名客戶",
     customer_phone: input.customer_phone || "",
     plate_no: plateNo,
+    license_plate: plateNo,
     brand: input.brand || "",
     model: input.model || "",
     year: input.year || null,
@@ -39,15 +72,7 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
   if (existingId) {
     const { error } = await supabase
       .from("cars")
-      .update({
-        customer_name: payload.customer_name,
-        customer_phone: payload.customer_phone,
-        brand: payload.brand,
-        model: payload.model,
-        year: payload.year,
-        color: payload.color,
-        updated_at: payload.updated_at,
-      })
+      .update(payload)
       .eq("id", existingId);
 
     if (error) throw error;
@@ -59,12 +84,13 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
     .from("cars")
     .insert({
       shop_id: profile.shop_id,
+      store_id: profile.shop_id,
       ...payload,
     })
     .select("id")
     .single();
 
-  if (error || !data) throw error || new Error("\u5efa\u7acb\u8eca\u8f1b\u8cc7\u6599\u5931\u6557");
+  if (error || !data) throw error || new Error("建立車輛資料失敗");
 
   const newCarId = data.id as string;
   await attachPlateImagesToCar(profile.shop_id, newCarId, plateNo);

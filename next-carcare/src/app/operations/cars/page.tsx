@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import CarAlbumUploader from "@/components/CarAlbumUploader";
 import { getCurrentProfile } from "@/lib/auth";
+import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listCars } from "@/lib/db";
-import { supabase } from "@/lib/supabase";
 
 type CarRow = {
   id: string;
@@ -44,8 +44,7 @@ export default function CarsPage() {
     if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
     if (!form.customer_name || !form.plate_no) return alert("請輸入客戶姓名與車牌。");
 
-    const { error } = await supabase.from("cars").insert({
-      shop_id: profile.shop_id,
+    await ensureCustomerVehicleArchive(profile, {
       customer_name: form.customer_name,
       customer_phone: form.customer_phone,
       plate_no: form.plate_no,
@@ -54,8 +53,6 @@ export default function CarsPage() {
       year: form.year ? Number(form.year) : null,
       color: form.color
     });
-
-    if (error) return alert(error.message);
     setForm({
       customer_name: "",
       customer_phone: "",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
+import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { listServiceItems } from "@/lib/db";
 import {
   buildConflictNote,
@@ -156,38 +157,23 @@ export default function PasteReservationPage() {
 
     setSaving(true);
 
-    const carRows = await supabase
-      .from("cars")
-      .select("id")
-      .eq("shop_id", profile.shop_id)
-      .eq("plate_no", form.plate_no)
-      .limit(1);
-
-    let carId = carRows.data?.[0]?.id as string | undefined;
-    const carPayload = {
-      shop_id: profile.shop_id,
-      customer_name: form.customer_name,
-      customer_phone: form.customer_phone,
-      plate_no: form.plate_no,
-      brand: form.brand,
-      model: form.model,
-      year: form.year ? Number(form.year) : null,
-      updated_at: new Date().toISOString()
-    };
-
-    if (carId) {
-      const { error } = await supabase.from("cars").update(carPayload).eq("id", carId);
-      if (error) {
-        setSaving(false);
-        return alert(error.message);
-      }
-    } else {
-      const { data, error } = await supabase.from("cars").insert(carPayload).select("id").single();
-      if (error || !data) {
-        setSaving(false);
-        return alert(error?.message || "建立車輛資料失敗。");
-      }
-      carId = data.id as string;
+    let carId: string | null = null;
+    try {
+      carId = await ensureCustomerVehicleArchive(profile, {
+        customer_name: form.customer_name,
+        customer_phone: form.customer_phone,
+        plate_no: form.plate_no,
+        brand: form.brand,
+        model: form.model,
+        year: form.year ? Number(form.year) : null
+      });
+    } catch (error) {
+      setSaving(false);
+      return alert(error instanceof Error ? error.message : "建立車輛資料失敗。");
+    }
+    if (!carId) {
+      setSaving(false);
+      return alert("建立車輛資料失敗。");
     }
 
     const amount = Number(form.amount || matchedService?.base_price || 0);

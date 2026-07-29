@@ -11,11 +11,14 @@ const supabaseAnonKey =
 
 const allowedRoles: Role[] = ["admin", "shop_manager", "vice_manager", "worker"];
 
+type SupabaseAdmin = ReturnType<typeof getSupabaseAdmin>;
+
 type QuoteRecord = {
   id: string;
   shop_id?: string | null;
   store_id?: string | null;
   quote_no?: string | null;
+  customer_id?: string | null;
   customer_name?: string | null;
   customer_phone?: string | null;
   plate_no?: string | null;
@@ -49,34 +52,77 @@ async function getCurrentProfile(token: string) {
     .eq("active", true)
     .single();
 
-  if (error || !data) throw new Error("找不到登入使用者資料。");
+  if (error || !data) throw new Error("找不到可用的使用者權限。");
   if (!allowedRoles.includes(data.role as Role)) throw new Error("此帳號沒有轉工單權限。");
   return data as { id: string; shop_id: string | null; role: Role };
 }
 
-async function ensureCar(admin: ReturnType<typeof getSupabaseAdmin>, profileShopId: string, quote: QuoteRecord) {
-  if (quote.car_id) return quote.car_id;
+async function ensureCustomer(admin: SupabaseAdmin, shopId: string, quote: QuoteRecord) {
+  if (quote.customer_id) return quote.customer_id;
 
-  const plateNo = (quote.plate_no || "").trim();
-  if (!plateNo) throw new Error("這張報價單沒有車牌，請先補車牌再轉工單。");
+  const phone = (quote.customer_phone || "").trim();
+  const name = (quote.customer_name || "").trim() || "未命名客戶";
 
-  const { data: existing, error: findError } = await admin
-    .from("cars")
-    .select("id")
-    .eq("shop_id", profileShopId)
-    .eq("plate_no", plateNo)
-    .limit(1);
+  const query = admin.from("customers").select("id").eq("store_id", shopId).limit(1);
+  const { data: existing, error: findError } = phone
+    ? await query.eq("phone", phone)
+    : await query.eq("name", name);
 
   if (findError) throw findError;
   if (existing?.[0]?.id) return existing[0].id as string;
 
   const { data, error } = await admin
+    .from("customers")
+    .insert({
+      name,
+      phone,
+      store_id: shopId,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) throw error || new Error("建立客戶資料失敗。");
+  return data.id as string;
+}
+
+async function ensureCar(admin: SupabaseAdmin, shopId: string, quote: QuoteRecord) {
+  if (quote.car_id) return quote.car_id;
+
+  const plateNo = (quote.plate_no || "").trim();
+  if (!plateNo) throw new Error("這張報價單沒有車牌，請先補車牌再轉工單。");
+
+  const customerId = await ensureCustomer(admin, shopId, quote);
+
+  const { data: existing, error: findError } = await admin
+    .from("cars")
+    .select("id, customer_id")
+    .eq("shop_id", shopId)
+    .eq("plate_no", plateNo)
+    .limit(1);
+
+  if (findError) throw findError;
+  if (existing?.[0]?.id) {
+    if (!existing[0].customer_id) {
+      const { error: updateError } = await admin
+        .from("cars")
+        .update({ customer_id: customerId, updated_at: new Date().toISOString() })
+        .eq("id", existing[0].id);
+      if (updateError) throw updateError;
+    }
+    return existing[0].id as string;
+  }
+
+  const { data, error } = await admin
     .from("cars")
     .insert({
-      shop_id: profileShopId,
+      shop_id: shopId,
+      store_id: shopId,
+      customer_id: customerId,
       customer_name: quote.customer_name || "未命名客戶",
       customer_phone: quote.customer_phone || "",
       plate_no: plateNo,
+      license_plate: plateNo,
       brand: quote.brand || "",
       model: quote.model || "",
       updated_at: new Date().toISOString(),
@@ -126,13 +172,14 @@ export async function POST(request: Request) {
     const typedQuote = quote as QuoteRecord;
     const quoteShopId = typedQuote.shop_id || typedQuote.store_id || profile.shop_id;
     if (profile.role !== "admin" && quoteShopId !== profile.shop_id) {
-      return NextResponse.json({ message: "不能轉換其他門市的報價單。" }, { status: 403 });
+      return NextResponse.json({ message: "沒有權限轉換其他門市的報價單。" }, { status: 403 });
     }
 
     if (typedQuote.status === "converted") {
       return NextResponse.json({ message: "這張報價單已經轉為工單。" }, { status: 409 });
     }
 
+    const customerId = await ensureCustomer(admin, quoteShopId, typedQuote);
     const carId = await ensureCar(admin, quoteShopId, typedQuote);
     const orderNo = `W${Date.now()}`;
     const totalAmount = Number(typedQuote.final_amount || typedQuote.total_amount || 0);
@@ -189,12 +236,12 @@ export async function POST(request: Request) {
 
     const { error: updateError } = await admin
       .from("quotations")
-      .update({ status: "converted" })
+      .update({ status: "converted", customer_id: customerId, car_id: carId, updated_at: new Date().toISOString() })
       .eq("id", typedQuote.id);
 
     if (updateError) throw updateError;
 
-    return NextResponse.json({ ok: true, orderId: createdOrder.id, orderNo });
+    return NextResponse.json({ ok: true, orderId: createdOrder.id, orderNo, carId, customerId });
   } catch (error) {
     return NextResponse.json({ message: errorMessage(error) }, { status: 400 });
   }
