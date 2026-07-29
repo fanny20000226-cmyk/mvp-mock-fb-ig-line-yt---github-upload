@@ -63,7 +63,14 @@ export default function DashboardPage() {
     async function load() {
       const today = todayString();
 
-      const [{ data: orderRows }, { data: payments }, { data: attendanceRows }, quoteResult, { data: pendingQuotes }] =
+      const [
+        { data: orderRows },
+        { data: payments },
+        { data: attendanceRows },
+        { data: staffAttendanceRows },
+        quoteResult,
+        { data: pendingQuotes }
+      ] =
         await Promise.all([
           supabase
             .from("construction_orders")
@@ -72,6 +79,7 @@ export default function DashboardPage() {
             .limit(200),
           supabase.from("payment").select("amount, paid_at").gte("paid_at", today),
           supabase.from("attendance").select("id").eq("work_date", today),
+          supabase.from("staff_attendance").select("id").eq("work_date", today),
           supabase.from("quotations").select("id", { count: "exact", head: true }),
           supabase
             .from("quotations")
@@ -92,7 +100,7 @@ export default function DashboardPage() {
       setOrders(validOrders.slice(0, 8));
       setOrderCount(validOrders.length);
       setRevenue(orderRevenue || paidRevenue);
-      setAttendance(attendanceRows?.length || 0);
+      setAttendance((attendanceRows?.length || 0) + (staffAttendanceRows?.length || 0));
       setQuoteCount(quoteResult.count || 0);
       setQuoteTodos((pendingQuotes || []) as QuoteTodo[]);
       setDoneTodos(JSON.parse(window.localStorage.getItem("carcare-dashboard-done-todos") || "[]") as string[]);
