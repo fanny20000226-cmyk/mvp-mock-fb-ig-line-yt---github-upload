@@ -6,7 +6,6 @@ import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuot
 import PdfExportButton from "@/components/PdfExportButton";
 import PhotoZipButton from "@/components/PhotoZipButton";
 import { getCurrentProfile } from "@/lib/auth";
-import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { supabase } from "@/lib/supabase";
 
 type QuoteRow = {
@@ -101,14 +100,6 @@ export default function QuotationsPage() {
     const amount = Number(draft.final_amount || 0);
     setSaving(true);
     try {
-      await ensureCustomerVehicleArchive(profile, {
-        customer_name: draft.customer_name,
-        customer_phone: draft.customer_phone,
-        plate_no: draft.plate_no,
-        brand: draft.brand,
-        model: draft.car_type,
-      });
-
       const { data, error } = await supabase
         .from("quotations")
         .insert({
@@ -144,6 +135,23 @@ export default function QuotationsPage() {
         }))
       );
       if (itemError) throw itemError;
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (token) {
+        const archiveResponse = await fetch("/api/operations/archive-quote-car", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ quoteId: data.id }),
+        });
+        if (!archiveResponse.ok) {
+          const archiveResult = (await archiveResponse.json().catch(() => ({}))) as { message?: string };
+          console.warn("報價單已建立，但客戶車輛歸檔稍後會在轉工單時重試：", archiveResult.message);
+        }
+      }
 
       await load();
       alert("報價單已建立，客戶、車輛與歷史紀錄已同步。");
