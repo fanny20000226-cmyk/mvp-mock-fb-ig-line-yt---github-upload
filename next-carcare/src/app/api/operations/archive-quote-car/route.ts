@@ -10,6 +10,7 @@ const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "missing-supabase-anon-key";
 
 const allowedRoles: Role[] = ["admin", "shop_manager", "vice_manager", "worker"];
+type SupabaseWriteClient = ReturnType<typeof getSupabaseAdmin>;
 
 type QuoteRecord = {
   id: string;
@@ -22,6 +23,19 @@ type QuoteRecord = {
   brand?: string | null;
   model?: string | null;
 };
+
+function getWriteClient(token: string): SupabaseWriteClient {
+  try {
+    return getSupabaseAdmin();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      return createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+    }
+    throw error;
+  }
+}
 
 async function getCurrentProfile(token: string) {
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -50,65 +64,103 @@ async function getCurrentProfile(token: string) {
   return data as { id: string; shop_id: string | null; role: Role };
 }
 
-async function ensureCustomer(profileShopId: string, quote: QuoteRecord) {
+async function ensureCustomer(admin: SupabaseWriteClient, profileShopId: string, quote: QuoteRecord) {
   if (quote.customer_id) return quote.customer_id;
 
-  const admin = getSupabaseAdmin();
   const phone = (quote.customer_phone || "").trim();
   const name = (quote.customer_name || "").trim() || "未命名客戶";
 
   const baseQuery = admin.from("customers").select("id").eq("store_id", profileShopId).limit(1);
-  const { data: existing, error: findError } = phone
+  let customerResult = phone
     ? await baseQuery.eq("phone", phone)
     : await baseQuery.eq("name", name);
 
+  if (customerResult.error) {
+    const fallbackQuery = admin.from("customers").select("id").eq("shop_id", profileShopId).limit(1);
+    customerResult = phone
+      ? await fallbackQuery.eq("phone", phone)
+      : await fallbackQuery.eq("name", name);
+  }
+
+  const { data: existing, error: findError } = customerResult;
   if (findError) throw findError;
   if (existing?.[0]?.id) return existing[0].id as string;
 
-  const { data, error } = await admin
-    .from("customers")
-    .insert({
+  const insertAttempts: Record<string, unknown>[] = [
+    {
       name,
       phone,
       store_id: profileShopId,
       updated_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+    },
+    {
+      name,
+      phone,
+      shop_id: profileShopId,
+    },
+    {
+      name,
+      phone,
+    },
+  ];
+
+  let data: { id: string } | null = null;
+  let error: unknown = null;
+  for (const payload of insertAttempts) {
+    const result = await admin.from("customers").insert(payload).select("id").single();
+    if (!result.error && result.data?.id) {
+      data = result.data as { id: string };
+      error = null;
+      break;
+    }
+    error = result.error;
+  }
 
   if (error || !data?.id) throw error || new Error("建立客戶資料失敗。");
   return data.id as string;
 }
 
-async function ensureCar(profileShopId: string, quote: QuoteRecord) {
-  const admin = getSupabaseAdmin();
+async function ensureCar(admin: SupabaseWriteClient, profileShopId: string, quote: QuoteRecord) {
   const plateNo = (quote.plate_no || "").trim();
   if (!plateNo) throw new Error("這張報價單沒有車牌，請先補車牌。");
 
-  const customerId = await ensureCustomer(profileShopId, quote);
+  const customerId = await ensureCustomer(admin, profileShopId, quote);
 
-  const { data: existing, error: findError } = await admin
+  let carResult = await admin
     .from("cars")
     .select("id, customer_id")
     .eq("shop_id", profileShopId)
     .eq("plate_no", plateNo)
     .limit(1);
 
+  if (carResult.error) {
+    carResult = await admin
+      .from("cars")
+      .select("id, customer_id")
+      .eq("store_id", profileShopId)
+      .eq("license_plate", plateNo)
+      .limit(1);
+  }
+
+  const { data: existing, error: findError } = carResult;
   if (findError) throw findError;
   if (existing?.[0]?.id) {
-    if (!existing[0].customer_id) {
-      const { error: updateError } = await admin
+    const { error: updateError } = await admin
+      .from("cars")
+      .update({ customer_id: customerId, updated_at: new Date().toISOString() })
+      .eq("id", existing[0].id);
+    if (updateError) {
+      const { error: fallbackUpdateError } = await admin
         .from("cars")
-        .update({ customer_id: customerId, updated_at: new Date().toISOString() })
+        .update({ customer_id: customerId })
         .eq("id", existing[0].id);
-      if (updateError) throw updateError;
+      if (fallbackUpdateError) throw fallbackUpdateError;
     }
     return existing[0].id as string;
   }
 
-  const { data, error } = await admin
-    .from("cars")
-    .insert({
+  const insertAttempts: Record<string, unknown>[] = [
+    {
       shop_id: profileShopId,
       store_id: profileShopId,
       customer_id: customerId,
@@ -119,9 +171,42 @@ async function ensureCar(profileShopId: string, quote: QuoteRecord) {
       brand: quote.brand || "",
       model: quote.model || "",
       updated_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+    },
+    {
+      shop_id: profileShopId,
+      customer_id: customerId,
+      customer_name: quote.customer_name || "未命名客戶",
+      customer_phone: quote.customer_phone || "",
+      plate_no: plateNo,
+      brand: quote.brand || "",
+      model: quote.model || "",
+    },
+    {
+      store_id: profileShopId,
+      customer_id: customerId,
+      license_plate: plateNo,
+      brand: quote.brand || "",
+      model: quote.model || "",
+    },
+    {
+      customer_id: customerId,
+      license_plate: plateNo,
+      brand: quote.brand || "",
+      model: quote.model || "",
+    },
+  ];
+
+  let data: { id: string } | null = null;
+  let error: unknown = null;
+  for (const payload of insertAttempts) {
+    const result = await admin.from("cars").insert(payload).select("id").single();
+    if (!result.error && result.data?.id) {
+      data = result.data as { id: string };
+      error = null;
+      break;
+    }
+    error = result.error;
+  }
 
   if (error || !data?.id) throw error || new Error("建立車輛資料失敗。");
   return data.id as string;
@@ -151,7 +236,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "此帳號尚未綁定門市，無法建立車輛資料。" }, { status: 400 });
     }
 
-    const admin = getSupabaseAdmin();
+    const admin = getWriteClient(token);
     const { data: quote, error } = await admin
       .from("quotations")
       .select("id, shop_id, store_id, customer_id, customer_name, customer_phone, plate_no, brand, model")
@@ -168,12 +253,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "沒有權限建立其他門市的車輛資料。" }, { status: 403 });
     }
 
-    const carId = await ensureCar(quoteShopId, typedQuote);
-    const customerId = await ensureCustomer(quoteShopId, typedQuote);
-    await admin
-      .from("quotations")
-      .update({ car_id: carId, customer_id: customerId, updated_at: new Date().toISOString() })
-      .eq("id", typedQuote.id);
+    const carId = await ensureCar(admin, quoteShopId, typedQuote);
+    const customerId = await ensureCustomer(admin, quoteShopId, typedQuote);
+
+    const updateAttempts: Record<string, unknown>[] = [
+      { car_id: carId, customer_id: customerId, updated_at: new Date().toISOString() },
+      { car_id: carId, customer_id: customerId },
+    ];
+    let lastUpdateError: unknown = null;
+    for (const payload of updateAttempts) {
+      const { error: updateError } = await admin.from("quotations").update(payload).eq("id", typedQuote.id);
+      if (!updateError) {
+        lastUpdateError = null;
+        break;
+      }
+      lastUpdateError = updateError;
+    }
+    if (lastUpdateError) throw lastUpdateError;
 
     return NextResponse.json({ ok: true, carId, customerId });
   } catch (error) {

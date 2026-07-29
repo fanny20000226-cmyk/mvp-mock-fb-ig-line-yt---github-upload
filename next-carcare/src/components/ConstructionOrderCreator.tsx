@@ -86,7 +86,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
   }, [selectedQuote, cars]);
 
   async function convertSelectedQuote() {
-    if (!selectedQuote) return false;
+    if (!form.quotation_id) return false;
 
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
@@ -99,10 +99,10 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        quoteId: selectedQuote.id,
+        quoteId: form.quotation_id,
         responsibleStaffId: form.responsible_staff_id || undefined,
         paidAmount: Number(form.paid_amount || 0),
-        totalAmount: Number(form.total_amount || selectedQuote.final_amount || selectedQuote.total_amount || 0),
+        totalAmount: Number(form.total_amount || selectedQuote?.final_amount || selectedQuote?.total_amount || 0),
         serviceNote: form.service_note,
       }),
     });
@@ -139,7 +139,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     setSaving(true);
 
     try {
-      if (selectedQuote) await convertSelectedQuote();
+      if (form.quotation_id) await convertSelectedQuote();
       else await createManualOrder();
 
       setForm(emptyForm);
