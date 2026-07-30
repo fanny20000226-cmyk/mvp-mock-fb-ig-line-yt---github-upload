@@ -14,6 +14,6 @@ jobs:
     steps:
       - name: Trigger Vercel production deploy
         env:
-          VERCEL_DEPLOY_HOOK_URL: https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/JADkRQjY1K
+          VERCEL_DEPLOY_HOOK_URL: https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/5pRY5TGjXT
         run: |
           curl --fail --show-error --silent --location "$VERCEL_DEPLOY_HOOK_URL"
