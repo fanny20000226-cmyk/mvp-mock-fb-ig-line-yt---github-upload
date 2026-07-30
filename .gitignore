@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+*.log
+
+next-carcare/node_modules/
+next-carcare/.next/
+next-carcare/out/
+next-carcare/.vercel/
