@@ -43,7 +43,7 @@ async function createCustomerSample(): Promise<SampleResult> {
   const stamp = Date.now();
   const plate = `SYNC-${String(stamp).slice(-6)}`;
   const sample = {
-    name: `N8N即時測試客戶${String(stamp).slice(-4)}`,
+    name: `N8N即時同步測試客戶${String(stamp).slice(-4)}`,
     phone: `09${String(stamp).slice(-8)}`,
     store_id: TEST_STORE_ID,
     source_channel: "system-realtime-test",
@@ -59,9 +59,9 @@ async function createCustomerSample(): Promise<SampleResult> {
   return {
     inserted,
     sync: {
-      sync_type: "customer" as const,
+      sync_type: "customer",
       source_table: "customers",
-      operation: "test" as const,
+      operation: "test",
       unique_key: String(inserted.data.id),
       store_id: String(inserted.data.store_id || inserted.data.shop_id || ""),
       plate,
@@ -119,9 +119,9 @@ async function createFinanceSample(): Promise<SampleResult> {
   return {
     inserted,
     sync: {
-      sync_type: "finance" as const,
+      sync_type: "finance",
       source_table: "payment",
-      operation: "test" as const,
+      operation: "test",
       unique_key: String(inserted.data.id),
       store_id: String(inserted.data.store_id || inserted.data.shop_id || ""),
       is_test: true,

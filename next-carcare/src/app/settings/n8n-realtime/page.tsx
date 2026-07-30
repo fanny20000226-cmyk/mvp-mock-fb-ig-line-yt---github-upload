@@ -26,7 +26,7 @@ type TestResult = {
 function resultLabel(result: TestResult | null) {
   if (!result) return "尚未測試";
   if (result.ok) return "成功";
-  if (result.n8n?.skipped) return "已儲存測試資料，但 N8N 聯動目前關閉";
+  if (result.n8n?.skipped) return "已略過：N8N 聯動未啟用或未設定";
   return "失敗";
 }
 
@@ -37,15 +37,23 @@ export default function N8nRealtimeTestPage() {
 
   async function runTest(type: "customer" | "finance") {
     setLoadingType(type);
-    const response = await fetch("/api/n8n/realtime-test", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type })
-    });
-    const data = (await response.json()) as TestResult;
-    if (type === "customer") setCustomerResult(data);
-    if (type === "finance") setFinanceResult(data);
-    setLoadingType(null);
+    try {
+      const response = await fetch("/api/n8n/realtime-test", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type })
+      });
+      const data = (await response.json()) as TestResult;
+      if (type === "customer") setCustomerResult(data);
+      if (type === "finance") setFinanceResult(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "測試發生未知錯誤";
+      const data = { ok: false, message };
+      if (type === "customer") setCustomerResult(data);
+      if (type === "finance") setFinanceResult(data);
+    } finally {
+      setLoadingType(null);
+    }
   }
 
   return (
@@ -55,17 +63,17 @@ export default function N8nRealtimeTestPage() {
           <p className="text-sm font-black text-carcare-yellow">N8N Realtime Sync</p>
           <h1 className="text-2xl font-black">Google Sheets 即時同步測試</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            保留原本每日 09:00 五組同步流程，這裡只測試新增的單筆即時同步：客戶主檔與交易財務明細。
+            這裡只建立臨時測試資料，送出到 N8N Webhook 後會立即清除，不會影響每日 09:00 的正式排程同步。
           </p>
         </div>
 
         <section className="grid gap-5 lg:grid-cols-2">
           <div className="card space-y-4">
             <div>
-              <p className="text-sm font-black text-carcare-yellow">客戶主檔分頁</p>
+              <p className="text-sm font-black text-carcare-yellow">客戶資料測試</p>
               <h2 className="text-xl font-black">測試客戶即時同步</h2>
               <p className="mt-1 text-sm text-neutral-500">
-                建立一筆測試客戶，送到 N8N Webhook 後立即清除測試資料。
+                建立一筆臨時客戶資料，送到 N8N Webhook，再清除測試資料。
               </p>
             </div>
             <button
@@ -81,10 +89,10 @@ export default function N8nRealtimeTestPage() {
 
           <div className="card space-y-4">
             <div>
-              <p className="text-sm font-black text-carcare-yellow">交易財務明細分頁</p>
+              <p className="text-sm font-black text-carcare-yellow">財務交易測試</p>
               <h2 className="text-xl font-black">測試財務即時同步</h2>
               <p className="mt-1 text-sm text-neutral-500">
-                建立一筆測試收款，送到 N8N Webhook 後立即清除測試資料。
+                建立一筆臨時收款資料，送到 N8N Webhook，再清除測試資料。
               </p>
             </div>
             <button
@@ -100,13 +108,15 @@ export default function N8nRealtimeTestPage() {
         </section>
 
         <div className="card">
-          <h2 className="text-xl font-black">N8N 端要做的 upsert 規則</h2>
+          <h2 className="text-xl font-black">N8N upsert 規則</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            Webhook 收到 `content_params.sync_type` 後分流。`customer` 寫入「客戶主檔」，
-            `finance` 寫入「交易財務明細」。使用 `content_params.unique_key` 搜尋既有列，有找到就更新，找不到就新增列。
+            Webhook 會用 <code>content_params.sync_type</code> 判斷同步類型：
+            <code>customer</code> 寫入客戶主檔，<code>finance</code> 寫入交易財務明細。
+            試算表端請用 <code>content_params.unique_key</code> 當唯一值，有資料就更新，沒有資料才新增。
           </p>
           <p className="mt-2 text-sm text-neutral-600">
-            安全驗證請比對 `content_params.security_key` 是否等於 Vercel 環境變數 `N8N_WEBHOOK_SECRET`。
+            安全驗證請比對 <code>content_params.security_key</code> 與 Vercel 環境變數
+            <code>N8N_WEBHOOK_SECRET</code>。
           </p>
         </div>
       </section>
@@ -119,7 +129,7 @@ function ResultCard({ result }: { result: TestResult | null }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm">
       <p className="font-black">
-        狀態：
+        測試狀態：
         <span className={ok ? "text-emerald-700" : result ? "text-red-700" : "text-neutral-500"}>
           {resultLabel(result)}
         </span>
@@ -128,9 +138,12 @@ function ResultCard({ result }: { result: TestResult | null }) {
         <div className="mt-2 space-y-1 text-neutral-600">
           <p>資料表：{result.table || "-"}</p>
           <p>測試資料 ID：{result.record_id || "-"}</p>
-          <p>N8N 事件：{result.n8n?.event_no || "-"}</p>
+          <p>N8N 事件編號：{result.n8n?.event_no || "-"}</p>
           <p>N8N HTTP：{result.n8n?.status || "-"}</p>
-          <p>清理測試資料：{result.cleanup?.ok ? "已清除" : result.cleanup ? result.cleanup.message || "清理失敗" : "-"}</p>
+          <p>
+            清除測試資料：
+            {result.cleanup?.ok ? "完成" : result.cleanup ? result.cleanup.message || "清除失敗" : "-"}
+          </p>
           {result.message || result.n8n?.error ? <p className="text-red-700">{result.message || result.n8n?.error}</p> : null}
         </div>
       ) : null}
