@@ -23,8 +23,11 @@ type QuoteRecord = {
   customer_name?: string | null;
   customer_phone?: string | null;
   plate_no?: string | null;
+  license_plate?: string | null;
+  plate_number?: string | null;
   brand?: string | null;
   model?: string | null;
+  car_model?: string | null;
   total_amount?: number | null;
   final_amount?: number | null;
   status?: string | null;
@@ -62,6 +65,14 @@ async function getCurrentProfile(token: string) {
 
 function clean(value?: string | null) {
   return (value || "").trim();
+}
+
+function quotePlate(quote: QuoteRecord) {
+  return clean(quote.plate_no || quote.license_plate || quote.plate_number);
+}
+
+function quoteModel(quote: QuoteRecord) {
+  return clean(quote.model || quote.car_model);
 }
 
 function getWriteClient(token: string): SupabaseAdmin {
@@ -133,9 +144,18 @@ async function ensureCustomer(admin: SupabaseAdmin, shopId: string, quote: Quote
 }
 
 async function ensureCar(admin: SupabaseAdmin, shopId: string, quote: QuoteRecord, customerId: string) {
-  if (quote.car_id) return quote.car_id;
+  if (quote.car_id) {
+    const { error } = await admin
+      .from("cars")
+      .update({ customer_id: customerId, updated_at: new Date().toISOString() })
+      .eq("id", quote.car_id);
+    if (error) {
+      await admin.from("cars").update({ customer_id: customerId }).eq("id", quote.car_id);
+    }
+    return quote.car_id;
+  }
 
-  const plateNo = clean(quote.plate_no);
+  const plateNo = quotePlate(quote);
   if (!plateNo) throw new Error("這張報價單沒有車牌，請先補車牌再轉工單。");
 
   let existingResult = await admin
@@ -176,7 +196,7 @@ async function ensureCar(admin: SupabaseAdmin, shopId: string, quote: QuoteRecor
       plate_no: plateNo,
       license_plate: plateNo,
       brand: clean(quote.brand),
-      model: clean(quote.model),
+      model: quoteModel(quote),
       updated_at: new Date().toISOString(),
     },
     {
@@ -186,20 +206,20 @@ async function ensureCar(admin: SupabaseAdmin, shopId: string, quote: QuoteRecor
       customer_phone: clean(quote.customer_phone),
       plate_no: plateNo,
       brand: clean(quote.brand),
-      model: clean(quote.model),
+      model: quoteModel(quote),
     },
     {
       store_id: shopId,
       customer_id: customerId,
       license_plate: plateNo,
       brand: clean(quote.brand),
-      model: clean(quote.model),
+      model: quoteModel(quote),
     },
     {
       customer_id: customerId,
       license_plate: plateNo,
       brand: clean(quote.brand),
-      model: clean(quote.model),
+      model: quoteModel(quote),
     },
   ];
 
@@ -273,6 +293,7 @@ export async function POST(request: Request) {
       {
         shop_id: quoteShopId,
         store_id: quoteShopId,
+        customer_id: customerId,
         car_id: carId,
         quotation_id: typedQuote.id,
         order_no: orderNo,
