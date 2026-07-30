@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { sendEventToN8n, type N8nEventType } from "@/lib/n8nIntegration";
 
-const allowedTypes: N8nEventType[] = ["todo", "abnormal", "broadcast", "connection_test", "system_test"];
+const allowedTypes: N8nEventType[] = [
+  "todo",
+  "abnormal",
+  "broadcast",
+  "connection_test",
+  "system_test",
+  "sheet_sync",
+  "sheet_sync_test"
+];
 
 export async function POST(request: Request) {
   try {

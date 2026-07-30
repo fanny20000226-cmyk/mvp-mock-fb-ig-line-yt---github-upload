@@ -1,6 +1,13 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-export type N8nEventType = "todo" | "abnormal" | "broadcast" | "connection_test" | "system_test";
+export type N8nEventType =
+  | "todo"
+  | "abnormal"
+  | "broadcast"
+  | "connection_test"
+  | "system_test"
+  | "sheet_sync"
+  | "sheet_sync_test";
 
 export type N8nEventPayload = {
   event_no: string;
@@ -45,6 +52,21 @@ type N8nSettings = {
   is_enabled: boolean;
 };
 
+export type SheetSyncKind = "customer" | "finance";
+
+export type SheetSyncInput = {
+  sync_type: SheetSyncKind;
+  source_table: "customers" | "cars" | "payment" | "transaction_record" | string;
+  operation: "insert" | "update" | "upsert" | "test";
+  unique_key: string;
+  record: Record<string, unknown>;
+  store_id?: string | null;
+  store_name?: string | null;
+  plate?: string | null;
+  model?: string | null;
+  is_test?: boolean;
+};
+
 function eventNo(prefix = "N8N") {
   const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -53,6 +75,10 @@ function eventNo(prefix = "N8N") {
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function n8nSecurityKey() {
+  return process.env.N8N_WEBHOOK_SECRET || process.env.N8N_SECURITY_KEY || "";
 }
 
 export async function getN8nSettings() {
@@ -206,6 +232,29 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
     await writeDispatchLog({ payload, dispatch_status: "failed", error_message: message });
     return { ok: false, event_no: payload.event_no, error: message };
   }
+}
+
+export async function sendSheetSyncToN8n(input: SheetSyncInput) {
+  return sendEventToN8n({
+    event_type: input.is_test ? "sheet_sync_test" : "sheet_sync",
+    channel: "google_sheets",
+    store_id: input.store_id || null,
+    store_name: input.store_name || null,
+    plate: input.plate || null,
+    model: input.model || null,
+    receiver: input.sync_type === "customer" ? "Google Sheets customers" : "Google Sheets finance",
+    message_template: "PEIWAY realtime Google Sheets sync",
+    content_params: {
+      sync_type: input.sync_type,
+      source_table: input.source_table,
+      operation: input.operation,
+      unique_key: input.unique_key,
+      sheet_name: input.sync_type === "customer" ? "客戶主檔" : "交易財務明細",
+      record: input.record,
+      is_test: Boolean(input.is_test),
+      security_key: n8nSecurityKey()
+    }
+  });
 }
 
 export async function recordN8nCallback(input: N8nCallbackPayload) {

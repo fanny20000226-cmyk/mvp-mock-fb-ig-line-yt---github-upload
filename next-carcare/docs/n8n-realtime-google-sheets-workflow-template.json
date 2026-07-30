@@ -1,0 +1,206 @@
+{
+  "name": "PEIWAY Realtime Google Sheets Upsert Template",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "peiway-realtime-sheets",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-realtime-sheets",
+      "name": "接收系統即時同步 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.content_params.security_key}}",
+              "operation": "equals",
+              "value2": "={{$vars.PEIWAY_REALTIME_SYNC_KEY}}"
+            }
+          ]
+        }
+      },
+      "id": "validate-secret",
+      "name": "驗證安全金鑰",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.content_params.sync_type}}",
+                    "rightValue": "customer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "customer"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.content_params.sync_type}}",
+                    "rightValue": "finance",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "finance"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-sync-type",
+      "name": "判斷同步類型",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [520, -120]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $input.first().json;\nconst row = source.content_params.record || {};\nreturn [{ json: {\n  unique_key: source.content_params.unique_key,\n  id: row.id || source.content_params.unique_key,\n  name: row.name || row.customer_name || row.display_name || '',\n  phone: row.phone || row.customer_phone || '',\n  license_plate: row.license_plate || row.plate_no || '',\n  brand: row.brand || '',\n  model: row.model || row.car_model || '',\n  year: row.year || row.car_year || '',\n  source_channel: row.source_channel || '',\n  store_id: row.store_id || row.shop_id || source.store_id || '',\n  created_at: row.created_at || source.sent_at || '',\n  updated_at: row.updated_at || source.sent_at || ''\n}}];"
+      },
+      "id": "map-customer-row",
+      "name": "整理客戶列資料",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, -260]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $input.first().json;\nconst row = source.content_params.record || {};\nreturn [{ json: {\n  unique_key: source.content_params.unique_key,\n  id: row.id || source.content_params.unique_key,\n  store_id: row.store_id || row.shop_id || source.store_id || '',\n  quotation_id: row.quotation_id || '',\n  payment_no: row.payment_no || '',\n  pay_amount: row.pay_amount || row.amount || 0,\n  pay_time: row.pay_time || row.paid_at || row.created_at || source.sent_at || '',\n  pay_method: row.pay_method || row.pay_type || '',\n  pay_type: row.payment_type || row.pay_type || '',\n  check_status: row.check_status || '',\n  remark: row.note || row.remark || '',\n  created_at: row.created_at || source.sent_at || '',\n  updated_at: row.updated_at || source.sent_at || ''\n}}];"
+      },
+      "id": "map-finance-row",
+      "name": "整理財務列資料",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [780, 40]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: 'accepted', sync_type: $json.content_params?.sync_type || $json.sync_type, unique_key: $json.content_params?.unique_key || $json.unique_key, n8n_execution_id: $execution.id } }}"
+      },
+      "id": "respond-success",
+      "name": "回應系統成功",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1060, -120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 401,
+        "responseBody": "={{ { ok: false, status: 'failed', error: 'invalid security key', n8n_execution_id: $execution.id } }}"
+      },
+      "id": "respond-invalid-key",
+      "name": "回應金鑰錯誤",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [520, 180]
+    }
+  ],
+  "connections": {
+    "接收系統即時同步 Webhook": {
+      "main": [
+        [
+          {
+            "node": "驗證安全金鑰",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "驗證安全金鑰": {
+      "main": [
+        [
+          {
+            "node": "判斷同步類型",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "回應金鑰錯誤",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "判斷同步類型": {
+      "main": [
+        [
+          {
+            "node": "整理客戶列資料",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "整理財務列資料",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理客戶列資料": {
+      "main": [
+        [
+          {
+            "node": "回應系統成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "整理財務列資料": {
+      "main": [
+        [
+          {
+            "node": "回應系統成功",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "template",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "note": "Add Google Sheets lookup/update-or-append nodes between the map nodes and success response. Keep the existing 09:00 schedule workflow nodes."
+  }
+}

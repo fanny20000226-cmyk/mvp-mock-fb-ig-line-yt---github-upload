@@ -45,6 +45,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/finance/receipts",
     "/notifications",
     "/settings/n8n",
+    "/settings/n8n-realtime",
     "/settings/n8n-logs",
     "/settings/health",
     "/settings/system-test",

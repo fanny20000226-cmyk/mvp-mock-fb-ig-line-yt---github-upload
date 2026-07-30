@@ -15,6 +15,39 @@ function clean(value?: string | null) {
   return (value || "").trim();
 }
 
+function notifyCustomerSheetSync(input: ArchiveInput & { customer_id: string; car_id: string; shop_id: string }) {
+  fetch("/api/n8n/realtime-sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      sync_type: "customer",
+      source_table: "customers",
+      operation: "upsert",
+      unique_key: input.customer_id,
+      store_id: input.shop_id,
+      plate: input.plate_no,
+      model: input.model || null,
+      record: {
+        id: input.customer_id,
+        car_id: input.car_id,
+        name: clean(input.customer_name),
+        phone: clean(input.customer_phone),
+        license_plate: clean(input.plate_no),
+        plate_no: clean(input.plate_no),
+        brand: clean(input.brand),
+        model: clean(input.model),
+        year: input.year || null,
+        color: clean(input.color),
+        store_id: input.shop_id,
+        source_channel: "carcare-system",
+        updated_at: new Date().toISOString()
+      }
+    })
+  }).catch(() => {
+    // N8N/Google Sheets sync must never block the core customer save flow.
+  });
+}
+
 async function ensureCustomer(profile: UserProfile, input: ArchiveInput) {
   if (!profile.shop_id) throw new Error("目前帳號尚未綁定門市，無法建立客戶資料。");
 
@@ -121,6 +154,7 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
       if (fallbackError) throw fallbackError;
     }
     await attachPlateImagesToCar(profile.shop_id, existingId, plateNo);
+    notifyCustomerSheetSync({ ...input, customer_id: customerId, car_id: existingId, shop_id: profile.shop_id });
     return existingId;
   }
 
@@ -170,6 +204,7 @@ export async function ensureCustomerVehicleArchive(profile: UserProfile, input: 
 
   const newCarId = data.id as string;
   await attachPlateImagesToCar(profile.shop_id, newCarId, plateNo);
+  notifyCustomerSheetSync({ ...input, customer_id: customerId, car_id: newCarId, shop_id: profile.shop_id });
   return newCarId;
 }
 

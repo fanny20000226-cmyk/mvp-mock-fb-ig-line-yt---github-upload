@@ -19,6 +19,30 @@ type PaymentRow = {
 const payTypes = ["現金", "匯款", "刷卡", "訂金", "對公轉帳", "掛帳"];
 const expenseTypes = ["藥水耗材", "耗材物料", "設備維修", "雜項開支", "人工支出", "房租水電"];
 
+function notifyFinanceSheetSync(record: Record<string, unknown>, operation: "insert" | "update") {
+  fetch("/api/n8n/realtime-sync", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      sync_type: "finance",
+      source_table: "payment",
+      operation,
+      unique_key: record.id || record.payment_no,
+      store_id: record.store_id || record.shop_id || null,
+      record: {
+        ...record,
+        pay_amount: record.pay_amount || record.amount || 0,
+        pay_time: record.pay_time || record.paid_at || record.created_at || new Date().toISOString(),
+        pay_method: record.pay_method || record.pay_type || "",
+        payment_type: record.pay_type || "",
+        note: record.remark || ""
+      }
+    })
+  }).catch(() => {
+    // N8N/Google Sheets sync must never block payment or expense saving.
+  });
+}
+
 export default function PaymentsPage() {
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [form, setForm] = useState({ pay_type: "現金", amount: "", remark: "" });
@@ -45,7 +69,7 @@ export default function PaymentsPage() {
     if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
     if (!form.amount) return alert("請輸入收款金額。");
 
-    const { error } = await supabase.from("payment").insert({
+    const { data, error } = await supabase.from("payment").insert({
       shop_id: profile.shop_id,
       payment_no: `P${Date.now()}`,
       pay_type: form.pay_type,
@@ -53,8 +77,9 @@ export default function PaymentsPage() {
       operator_id: profile.id,
       check_status: "pending",
       remark: form.remark
-    });
+    }).select("*").single();
     if (error) return alert(error.message);
+    if (data?.id) notifyFinanceSheetSync(data as Record<string, unknown>, "insert");
     setForm({ pay_type: "現金", amount: "", remark: "" });
     load();
   }
@@ -74,7 +99,7 @@ export default function PaymentsPage() {
       .filter(Boolean)
       .join("\n");
 
-    const { error } = await supabase.from("payment").insert({
+    const { data, error } = await supabase.from("payment").insert({
       shop_id: profile.shop_id,
       payment_no: `E${Date.now()}`,
       pay_type: `支出-${expenseForm.pay_type}`,
@@ -82,8 +107,9 @@ export default function PaymentsPage() {
       operator_id: profile.id,
       check_status: "expense_pending",
       remark
-    });
+    }).select("*").single();
     if (error) return alert(error.message);
+    if (data?.id) notifyFinanceSheetSync(data as Record<string, unknown>, "insert");
     setExpenseForm({
       store: "",
       applicant: "",
@@ -96,8 +122,9 @@ export default function PaymentsPage() {
   }
 
   async function updateCheckStatus(row: PaymentRow, status: string) {
-    const { error } = await supabase.from("payment").update({ check_status: status }).eq("id", row.id);
+    const { data, error } = await supabase.from("payment").update({ check_status: status }).eq("id", row.id).select("*").single();
     if (error) return alert(error.message);
+    if (data?.id) notifyFinanceSheetSync(data as Record<string, unknown>, "update");
     load();
   }
 

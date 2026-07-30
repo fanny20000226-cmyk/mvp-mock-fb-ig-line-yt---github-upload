@@ -96,6 +96,7 @@ const menuGroups = [
     icon: MessageSquareText,
     items: [
       { href: "/settings/n8n", label: "N8N 連線設定", icon: MessageSquareText },
+      { href: "/settings/n8n-realtime", label: "Google Sheets 即時同步測試", icon: ListChecks },
       { href: "/settings/n8n-logs", label: "N8N 回呼紀錄", icon: MessageSquareText },
       { href: "/settings/system-test", label: "系統自動測試", icon: ListChecks }
     ]
