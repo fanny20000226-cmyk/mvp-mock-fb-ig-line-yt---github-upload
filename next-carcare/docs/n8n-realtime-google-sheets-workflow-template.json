@@ -1,5 +1,5 @@
 {
-  "name": "PEIWAY Realtime Google Sheets Upsert Template",
+  "name": "PEIWAY Realtime Google Sheets Sync",
   "nodes": [
     {
       "parameters": {
@@ -8,29 +8,52 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "webhook-realtime-sheets",
-      "name": "接收系統即時同步 Webhook",
+      "id": "webhook-peiway-realtime-sheets",
+      "name": "Realtime Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0]
+      "position": [-720, 0],
+      "webhookId": "peiway-realtime-sheets"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $input.first().json || {};\nconst params = payload.content_params || {};\nconst expectedKey = $vars.PEIWAY_REALTIME_SYNC_KEY || '';\nconst suppliedKey = params.security_key || payload.security_key || '';\nconst record = params.record || payload.record || {};\nconst syncType = params.sync_type || payload.sync_type || '';\nconst uniqueKey = params.unique_key || record.id || payload.id || '';\nconst isValid = Boolean(expectedKey) && suppliedKey === expectedKey;\nreturn [{ json: {\n  ok: isValid,\n  sync_type: syncType,\n  unique_key: uniqueKey,\n  source_event_type: payload.event_type || '',\n  source_table: params.source_table || payload.source_table || '',\n  operation: params.operation || payload.operation || 'upsert',\n  received_at: new Date().toISOString(),\n  row: record,\n  error: isValid ? '' : 'invalid security key'\n}}];"
+      },
+      "id": "code-normalize-payload",
+      "name": "Validate And Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-500, 0]
     },
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{$json.content_params.security_key}}",
-              "operation": "equals",
-              "value2": "={{$vars.PEIWAY_REALTIME_SYNC_KEY}}"
+              "id": "valid-key",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "id": "validate-secret",
-      "name": "驗證安全金鑰",
+      "id": "if-valid-security-key",
+      "name": "Security Key Is Valid",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [260, 0]
+      "typeVersion": 2,
+      "position": [-280, 0]
     },
     {
       "parameters": {
@@ -38,32 +61,46 @@
           "values": [
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
-                    "leftValue": "={{$json.content_params.sync_type}}",
+                    "id": "customer-sync",
+                    "leftValue": "={{ $json.sync_type }}",
                     "rightValue": "customer",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "customer"
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
-                    "leftValue": "={{$json.content_params.sync_type}}",
+                    "id": "finance-sync",
+                    "leftValue": "={{ $json.sync_type }}",
                     "rightValue": "finance",
                     "operator": {
                       "type": "string",
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               },
               "renameOutput": true,
               "outputKey": "finance"
@@ -73,124 +110,157 @@
         "options": {}
       },
       "id": "switch-sync-type",
-      "name": "判斷同步類型",
+      "name": "Route Sync Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [520, -120]
+      "position": [-40, -120]
     },
     {
       "parameters": {
-        "jsCode": "const source = $input.first().json;\nconst row = source.content_params.record || {};\nreturn [{ json: {\n  unique_key: source.content_params.unique_key,\n  id: row.id || source.content_params.unique_key,\n  name: row.name || row.customer_name || row.display_name || '',\n  phone: row.phone || row.customer_phone || '',\n  license_plate: row.license_plate || row.plate_no || '',\n  brand: row.brand || '',\n  model: row.model || row.car_model || '',\n  year: row.year || row.car_year || '',\n  source_channel: row.source_channel || '',\n  store_id: row.store_id || row.shop_id || source.store_id || '',\n  created_at: row.created_at || source.sent_at || '',\n  updated_at: row.updated_at || source.sent_at || ''\n}}];"
+        "jsCode": "const row = $json.row || {};\nreturn [{ json: {\n  id: $json.unique_key || row.id || '',\n  name: row.name || row.customer_name || row.display_name || '',\n  phone: row.phone || row.customer_phone || '',\n  license_plate: row.license_plate || row.plate_no || row.plate || '',\n  brand: row.brand || row.car_brand || '',\n  model: row.model || row.car_model || '',\n  year: row.year || row.car_year || '',\n  source_channel: row.source_channel || row.source || '',\n  store_id: row.store_id || row.shop_id || '',\n  created_at: row.created_at || '',\n  updated_at: row.updated_at || $json.received_at\n}}];"
       },
-      "id": "map-customer-row",
-      "name": "整理客戶列資料",
+      "id": "code-customer-row",
+      "name": "Map Customer Row",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [780, -260]
+      "position": [220, -260]
     },
     {
       "parameters": {
-        "jsCode": "const source = $input.first().json;\nconst row = source.content_params.record || {};\nreturn [{ json: {\n  unique_key: source.content_params.unique_key,\n  id: row.id || source.content_params.unique_key,\n  store_id: row.store_id || row.shop_id || source.store_id || '',\n  quotation_id: row.quotation_id || '',\n  payment_no: row.payment_no || '',\n  pay_amount: row.pay_amount || row.amount || 0,\n  pay_time: row.pay_time || row.paid_at || row.created_at || source.sent_at || '',\n  pay_method: row.pay_method || row.pay_type || '',\n  pay_type: row.payment_type || row.pay_type || '',\n  check_status: row.check_status || '',\n  remark: row.note || row.remark || '',\n  created_at: row.created_at || source.sent_at || '',\n  updated_at: row.updated_at || source.sent_at || ''\n}}];"
+        "jsCode": "const row = $json.row || {};\nreturn [{ json: {\n  id: $json.unique_key || row.id || '',\n  store_id: row.store_id || row.shop_id || '',\n  quotation_id: row.quotation_id || row.order_id || '',\n  payment_no: row.payment_no || row.transaction_no || '',\n  pay_amount: row.pay_amount || row.amount || row.total_amount || 0,\n  pay_time: row.pay_time || row.paid_at || row.created_at || '',\n  pay_method: row.pay_method || row.payment_method || row.method || '',\n  pay_type: row.pay_type || row.payment_type || row.type || '',\n  check_status: row.check_status || row.status || '',\n  remark: row.remark || row.note || '',\n  created_at: row.created_at || '',\n  updated_at: row.updated_at || $json.received_at\n}}];"
       },
-      "id": "map-finance-row",
-      "name": "整理財務列資料",
+      "id": "code-finance-row",
+      "name": "Map Finance Row",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [780, 40]
+      "position": [220, 40]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $vars.GOOGLE_REPORT_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "\\u5ba2\\u6236\\u4e3b\\u6a94",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "google-sheets-upsert-customer",
+      "name": "Upsert Customer Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, -260],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $vars.GOOGLE_REPORT_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "\\u4ea4\\u6613\\u8ca1\\u52d9\\u660e\\u7d30",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["id"],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "google-sheets-upsert-finance",
+      "name": "Upsert Finance Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 40],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { ok: true, status: 'accepted', sync_type: $json.content_params?.sync_type || $json.sync_type, unique_key: $json.content_params?.unique_key || $json.unique_key, n8n_execution_id: $execution.id } }}"
+        "responseBody": "={{ { ok: true, status: 'synced', sync_type: $json.sync_type || 'completed', unique_key: $json.id || $json.unique_key || '', execution_id: $execution.id } }}",
+        "options": {}
       },
       "id": "respond-success",
-      "name": "回應系統成功",
+      "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [1060, -120]
+      "position": [760, -120]
     },
     {
       "parameters": {
         "respondWith": "json",
         "responseCode": 401,
-        "responseBody": "={{ { ok: false, status: 'failed', error: 'invalid security key', n8n_execution_id: $execution.id } }}"
+        "responseBody": "={{ { ok: false, status: 'rejected', error: $json.error || 'invalid security key', execution_id: $execution.id } }}",
+        "options": {}
       },
       "id": "respond-invalid-key",
-      "name": "回應金鑰錯誤",
+      "name": "Respond Invalid Key",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [520, 180]
+      "position": [-40, 180]
     }
   ],
   "connections": {
-    "接收系統即時同步 Webhook": {
+    "Realtime Webhook": {
+      "main": [[{ "node": "Validate And Normalize", "type": "main", "index": 0 }]]
+    },
+    "Validate And Normalize": {
+      "main": [[{ "node": "Security Key Is Valid", "type": "main", "index": 0 }]]
+    },
+    "Security Key Is Valid": {
       "main": [
-        [
-          {
-            "node": "驗證安全金鑰",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Route Sync Type", "type": "main", "index": 0 }],
+        [{ "node": "Respond Invalid Key", "type": "main", "index": 0 }]
       ]
     },
-    "驗證安全金鑰": {
+    "Route Sync Type": {
       "main": [
-        [
-          {
-            "node": "判斷同步類型",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "回應金鑰錯誤",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Map Customer Row", "type": "main", "index": 0 }],
+        [{ "node": "Map Finance Row", "type": "main", "index": 0 }]
       ]
     },
-    "判斷同步類型": {
-      "main": [
-        [
-          {
-            "node": "整理客戶列資料",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "整理財務列資料",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Map Customer Row": {
+      "main": [[{ "node": "Upsert Customer Sheet", "type": "main", "index": 0 }]]
     },
-    "整理客戶列資料": {
-      "main": [
-        [
-          {
-            "node": "回應系統成功",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Map Finance Row": {
+      "main": [[{ "node": "Upsert Finance Sheet", "type": "main", "index": 0 }]]
     },
-    "整理財務列資料": {
-      "main": [
-        [
-          {
-            "node": "回應系統成功",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Upsert Customer Sheet": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    },
+    "Upsert Finance Sheet": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
     }
   },
   "pinData": {},
@@ -198,9 +268,9 @@
     "executionOrder": "v1"
   },
   "active": false,
-  "versionId": "template",
+  "versionId": "peiway-realtime-template-v3",
   "meta": {
-    "templateCredsSetupCompleted": false,
-    "note": "Add Google Sheets lookup/update-or-append nodes between the map nodes and success response. Keep the existing 09:00 schedule workflow nodes."
-  }
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
 }
