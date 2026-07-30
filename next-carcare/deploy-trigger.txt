@@ -1,1 +1,1 @@
-Deploy trigger: 2026-07-30 next-carcare Vercel redeploy.
+Deploy trigger: 2026-07-30 reconnect GitHub Vercel deploy.
