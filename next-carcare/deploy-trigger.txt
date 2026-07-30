@@ -1,1 +1,1 @@
-Deploy trigger: 2026-07-30 force Vercel deploy after skip disabled.
+Deploy trigger: 2026-07-30 verified live-repo deployment path.
