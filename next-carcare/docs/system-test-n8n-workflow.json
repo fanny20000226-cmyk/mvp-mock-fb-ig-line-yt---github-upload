@@ -1,0 +1,178 @@
+{
+  "name": "PEIWAY System Test Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "peiway-system-test",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "system-test-webhook",
+      "name": "接收系統測試 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.event_type}}",
+              "operation": "equal",
+              "value2": "system_test"
+            }
+          ]
+        }
+      },
+      "id": "check-system-test",
+      "name": "確認 system_test 事件",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/quotations?id=eq.{{$json.content_params.quotation_id}}&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_ANON_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_ANON_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "read-test-quotation",
+      "name": "讀取測試報價資料",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [520, -80]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('接收系統測試 Webhook').first().json;\nconst rows = $input.all().map(item => item.json);\nreturn [{ json: {\n  event_no: source.event_no,\n  event_type: source.event_type,\n  success: rows.length > 0,\n  status: rows.length > 0 ? 'success' : 'failed',\n  receiver: 'N8N System Test',\n  message_content: rows.length > 0 ? 'N8N 已成功讀取系統測試報價資料' : 'N8N 找不到系統測試報價資料',\n  error_note: rows.length > 0 ? '' : 'quotation not found',\n  n8n_execution_id: $execution.id,\n  raw_payload: { source, rows }\n}}];"
+      },
+      "id": "build-callback",
+      "name": "組裝回呼結果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, -80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$('接收系統測試 Webhook').first().json.callback_webhook_url}}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{$json}}",
+        "options": {}
+      },
+      "id": "callback-system",
+      "name": "回傳測試結果給系統",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, -80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, event_no: $('接收系統測試 Webhook').first().json.event_no, checked: true } }}",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "回應系統測試完成",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1240, -80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, message: 'unsupported event_type' } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-unsupported",
+      "name": "非測試事件回應",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [520, 160]
+    }
+  ],
+  "connections": {
+    "接收系統測試 Webhook": {
+      "main": [
+        [
+          {
+            "node": "確認 system_test 事件",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "確認 system_test 事件": {
+      "main": [
+        [
+          {
+            "node": "讀取測試報價資料",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "非測試事件回應",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "讀取測試報價資料": {
+      "main": [
+        [
+          {
+            "node": "組裝回呼結果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "組裝回呼結果": {
+      "main": [
+        [
+          {
+            "node": "回傳測試結果給系統",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "回傳測試結果給系統": {
+      "main": [
+        [
+          {
+            "node": "回應系統測試完成",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

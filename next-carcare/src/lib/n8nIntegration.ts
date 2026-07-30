@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-export type N8nEventType = "todo" | "abnormal" | "broadcast" | "connection_test";
+export type N8nEventType = "todo" | "abnormal" | "broadcast" | "connection_test" | "system_test";
 
 export type N8nEventPayload = {
   event_no: string;
