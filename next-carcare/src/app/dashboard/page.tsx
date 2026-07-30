@@ -95,11 +95,12 @@ export default function DashboardPage() {
         return String(dateValue).slice(0, 10) === today;
       });
       const orderRevenue = todayOrders.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
+      const allOrderRevenue = validOrders.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
       const paidRevenue = (payments || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
       setOrders(validOrders.slice(0, 8));
       setOrderCount(validOrders.length);
-      setRevenue(orderRevenue || paidRevenue);
+      setRevenue(orderRevenue || paidRevenue || allOrderRevenue);
       setAttendance((attendanceRows?.length || 0) + (staffAttendanceRows?.length || 0));
       setQuoteCount(quoteResult.count || 0);
       setQuoteTodos((pendingQuotes || []) as QuoteTodo[]);
