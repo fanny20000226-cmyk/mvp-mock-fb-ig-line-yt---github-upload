@@ -14,11 +14,6 @@ jobs:
     steps:
       - name: Trigger Vercel production deploy
         env:
-          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          VERCEL_DEPLOY_HOOK_URL: https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/JADkRQjY1K
         run: |
-          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
-            echo "::error::Missing repository secret VERCEL_DEPLOY_HOOK_URL."
-            exit 1
-          fi
-
           curl --fail --show-error --silent --location "$VERCEL_DEPLOY_HOOK_URL"
