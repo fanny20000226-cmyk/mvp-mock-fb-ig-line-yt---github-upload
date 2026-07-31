@@ -134,7 +134,7 @@ async function insertAndRead(
     .eq("id", id)
     .single();
   if (readError) throw readError;
-  return { id, actual: actual as Record<string, unknown> };
+  return { id, actual: actual as unknown as Record<string, unknown> };
 }
 
 async function cleanup(admin: AdminClient, targets: CleanupTarget[]) {
