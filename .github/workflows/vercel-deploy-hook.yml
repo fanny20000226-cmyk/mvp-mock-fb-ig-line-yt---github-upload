@@ -23,7 +23,6 @@ jobs:
 
       - name: Deploy Next app with Vercel CLI when token exists
         if: env.VERCEL_TOKEN != ''
-        working-directory: next-carcare
         run: |
           mkdir -p .vercel
           cat > .vercel/project.json <<EOF
