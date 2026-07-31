@@ -16,4 +16,4 @@ jobs:
         env:
           VERCEL_DEPLOY_HOOK_URL: https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/ipaM81hDyW
         run: |
-          curl --fail --show-error --silent --location "$VERCEL_DEPLOY_HOOK_URL"
+          curl --fail --show-error --silent --request POST --location "$VERCEL_DEPLOY_HOOK_URL"
