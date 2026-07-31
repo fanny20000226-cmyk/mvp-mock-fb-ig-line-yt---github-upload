@@ -1,4 +1,4 @@
-name: Trigger Vercel Deploy Hook
+name: Deploy car-shop-manage to Vercel
 
 on:
   push:
@@ -9,11 +9,32 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger-vercel:
+  deploy-vercel:
     runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_60CTxFTEm5VKABqOP3AWDFms
+      VERCEL_PROJECT_ID: prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus
+      VERCEL_TEAM_SLUG: fanny20000226-1026s-projects
+      VERCEL_DEPLOY_HOOK_URL: "https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/5FxMhJaBhy"
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
     steps:
-      - name: Trigger Vercel production deploy
-        env:
-          VERCEL_DEPLOY_HOOK_URL: "https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/5FxMhJaBhy"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Next app with Vercel CLI when token exists
+        if: env.VERCEL_TOKEN != ''
+        working-directory: next-carcare
         run: |
+          mkdir -p .vercel
+          printf '{"orgId":"%s","projectId":"%s"}
+' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+          npm install --global vercel@latest
+          vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
+          vercel build --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
+          vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
+
+      - name: Fallback trigger deploy hook when token is missing
+        if: env.VERCEL_TOKEN == ''
+        run: |
+          echo "VERCEL_TOKEN secret is missing; falling back to Deploy Hook."
           curl --fail --show-error --silent --request POST "$VERCEL_DEPLOY_HOOK_URL"
