@@ -1,5 +1,6 @@
 name: Deploy car-shop-manage to Vercel
 
+
 on:
   push:
     branches: ["main"]
@@ -7,6 +8,7 @@ on:
       - "next-carcare/**"
       - ".github/workflows/vercel-deploy-hook.yml"
   workflow_dispatch:
+
 
 jobs:
   deploy-vercel:
@@ -17,9 +19,11 @@ jobs:
       VERCEL_TEAM_SLUG: fanny20000226-1026s-projects
       VERCEL_DEPLOY_HOOK_URL: "https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/5FxMhJaBhy"
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      NEXT_PUBLIC_SUPABASE_URL: https://qhbdjeiieeiynuvlrltp.supabase.co
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
 
       - name: Deploy Next app with Vercel CLI when token exists
         if: env.VERCEL_TOKEN != ''
@@ -33,8 +37,5 @@ jobs:
           vercel build --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
           vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
 
+
       - name: Fallback trigger deploy hook when token is missing
-        if: env.VERCEL_TOKEN == ''
-        run: |
-          echo "VERCEL_TOKEN secret is missing; falling back to Deploy Hook."
-          curl --fail --show-error --silent --request POST "$VERCEL_DEPLOY_HOOK_URL"
