@@ -2,3 +2,4 @@ Deploy trigger: 2026-07-30 force Vercel Git source refresh after hook repair.
 Deploy trigger: 2026-07-30 Vercel reconnected production build check.
 Deploy trigger: 2026-07-30 after new deploy hook active.
 Deploy trigger: 2026-07-30 align workflow with current Vercel hook.
+Deploy trigger: 2026-07-31 force Vercel Git integration after POST hook diagnosis.
