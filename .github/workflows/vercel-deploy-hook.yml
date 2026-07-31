@@ -26,8 +26,9 @@ jobs:
         working-directory: next-carcare
         run: |
           mkdir -p .vercel
-          printf '{"orgId":"%s","projectId":"%s"}
-' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
+          cat > .vercel/project.json <<EOF
+          {"orgId":"$VERCEL_ORG_ID","projectId":"$VERCEL_PROJECT_ID"}
+          EOF
           npm install --global vercel@latest
           vercel pull --yes --environment=production --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
           vercel build --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
