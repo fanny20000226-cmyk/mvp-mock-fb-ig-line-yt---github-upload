@@ -12,7 +12,7 @@ export type N8nEventType =
 export type N8nEventPayload = {
   event_no: string;
   event_type: N8nEventType;
-  channel?: "telegram" | "sms" | "system" | string;
+  channel?: "telegram" | "sms" | "system" | "google_sheets" | string;
   store_id?: string | null;
   store_name?: string | null;
   staff_info?: Record<string, unknown> | null;
@@ -119,11 +119,7 @@ export async function upsertN8nSettings(input: {
     return data;
   }
 
-  const { data, error } = await admin
-    .from("n8n_connection_settings")
-    .insert(payload)
-    .select()
-    .single();
+  const { data, error } = await admin.from("n8n_connection_settings").insert(payload).select().single();
   if (error) throw error;
   return data;
 }
@@ -157,11 +153,7 @@ async function blockedByDailyDedup(payload: N8nEventPayload) {
   if (payload.event_type !== "abnormal" || !payload.work_order_id) return false;
   const admin = getSupabaseAdmin();
   const dedup_key = `${payload.work_order_id}:${payload.event_type}:${todayKey()}`;
-  const { data } = await admin
-    .from("n8n_event_dedup")
-    .select("id")
-    .eq("dedup_key", dedup_key)
-    .maybeSingle();
+  const { data } = await admin.from("n8n_event_dedup").select("id").eq("dedup_key", dedup_key).maybeSingle();
 
   if (data?.id) return true;
 
@@ -242,7 +234,7 @@ export async function sendSheetSyncToN8n(input: SheetSyncInput) {
     store_name: input.store_name || null,
     plate: input.plate || null,
     model: input.model || null,
-    receiver: input.sync_type === "customer" ? "Google Sheets customers" : "Google Sheets finance",
+    receiver: input.sync_type === "customer" ? "Google Sheets 客戶主檔" : "Google Sheets 交易財務明細",
     message_template: "PEIWAY realtime Google Sheets sync",
     content_params: {
       sync_type: input.sync_type,
@@ -293,14 +285,14 @@ export async function recordN8nCallback(input: N8nCallbackPayload) {
 export async function testN8nConnection(input?: { receiver?: string; message?: string }) {
   return sendEventToN8n({
     event_type: "connection_test",
-    channel: "telegram",
+    channel: "system",
     store_name: "PEIWAY Test Store",
-    receiver: input?.receiver || "Telegram 測試群組",
-    message_template: "PEIWAY Telegram connection test",
+    receiver: input?.receiver || "N8N 測試接收端",
+    message_template: "PEIWAY N8N connection test",
     content_params: {
       message:
         input?.message ||
-        "PEIWAY 系統測試：如果你在 Telegram 收到這則訊息，代表系統 → N8N → Telegram 串聯成功。",
+        "PEIWAY 系統測試：如果 N8N 收到這筆事件，代表系統到 N8N 的 Webhook 已接通。",
       tested_at: new Date().toISOString()
     }
   });
