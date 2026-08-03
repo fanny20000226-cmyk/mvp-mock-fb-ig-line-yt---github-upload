@@ -12,10 +12,22 @@ type SampleResult = {
   sync: SheetSyncInput;
 };
 
-const TEST_STORE_ID = "00000000-0000-0000-0000-000000000001";
+const FALLBACK_TEST_STORE_ID = "00000000-0000-0000-0000-000000000001";
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+async function resolveTestShopId() {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
+    .from("shops")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  return String(data?.id || FALLBACK_TEST_STORE_ID);
 }
 
 async function insertFirstWorking(table: string, attempts: Record<string, unknown>[]): Promise<InsertResult> {
@@ -41,18 +53,19 @@ async function cleanup(table: string, id: unknown) {
 
 async function createCustomerSample(): Promise<SampleResult> {
   const stamp = Date.now();
+  const shopId = await resolveTestShopId();
   const plate = `SYNC-${String(stamp).slice(-6)}`;
   const sample = {
     name: `N8N即時同步測試客戶${String(stamp).slice(-4)}`,
     phone: `09${String(stamp).slice(-8)}`,
-    store_id: TEST_STORE_ID,
+    store_id: shopId,
     source_channel: "system-realtime-test",
     created_at: nowIso(),
     updated_at: nowIso()
   };
   const inserted = await insertFirstWorking("customers", [
     sample,
-    { name: sample.name, phone: sample.phone, shop_id: TEST_STORE_ID },
+    { name: sample.name, phone: sample.phone, shop_id: shopId },
     { name: sample.name, phone: sample.phone }
   ]);
 
@@ -63,7 +76,7 @@ async function createCustomerSample(): Promise<SampleResult> {
       source_table: "customers",
       operation: "test",
       unique_key: String(inserted.data.id),
-      store_id: String(inserted.data.store_id || inserted.data.shop_id || ""),
+      store_id: String(inserted.data.store_id || inserted.data.shop_id || shopId),
       plate,
       model: "5人座轎車",
       is_test: true,
@@ -82,9 +95,10 @@ async function createCustomerSample(): Promise<SampleResult> {
 
 async function createFinanceSample(): Promise<SampleResult> {
   const stamp = Date.now();
+  const shopId = await resolveTestShopId();
   const sample = {
-    shop_id: TEST_STORE_ID,
-    store_id: TEST_STORE_ID,
+    shop_id: shopId,
+    store_id: shopId,
     payment_no: `SYNC-P${stamp}`,
     pay_type: "測試收款",
     amount: 1680,
@@ -108,6 +122,7 @@ async function createFinanceSample(): Promise<SampleResult> {
       remark: sample.remark
     },
     {
+      shop_id: sample.shop_id,
       payment_no: sample.payment_no,
       pay_type: sample.pay_type,
       amount: sample.amount,
@@ -123,7 +138,7 @@ async function createFinanceSample(): Promise<SampleResult> {
       source_table: "payment",
       operation: "test",
       unique_key: String(inserted.data.id),
-      store_id: String(inserted.data.store_id || inserted.data.shop_id || ""),
+      store_id: String(inserted.data.store_id || inserted.data.shop_id || shopId),
       is_test: true,
       record: {
         ...inserted.data,
