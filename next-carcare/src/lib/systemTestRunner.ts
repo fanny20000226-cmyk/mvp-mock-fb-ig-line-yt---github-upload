@@ -82,8 +82,6 @@ function testData(runId: string, shopId: string | null) {
       customer_name: `TEST-AUTO-客戶-${safeRun.slice(-6)}`,
       customer_phone: `09${String(Date.now()).slice(-8)}`,
       plate_no: plate,
-      brand: "PEIWAY-Test",
-      model: "5人座測試車",
       remark: `TEST-AUTO-RUN:${runId}`,
     },
   };
@@ -114,7 +112,19 @@ function compareFields(
   for (const [field, expectedValue] of Object.entries(expected)) {
     const candidates = [field, ...(aliases[field] || [])];
     const actualValue = candidates.map((candidate) => actual?.[candidate]).find((value) => value != null);
-    if (actualValue == null || String(actualValue) !== String(expectedValue)) {
+    const expectedTime =
+      typeof expectedValue === "string" && Number.isFinite(Date.parse(expectedValue))
+        ? new Date(expectedValue).getTime()
+        : null;
+    const actualTime =
+      typeof actualValue === "string" && Number.isFinite(Date.parse(actualValue))
+        ? new Date(actualValue).getTime()
+        : null;
+    const matches =
+      expectedTime != null && actualTime != null
+        ? expectedTime === actualTime
+        : String(actualValue) === String(expectedValue);
+    if (actualValue == null || !matches) {
       missing.push(field);
     }
   }
@@ -201,10 +211,11 @@ export async function runSystemDataTest(input: { mode: SystemTestMode; profile: 
   const payload = testData(run_id, shopId);
   const startedAt = new Date().toISOString();
   let runRecordId: string | null = null;
+  let persistError: string | null = null;
   const report: StepResult[] = [];
   const cleanupTargets: CleanupTarget[] = [];
 
-  const { data: runRecord } = await admin
+  const { data: runRecord, error: createRunError } = await admin
     .from("system_test_runs")
     .insert({
       run_no: run_id,
@@ -216,6 +227,7 @@ export async function runSystemDataTest(input: { mode: SystemTestMode; profile: 
     })
     .select("id")
     .maybeSingle();
+  if (createRunError) persistError = errorText(createRunError);
   runRecordId = runRecord?.id || null;
 
   let n8nResult: Record<string, unknown> | null = null;
@@ -390,24 +402,31 @@ export async function runSystemDataTest(input: { mode: SystemTestMode; profile: 
     n8n_status: n8nResult?.ok ? "success" : n8nResult ? "failed" : "not_run",
     n8n_event_no: typeof n8nResult?.event_no === "string" ? n8nResult.event_no : null,
     n8n_response: n8nResult || {},
-    summary,
+    summary: persistError ? { ...summary, persist_error: persistError } : summary,
     report,
     cleanup_report: cleanupReport,
-    error_message: failed ? report.find((row) => row.status === "failed")?.message || null : null,
+    error_message: failed ? report.find((row) => row.status === "failed")?.message || null : persistError,
     finished_at: finishedAt,
   };
 
   if (runRecordId) {
-    await admin.from("system_test_runs").update(finalPayload).eq("id", runRecordId);
+    const { error: updateRunError } = await admin.from("system_test_runs").update(finalPayload).eq("id", runRecordId);
+    if (updateRunError) persistError = errorText(updateRunError);
   } else {
-    await admin.from("system_test_runs").insert({
+    const { error: insertRunError } = await admin.from("system_test_runs").insert({
       run_no: run_id,
       mode: input.mode,
       test_payload: payload,
       started_at: startedAt,
       ...finalPayload,
     });
+    if (insertRunError) persistError = errorText(insertRunError);
   }
 
-  return { run_id, ...finalPayload };
+  return {
+    run_id,
+    ...finalPayload,
+    summary: persistError ? { ...summary, persist_error: persistError } : summary,
+    persist_error: persistError,
+  };
 }
