@@ -10,6 +10,8 @@ type BootstrapBody = {
   setupKey?: string;
 };
 
+const emergencyAdminEmail = "admin@example.com";
+
 type AdminClient = ReturnType<typeof getSupabaseAdmin>;
 type AuthUser = Awaited<
   ReturnType<AdminClient["auth"]["admin"]["listUsers"]>
@@ -81,6 +83,14 @@ function findAuthUserByEmail(authUsers: AuthUser[], email: string) {
   );
 }
 
+function hasEmergencyRepairMarker(authUser: AuthUser | null) {
+  const metadata = authUser?.user_metadata as
+    | { bootstrap_admin_repaired_at?: string }
+    | undefined;
+
+  return Boolean(metadata?.bootstrap_admin_repaired_at);
+}
+
 export async function GET() {
   try {
     const admin = getSupabaseAdmin();
@@ -139,15 +149,28 @@ export async function POST(request: Request) {
 
     const admin = getSupabaseAdmin();
     const state = await getUsableAdminState(admin);
-    if (state.usableAdminCount > 0) {
+    const existingAuthUser = findAuthUserByEmail(state.authUsers, email);
+    const canRunEmergencyRepair =
+      email === emergencyAdminEmail &&
+      Boolean(existingAuthUser) &&
+      !hasEmergencyRepairMarker(existingAuthUser);
+
+    if (state.usableAdminCount > 0 && !canRunEmergencyRepair) {
       return NextResponse.json(
         { ok: false, message: "A usable admin login already exists." },
         { status: 409 }
       );
     }
 
-    const existingAuthUser = findAuthUserByEmail(state.authUsers, email);
     let authUser = existingAuthUser;
+    const userMetadata = {
+      name,
+      account,
+      role: "admin",
+      ...(canRunEmergencyRepair
+        ? { bootstrap_admin_repaired_at: new Date().toISOString() }
+        : {})
+    };
 
     if (authUser) {
       const { error: updatePasswordError } = await admin.auth.admin.updateUserById(
@@ -155,11 +178,7 @@ export async function POST(request: Request) {
         {
           password,
           email_confirm: true,
-          user_metadata: {
-            name,
-            account,
-            role: "admin"
-          }
+          user_metadata: userMetadata
         }
       );
 
@@ -177,11 +196,7 @@ export async function POST(request: Request) {
         email,
         password,
         email_confirm: true,
-        user_metadata: {
-          name,
-          account,
-          role: "admin"
-        }
+        user_metadata: userMetadata
       });
 
       if (createError || !data.user) {
