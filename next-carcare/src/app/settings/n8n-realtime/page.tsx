@@ -9,6 +9,8 @@ type TestResult = {
   table?: string;
   record_id?: string;
   message?: string;
+  retained_for_n8n?: boolean;
+  note?: string;
   n8n?: {
     ok?: boolean;
     skipped?: boolean;
@@ -26,7 +28,7 @@ type TestResult = {
 function resultLabel(result: TestResult | null) {
   if (!result) return "尚未測試";
   if (result.ok) return "成功";
-  if (result.n8n?.skipped) return "已跳過，請先啟用 N8N";
+  if (result.n8n?.skipped) return "已略過：N8N 未啟用";
   return "失敗";
 }
 
@@ -53,7 +55,7 @@ export default function N8nRealtimeTestPage() {
       if (type === "customer") setCustomerResult(data);
       if (type === "finance") setFinanceResult(data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "測試發生未知錯誤";
+      const message = error instanceof Error ? error.message : "測試執行失敗，請稍後再試。";
       const data = { ok: false, message };
       if (type === "customer") setCustomerResult(data);
       if (type === "finance") setFinanceResult(data);
@@ -69,18 +71,18 @@ export default function N8nRealtimeTestPage() {
           <p className="text-sm font-black text-carcare-yellow">N8N Realtime Sync</p>
           <h1 className="text-2xl font-black">Google Sheets 即時同步測試</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            這裡會建立一筆測試資料，寫入 Supabase 後呼叫 N8N Webhook，再由 N8N 同步到 Google Sheets。
-            測試結束後會清理系統內的測試資料，避免影響正式營運資料。
+            這裡會建立一筆清楚標記的測試資料，寫入 Supabase 後送出 N8N Webhook。
+            測試資料會暫時保留，讓 N8N 的報表 View 可以讀到並同步到 Google Sheets。
           </p>
         </div>
 
         <section className="grid gap-5 lg:grid-cols-2">
           <div className="card space-y-4">
             <div>
-              <p className="text-sm font-black text-carcare-yellow">客戶資料測試</p>
+              <p className="text-sm font-black text-carcare-yellow">客戶資料</p>
               <h2 className="text-xl font-black">測試客戶即時同步</h2>
               <p className="mt-1 text-sm text-neutral-500">
-                產生一筆測試客戶資料，送到 N8N Webhook，讓 N8N 寫入 Google Sheets 客戶主檔分頁。
+                建立一筆 N8N 測試客戶，觸發同步至 Google Sheets「客戶主檔」分頁。
               </p>
             </div>
             <button
@@ -96,10 +98,10 @@ export default function N8nRealtimeTestPage() {
 
           <div className="card space-y-4">
             <div>
-              <p className="text-sm font-black text-carcare-yellow">財務資料測試</p>
+              <p className="text-sm font-black text-carcare-yellow">財務資料</p>
               <h2 className="text-xl font-black">測試財務即時同步</h2>
               <p className="mt-1 text-sm text-neutral-500">
-                產生一筆測試收款資料，送到 N8N Webhook，讓 N8N 寫入 Google Sheets 交易財務明細分頁。
+                建立一筆 N8N 測試交易，觸發同步至 Google Sheets「交易財務明細」分頁。
               </p>
             </div>
             <button
@@ -115,16 +117,14 @@ export default function N8nRealtimeTestPage() {
         </section>
 
         <div className="card">
-          <h2 className="text-xl font-black">同步判斷</h2>
+          <h2 className="text-xl font-black">判讀方式</h2>
           <p className="mt-2 text-sm text-neutral-600">
-            測試 API 會送出 <code>event_type</code> = <code>sheet_sync_test</code>，
-            並在 <code>content_params</code> 裡帶上 <code>sync_type</code>、
-            <code>unique_key</code> 與完整資料欄位。N8N 依唯一 ID 判斷 Google Sheets
-            裡是否已有資料，有就更新，沒有就新增。
+            如果本頁顯示成功，代表系統已成功寫入 Supabase 並送出 N8N Webhook。
+            接著請到 N8N execution 確認工作流成功，再到 Google Sheets 對應分頁查看測試列。
           </p>
           <p className="mt-2 text-sm text-neutral-600">
-            如果下方顯示 N8N HTTP 200，且 N8N 執行紀錄成功，就代表「系統 → Supabase → N8N → Google Sheets」
-            這條路線已經接通。
+            這次修正後，客戶測試會寫入 <code>customers</code>，財務測試會寫入{" "}
+            <code>transaction_record</code>，兩張表都能被既有 N8N 報表 View 讀取。
           </p>
         </div>
       </section>
@@ -136,19 +136,16 @@ function ResultCard({ result }: { result: TestResult | null }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-sm">
       <p className="font-black">
-        測試狀態：
-        <span className={statusClass(result)}>{resultLabel(result)}</span>
+        測試狀態：<span className={statusClass(result)}>{resultLabel(result)}</span>
       </p>
       {result ? (
         <div className="mt-2 space-y-1 text-neutral-600">
-          <p>寫入表格：{result.table || "-"}</p>
+          <p>寫入資料表：{result.table || "-"}</p>
           <p>測試資料 ID：{result.record_id || "-"}</p>
           <p>N8N 事件編號：{result.n8n?.event_no || "-"}</p>
           <p>N8N HTTP：{result.n8n?.status || "-"}</p>
-          <p>
-            測試資料清理：
-            {result.cleanup?.ok ? "完成" : result.cleanup ? result.cleanup.message || "清理失敗" : "-"}
-          </p>
+          <p>是否保留給 N8N 讀取：{result.retained_for_n8n ? "是" : "否"}</p>
+          {result.note ? <p>{result.note}</p> : null}
           {result.message || result.n8n?.error ? <p className="text-red-700">{result.message || result.n8n?.error}</p> : null}
         </div>
       ) : null}

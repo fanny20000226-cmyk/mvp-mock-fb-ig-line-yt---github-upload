@@ -97,37 +97,22 @@ async function createFinanceSample(): Promise<SampleResult> {
   const stamp = Date.now();
   const shopId = await resolveTestShopId();
   const sample = {
-    shop_id: shopId,
     store_id: shopId,
-    payment_no: `SYNC-P${stamp}`,
-    pay_type: "測試收款",
-    amount: 1680,
+    quotation_id: null,
     pay_amount: 1680,
     pay_method: "system-realtime-test",
-    paid_at: nowIso(),
     pay_time: nowIso(),
-    check_status: "test",
-    remark: "N8N realtime sync test, safe to delete."
+    created_at: nowIso(),
+    updated_at: nowIso()
   };
 
-  const inserted = await insertFirstWorking("payment", [
+  const inserted = await insertFirstWorking("transaction_record", [
     sample,
     {
-      shop_id: sample.shop_id,
-      payment_no: sample.payment_no,
-      pay_type: sample.pay_type,
-      amount: sample.amount,
-      paid_at: sample.paid_at,
-      check_status: sample.check_status,
-      remark: sample.remark
-    },
-    {
-      shop_id: sample.shop_id,
-      payment_no: sample.payment_no,
-      pay_type: sample.pay_type,
-      amount: sample.amount,
-      check_status: sample.check_status,
-      remark: sample.remark
+      store_id: sample.store_id,
+      pay_amount: sample.pay_amount,
+      pay_method: sample.pay_method,
+      pay_time: sample.pay_time
     }
   ]);
 
@@ -135,19 +120,18 @@ async function createFinanceSample(): Promise<SampleResult> {
     inserted,
     sync: {
       sync_type: "finance",
-      source_table: "payment",
+      source_table: "transaction_record",
       operation: "test",
       unique_key: String(inserted.data.id),
-      store_id: String(inserted.data.store_id || inserted.data.shop_id || shopId),
+      store_id: String(inserted.data.store_id || shopId),
       is_test: true,
       record: {
         ...inserted.data,
-        payment_no: sample.payment_no,
-        pay_amount: inserted.data.pay_amount || inserted.data.amount || sample.amount,
-        pay_time: inserted.data.pay_time || inserted.data.paid_at || sample.paid_at,
+        pay_amount: inserted.data.pay_amount || sample.pay_amount,
+        pay_time: inserted.data.pay_time || sample.pay_time,
         pay_method: inserted.data.pay_method || sample.pay_method,
-        payment_type: inserted.data.pay_type || sample.pay_type,
-        note: inserted.data.remark || sample.remark
+        payment_type: "測試收款",
+        note: "N8N realtime sync test"
       }
     }
   };
@@ -158,10 +142,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const type: SheetSyncKind = body.type === "finance" ? "finance" : "customer";
+    const shouldCleanup = body.cleanup === true;
     const sample = type === "finance" ? await createFinanceSample() : await createCustomerSample();
     inserted = sample.inserted;
     const n8n = await sendSheetSyncToN8n(sample.sync);
-    const cleanupResult = await cleanup(inserted.table, inserted.data.id);
+    const cleanupResult = shouldCleanup ? await cleanup(inserted.table, inserted.data.id) : null;
 
     return NextResponse.json({
       ok: Boolean(n8n.ok),
@@ -169,7 +154,11 @@ export async function POST(request: Request) {
       table: inserted.table,
       record_id: inserted.data.id,
       n8n,
-      cleanup: cleanupResult
+      cleanup: cleanupResult,
+      retained_for_n8n: !shouldCleanup,
+      note: shouldCleanup
+        ? "測試資料已清除。若 N8N 是非同步完整同步，可能讀不到本筆測試資料。"
+        : "測試資料已保留，N8N 的報表 View 可以讀到本筆資料並寫入 Google Sheets。"
     });
   } catch (error) {
     const cleanupResult = inserted ? await cleanup(inserted.table, inserted.data.id) : null;
