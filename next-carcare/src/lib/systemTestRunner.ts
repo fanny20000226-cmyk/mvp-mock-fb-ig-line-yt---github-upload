@@ -58,6 +58,8 @@ function testData(runId: string, shopId: string | null) {
     car: {
       license_plate: plate,
       plate_no: plate,
+      customer_name: `TEST-AUTO-${safeRun.slice(-6)}`,
+      customer_phone: `09${String(Date.now()).slice(-8)}`,
       brand: "PEIWAY-Test",
       model: "5人座測試車",
       store_id: shopId,
