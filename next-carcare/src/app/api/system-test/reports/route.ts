@@ -16,6 +16,11 @@ export async function GET() {
     return NextResponse.json({ rows: data || [] });
   } catch (error) {
     const message = error instanceof Error ? error.message : "讀取測試報告失敗";
-    return NextResponse.json({ message }, { status: 500 });
+    return NextResponse.json({
+      rows: [],
+      warning: message.includes("system_test_runs")
+        ? "尚未建立 system_test_runs 測試報告表，請執行 supabase-step16-system-tests.sql。"
+        : message,
+    });
   }
 }

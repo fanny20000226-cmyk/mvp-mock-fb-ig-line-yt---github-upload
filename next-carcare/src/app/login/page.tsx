@@ -9,17 +9,19 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   async function login() {
+    setErrorMessage("");
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password
     });
     setLoading(false);
 
     if (error) {
-      alert("登入失敗，請確認帳號或密碼。");
+      setErrorMessage("登入失敗，請確認帳號或密碼是否已在 Supabase Auth 建立。");
       return;
     }
 
@@ -40,30 +42,45 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <label className="mb-4 block">
-          <span className="mb-2 block text-sm font-black">Email</span>
-          <input
-            className="form-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="admin@example.com"
-          />
-        </label>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!loading) void login();
+          }}
+        >
+          <label className="mb-4 block">
+            <span className="mb-2 block text-sm font-black">Email</span>
+            <input
+              className="form-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@example.com"
+              autoComplete="email"
+            />
+          </label>
 
-        <label className="mb-6 block">
-          <span className="mb-2 block text-sm font-black">密碼</span>
-          <input
-            className="form-input"
-            value={password}
-            type="password"
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="請輸入密碼"
-          />
-        </label>
+          <label className="mb-6 block">
+            <span className="mb-2 block text-sm font-black">密碼</span>
+            <input
+              className="form-input"
+              value={password}
+              type="password"
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="請輸入密碼"
+              autoComplete="current-password"
+            />
+          </label>
 
-        <button onClick={login} disabled={loading} className="primary-btn w-full">
-          {loading ? "登入中..." : "登入"}
-        </button>
+          {errorMessage ? (
+            <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-neutral-800">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          <button type="submit" disabled={loading} className="primary-btn w-full">
+            {loading ? "登入中..." : "登入"}
+          </button>
+        </form>
       </section>
     </main>
   );
