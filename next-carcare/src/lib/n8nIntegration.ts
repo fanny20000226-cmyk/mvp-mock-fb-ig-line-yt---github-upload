@@ -67,6 +67,23 @@ export type SheetSyncInput = {
   is_test?: boolean;
 };
 
+export type CustomerSheetSyncInput = {
+  operation?: SheetSyncInput["operation"];
+  customerId: string;
+  carId?: string | null;
+  shopId?: string | null;
+  storeName?: string | null;
+  name?: string | null;
+  phone?: string | null;
+  plate?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  year?: string | number | null;
+  color?: string | null;
+  source?: string | null;
+  extra?: Record<string, unknown>;
+};
+
 function eventNo(prefix = "N8N") {
   const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -227,6 +244,7 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
 }
 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {
+  const sheetName = input.sync_type === "customer" ? "客戶主檔" : "交易財務明細";
   return sendEventToN8n({
     event_type: input.is_test ? "sheet_sync_test" : "sheet_sync",
     channel: "google_sheets",
@@ -234,18 +252,51 @@ export async function sendSheetSyncToN8n(input: SheetSyncInput) {
     store_name: input.store_name || null,
     plate: input.plate || null,
     model: input.model || null,
-    receiver: input.sync_type === "customer" ? "Google Sheets 客戶主檔" : "Google Sheets 交易財務明細",
+    receiver: `Google Sheets ${sheetName}`,
     message_template: "PEIWAY realtime Google Sheets sync",
     content_params: {
       sync_type: input.sync_type,
       source_table: input.source_table,
       operation: input.operation,
       unique_key: input.unique_key,
-      sheet_name: input.sync_type === "customer" ? "客戶主檔" : "交易財務明細",
+      sheet_name: sheetName,
       record: input.record,
       is_test: Boolean(input.is_test),
       security_key: n8nSecurityKey()
     }
+  });
+}
+
+export async function sendCustomerSheetSync(input: CustomerSheetSyncInput) {
+  const record = {
+    id: input.customerId,
+    customer_id: input.customerId,
+    car_id: input.carId || null,
+    name: input.name || "現場客戶",
+    phone: input.phone || "",
+    license_plate: input.plate || "",
+    plate_no: input.plate || "",
+    brand: input.brand || "",
+    model: input.model || "",
+    year: input.year || null,
+    color: input.color || "",
+    store_id: input.shopId || null,
+    shop_id: input.shopId || null,
+    source_channel: input.source || "carcare-system",
+    updated_at: new Date().toISOString(),
+    ...input.extra
+  };
+
+  return sendSheetSyncToN8n({
+    sync_type: "customer",
+    source_table: "customers",
+    operation: input.operation || "upsert",
+    unique_key: input.customerId,
+    record,
+    store_id: input.shopId || null,
+    store_name: input.storeName || null,
+    plate: input.plate || null,
+    model: input.model || null
   });
 }
 
@@ -287,12 +338,10 @@ export async function testN8nConnection(input?: { receiver?: string; message?: s
     event_type: "connection_test",
     channel: "system",
     store_name: "PEIWAY Test Store",
-    receiver: input?.receiver || "N8N 測試接收端",
+    receiver: input?.receiver || "N8N 連線測試",
     message_template: "PEIWAY N8N connection test",
     content_params: {
-      message:
-        input?.message ||
-        "PEIWAY 系統測試：如果 N8N 收到這筆事件，代表系統到 N8N 的 Webhook 已接通。",
+      message: input?.message || "PEIWAY N8N 連線測試成功，代表系統可以送出 Webhook。",
       tested_at: new Date().toISOString()
     }
   });

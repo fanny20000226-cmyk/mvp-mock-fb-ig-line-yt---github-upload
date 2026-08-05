@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { sendCustomerSheetSync } from "@/lib/n8nIntegration";
 import type { Role } from "@/lib/permissions";
 
 const supabaseUrl =
@@ -23,6 +24,37 @@ type QuoteRecord = {
   brand?: string | null;
   model?: string | null;
 };
+
+function clean(value?: string | null) {
+  return (value || "").trim();
+}
+
+async function notifyQuoteCustomerSync(input: {
+  quote: QuoteRecord;
+  shopId: string;
+  customerId: string;
+  carId: string;
+}) {
+  try {
+    await sendCustomerSheetSync({
+      operation: "upsert",
+      customerId: input.customerId,
+      carId: input.carId,
+      shopId: input.shopId,
+      name: clean(input.quote.customer_name),
+      phone: clean(input.quote.customer_phone),
+      plate: clean(input.quote.plate_no),
+      brand: clean(input.quote.brand),
+      model: clean(input.quote.model),
+      source: "quote-vehicle-archive",
+      extra: {
+        quotation_id: input.quote.id
+      }
+    });
+  } catch {
+    // N8N/Google Sheets sync must never block vehicle archiving.
+  }
+}
 
 function getWriteClient(token: string): SupabaseWriteClient {
   try {
@@ -270,6 +302,13 @@ export async function POST(request: Request) {
       lastUpdateError = updateError;
     }
     if (lastUpdateError) throw lastUpdateError;
+
+    await notifyQuoteCustomerSync({
+      quote: typedQuote,
+      shopId: quoteShopId,
+      customerId,
+      carId
+    });
 
     return NextResponse.json({ ok: true, carId, customerId });
   } catch (error) {

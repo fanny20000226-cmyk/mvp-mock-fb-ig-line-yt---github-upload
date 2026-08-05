@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { sendCustomerSheetSync } from "@/lib/n8nIntegration";
 import type { Role } from "@/lib/permissions";
 
 const supabaseUrl =
@@ -73,6 +74,38 @@ function quotePlate(quote: QuoteRecord) {
 
 function quoteModel(quote: QuoteRecord) {
   return clean(quote.model || quote.car_model);
+}
+
+async function notifyQuoteCustomerSync(input: {
+  quote: QuoteRecord;
+  shopId: string;
+  customerId: string;
+  carId: string;
+  orderId?: string;
+  orderNo?: string;
+}) {
+  try {
+    await sendCustomerSheetSync({
+      operation: "upsert",
+      customerId: input.customerId,
+      carId: input.carId,
+      shopId: input.shopId,
+      name: clean(input.quote.customer_name),
+      phone: clean(input.quote.customer_phone),
+      plate: quotePlate(input.quote),
+      brand: clean(input.quote.brand),
+      model: quoteModel(input.quote),
+      source: "quote-to-work-order",
+      extra: {
+        quotation_id: input.quote.id,
+        quote_no: input.quote.quote_no || null,
+        work_order_id: input.orderId || null,
+        work_order_no: input.orderNo || null
+      }
+    });
+  } catch {
+    // N8N/Google Sheets sync must never block quote conversion.
+  }
 }
 
 function getWriteClient(token: string): SupabaseAdmin {
@@ -368,6 +401,15 @@ export async function POST(request: Request) {
     }
 
     if (!quoteUpdated) throw lastQuoteUpdateError || new Error("施工單已建立，但報價單狀態回寫失敗。");
+
+    await notifyQuoteCustomerSync({
+      quote: typedQuote,
+      shopId: quoteShopId,
+      customerId,
+      carId,
+      orderId: createdOrder.id,
+      orderNo
+    });
 
     return NextResponse.json({ ok: true, orderId: createdOrder.id, orderNo, carId, customerId });
   } catch (error) {
