@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { sendSheetSyncToN8n } from "@/lib/n8nIntegration";
 
+const DEFAULT_SALARY_SHEET_ID = "1b8bM9hQxrFR-wbCc9PQMHJFBpvK4amqIp0AYp5rI-O0";
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
       operation: "insert",
       unique_key: body.unique_key,
       record: body.record,
+      target_sheet_id: process.env.GOOGLE_SALARY_SHEET_ID || DEFAULT_SALARY_SHEET_ID,
       store_id: body.shop_id || null,
       store_name: body.shop_name || null
     });

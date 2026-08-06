@@ -60,6 +60,7 @@ export type SheetSyncInput = {
   operation: "insert" | "update" | "upsert" | "test";
   unique_key: string;
   record: Record<string, unknown>;
+  target_sheet_id?: string | null;
   store_id?: string | null;
   store_name?: string | null;
   plate?: string | null;
@@ -246,10 +247,14 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {
   const sheetName =
     input.sync_type === "customer"
-      ? "客戶主檔"
+      ? "\u5ba2\u6236\u4e3b\u6a94"
       : input.sync_type === "salary"
-        ? "員工薪資明細表（雲端建檔）"
-        : "交易財務明細";
+        ? "\u54e1\u5de5\u85aa\u8cc7\u660e\u7d30\u8868\uff08\u96f2\u7aef\u5efa\u6a94\uff09"
+        : "\u4ea4\u6613\u8ca1\u52d9\u660e\u7d30";
+  const targetSheetId =
+    input.target_sheet_id ||
+    (input.sync_type === "salary" ? process.env.GOOGLE_SALARY_SHEET_ID || "" : process.env.GOOGLE_REPORT_SHEET_ID || "");
+
   return sendEventToN8n({
     event_type: input.is_test ? "sheet_sync_test" : "sheet_sync",
     channel: "google_sheets",
@@ -265,6 +270,7 @@ export async function sendSheetSyncToN8n(input: SheetSyncInput) {
       operation: input.operation,
       unique_key: input.unique_key,
       sheet_name: sheetName,
+      target_sheet_id: targetSheetId,
       record: input.record,
       is_test: Boolean(input.is_test),
       security_key: n8nSecurityKey()
@@ -277,7 +283,7 @@ export async function sendCustomerSheetSync(input: CustomerSheetSyncInput) {
     id: input.customerId,
     customer_id: input.customerId,
     car_id: input.carId || null,
-    name: input.name || "現場客戶",
+    name: input.name || "\u672a\u77e5\u5ba2\u6236",
     phone: input.phone || "",
     license_plate: input.plate || "",
     plate_no: input.plate || "",
