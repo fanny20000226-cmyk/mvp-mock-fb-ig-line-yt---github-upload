@@ -52,11 +52,11 @@ type N8nSettings = {
   is_enabled: boolean;
 };
 
-export type SheetSyncKind = "customer" | "finance";
+export type SheetSyncKind = "customer" | "finance" | "salary";
 
 export type SheetSyncInput = {
   sync_type: SheetSyncKind;
-  source_table: "customers" | "cars" | "payment" | "transaction_record" | string;
+  source_table: "customers" | "cars" | "payment" | "transaction_record" | "salary_records" | string;
   operation: "insert" | "update" | "upsert" | "test";
   unique_key: string;
   record: Record<string, unknown>;
@@ -244,7 +244,12 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
 }
 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {
-  const sheetName = input.sync_type === "customer" ? "客戶主檔" : "交易財務明細";
+  const sheetName =
+    input.sync_type === "customer"
+      ? "客戶主檔"
+      : input.sync_type === "salary"
+        ? "員工薪資明細表（雲端建檔）"
+        : "交易財務明細";
   return sendEventToN8n({
     event_type: input.is_test ? "sheet_sync_test" : "sheet_sync",
     channel: "google_sheets",

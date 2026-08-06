@@ -34,7 +34,7 @@ export default function StaffLoginPage() {
             <p className="text-sm font-black text-carcare-yellow">PEIWAY Staff</p>
             <h1 className="mt-2 text-2xl font-black">員工個人後台登入</h1>
             <p className="mt-2 text-sm text-white/70">
-              請輸入人資建立的員工編號與專屬密碼，登入後可查看個人資料、薪資、出勤與施工照片提醒。
+              請輸入人資建立的員工編號與專屬密碼，登入後可查看個人資料、薪資與出勤紀錄。
             </p>
           </div>
 

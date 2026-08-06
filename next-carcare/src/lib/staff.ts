@@ -25,6 +25,12 @@ export type StaffInfo = {
   labor_insurance_status?: string | null;
   labor_health_no?: string | null;
   contract_end_date?: string | null;
+  base_salary_default?: number | null;
+  position_allowance_default?: number | null;
+  meal_allowance_default?: number | null;
+  transport_allowance_default?: number | null;
+  overtime_rate_default?: number | null;
+  leave_day_rate_default?: number | null;
   created_by?: string | null;
   resigned: boolean;
 };
@@ -45,16 +51,37 @@ export type StaffModifyRequest = {
 
 export type StaffSalary = {
   id: string;
-  employee_no: string;
   salary_month: string;
+  employee_no: string;
+  shop_id?: string | null;
+  shop_name?: string | null;
+  position?: string | null;
   base_salary: number;
-  construction_bonus: number;
+  position_allowance: number;
+  meal_allowance: number;
+  attendance_bonus: number;
+  overtime_hours: number;
+  overtime_rate: number;
   overtime_pay: number;
-  late_deduction: number;
-  leave_deduction: number;
-  photo_penalty: number;
-  other_deduction: number;
+  transport_allowance: number;
+  incentive_bonus: number;
+  dispatch_allowance: number;
+  unused_leave_pay: number;
+  mentor_bonus: number;
+  performance_bonus: number;
+  sales_bonus: number;
+  labor_insurance_fee: number;
+  health_insurance_fee: number;
+  pension_self_pay: number;
+  leave_days: number;
+  leave_day_rate: number;
+  sick_leave_deduction: number;
+  advance_payment: number;
+  kip_penalty: number;
+  gross_amount: number;
+  deduction_amount: number;
   net_salary: number;
+  created_by?: string | null;
   created_at: string;
 };
 
@@ -70,37 +97,71 @@ export type StaffAttendance = {
   overtime_hours: number;
 };
 
-export type WorkPhotoReminder = {
-  id: string;
-  employee_no: string;
-  construction_order_id: string | null;
-  due_at: string;
-  remind_sent_at: string | null;
-  photo_completed: boolean;
-  penalty_applied: boolean;
-  penalty_amount: number;
-};
+export type SalaryTotalsInput = Partial<
+  Pick<
+    StaffSalary,
+    | "base_salary"
+    | "position_allowance"
+    | "meal_allowance"
+    | "attendance_bonus"
+    | "overtime_hours"
+    | "overtime_rate"
+    | "overtime_pay"
+    | "transport_allowance"
+    | "incentive_bonus"
+    | "dispatch_allowance"
+    | "unused_leave_pay"
+    | "mentor_bonus"
+    | "performance_bonus"
+    | "sales_bonus"
+    | "labor_insurance_fee"
+    | "health_insurance_fee"
+    | "pension_self_pay"
+    | "leave_days"
+    | "leave_day_rate"
+    | "sick_leave_deduction"
+    | "advance_payment"
+    | "kip_penalty"
+  >
+>;
 
 const staffSessionKey = "peiway-staff-session";
 
-export function calcNetSalary(input: {
-  base_salary: number;
-  construction_bonus: number;
-  overtime_pay: number;
-  late_deduction: number;
-  leave_deduction: number;
-  photo_penalty: number;
-  other_deduction: number;
-}) {
-  return (
-    Number(input.base_salary || 0) +
-    Number(input.construction_bonus || 0) +
-    Number(input.overtime_pay || 0) -
-    Number(input.late_deduction || 0) -
-    Number(input.leave_deduction || 0) -
-    Number(input.photo_penalty || 0) -
-    Number(input.other_deduction || 0)
-  );
+function n(value: unknown) {
+  return Number(value || 0);
+}
+
+export function calcSalaryTotals(input: SalaryTotalsInput) {
+  const overtimePay = n(input.overtime_pay) || n(input.overtime_hours) * n(input.overtime_rate);
+  const leaveDeduction = n(input.sick_leave_deduction) || n(input.leave_days) * n(input.leave_day_rate);
+  const grossAmount =
+    n(input.base_salary) +
+    n(input.position_allowance) +
+    n(input.meal_allowance) +
+    n(input.attendance_bonus) +
+    overtimePay +
+    n(input.transport_allowance) +
+    n(input.incentive_bonus) +
+    n(input.dispatch_allowance) +
+    n(input.unused_leave_pay) +
+    n(input.mentor_bonus) +
+    n(input.performance_bonus) +
+    n(input.sales_bonus);
+  const deductionAmount =
+    n(input.labor_insurance_fee) +
+    n(input.health_insurance_fee) +
+    n(input.pension_self_pay) +
+    leaveDeduction +
+    n(input.advance_payment) +
+    n(input.kip_penalty);
+
+  return {
+    overtime_pay: overtimePay,
+    sick_leave_deduction: leaveDeduction,
+    gross_amount: grossAmount,
+    deduction_amount: deductionAmount,
+    net_salary: grossAmount - deductionAmount
+  };
 }
 
 export function money(amount: number) {
@@ -144,7 +205,7 @@ export async function staffLogin(employeeNo: string, password: string) {
     .eq("resigned", false)
     .single();
 
-  if (error || !data) throw new Error("找不到此員工帳號，請確認員工編號。");
+  if (error || !data) throw new Error("找不到可登入的員工帳號。");
 
   const staff = data as StaffInfo;
   if (staff.password_hash !== password) throw new Error("員工密碼不正確。");
@@ -154,23 +215,16 @@ export async function staffLogin(employeeNo: string, password: string) {
 }
 
 export async function loadStaffProfile(employeeNo: string) {
-  return supabase
-    .from("staff_info")
-    .select(
-      "id, employee_no, name, shop_id, position, phone, identity_info, id_number, household_address, mailing_address, email, emergency_contact, emergency_phone, bank_account, bank_branch, avatar_url, hire_date, probation_end_date, labor_insurance_status, labor_health_no, contract_end_date, created_by, resigned"
-    )
-    .eq("employee_no", employeeNo)
-    .single();
+  return supabase.from("staff_info").select("*").eq("employee_no", employeeNo).single();
 }
 
 export async function loadStaffSalary(employeeNo: string) {
   return supabase
-    .from("staff_salary")
-    .select(
-      "id, employee_no, salary_month, base_salary, construction_bonus, overtime_pay, late_deduction, leave_deduction, photo_penalty, other_deduction, net_salary, created_at"
-    )
+    .from("salary_records")
+    .select("*")
     .eq("employee_no", employeeNo)
-    .order("salary_month", { ascending: false });
+    .order("salary_month", { ascending: false })
+    .order("created_at", { ascending: false });
 }
 
 export async function loadStaffAttendance(employeeNo: string) {
@@ -179,14 +233,6 @@ export async function loadStaffAttendance(employeeNo: string) {
     .select("id, employee_no, work_date, clock_in_at, clock_out_at, late_minutes, leave_type, leave_hours, overtime_hours")
     .eq("employee_no", employeeNo)
     .order("work_date", { ascending: false });
-}
-
-export async function loadStaffPhotoReminders(employeeNo: string) {
-  return supabase
-    .from("work_photo_remind")
-    .select("id, employee_no, construction_order_id, due_at, remind_sent_at, photo_completed, penalty_applied, penalty_amount")
-    .eq("employee_no", employeeNo)
-    .order("due_at", { ascending: false });
 }
 
 export async function loadStaffModifyRequests(staffId: string) {

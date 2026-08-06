@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import SalaryPdfButton from "@/components/SalaryPdfButton";
 import { getCurrentProfile } from "@/lib/auth";
-import { calcNetSalary, money, type StaffInfo, type StaffSalary } from "@/lib/staff";
+import { calcSalaryTotals, money, type StaffInfo, type StaffModifyRequest, type StaffSalary } from "@/lib/staff";
 import { supabase } from "@/lib/supabase";
 
 type ShopRow = { id: string; name: string };
@@ -17,26 +17,77 @@ type AttendanceRow = {
   leave_hours: number;
   overtime_hours: number;
 };
-type ReminderRow = {
-  id: string;
+
+const positionOptions = ["admin", "hr", "shop_manager", "vice_manager", "frontdesk", "technician", "worker"];
+const incomeFields = [
+  ["base_salary", "本薪"],
+  ["position_allowance", "職務津貼"],
+  ["meal_allowance", "伙食津貼"],
+  ["attendance_bonus", "全勤獎金"],
+  ["overtime_pay", "加班費"],
+  ["transport_allowance", "交通津貼"],
+  ["incentive_bonus", "激勵獎金"],
+  ["dispatch_allowance", "外派支援津貼"],
+  ["unused_leave_pay", "應休未休"],
+  ["mentor_bonus", "帶人金"],
+  ["performance_bonus", "績效獎金"],
+  ["sales_bonus", "業績獎金"]
+] as const;
+const deductionFields = [
+  ["labor_insurance_fee", "勞保費(自付)"],
+  ["health_insurance_fee", "健保費(自付)"],
+  ["pension_self_pay", "勞退自提"],
+  ["sick_leave_deduction", "事病假扣款"],
+  ["advance_payment", "預支"],
+  ["kip_penalty", "kip未達標扣款"]
+] as const;
+const editableRequestFields = ["phone", "mailing_address", "email", "emergency_contact", "emergency_phone", "avatar_url"] as const;
+
+type SalaryField = (typeof incomeFields)[number][0] | (typeof deductionFields)[number][0] | "overtime_hours" | "overtime_rate" | "leave_days" | "leave_day_rate";
+type SalaryForm = Record<SalaryField, string> & {
   employee_no: string;
-  construction_order_id: string | null;
-  due_at: string;
-  photo_completed: boolean;
-  penalty_applied: boolean;
-  penalty_amount: number;
+  salary_month: string;
 };
 
-const positionOptions = ["admin", "shop_manager", "vice_manager", "frontdesk", "technician", "worker"];
+function emptySalaryForm(): SalaryForm {
+  return {
+    employee_no: "",
+    salary_month: new Date().toISOString().slice(0, 7),
+    base_salary: "0",
+    position_allowance: "0",
+    meal_allowance: "0",
+    attendance_bonus: "0",
+    overtime_hours: "0",
+    overtime_rate: "0",
+    overtime_pay: "0",
+    transport_allowance: "0",
+    incentive_bonus: "0",
+    dispatch_allowance: "0",
+    unused_leave_pay: "0",
+    mentor_bonus: "0",
+    performance_bonus: "0",
+    sales_bonus: "0",
+    labor_insurance_fee: "0",
+    health_insurance_fee: "0",
+    pension_self_pay: "0",
+    leave_days: "0",
+    leave_day_rate: "0",
+    sick_leave_deduction: "0",
+    advance_payment: "0",
+    kip_penalty: "0"
+  };
+}
 
 export default function PayrollPage() {
   const [profileRole, setProfileRole] = useState("");
   const [profileShopId, setProfileShopId] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [shops, setShops] = useState<ShopRow[]>([]);
   const [staffRows, setStaffRows] = useState<StaffInfo[]>([]);
   const [salaryRows, setSalaryRows] = useState<StaffSalary[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
-  const [reminders, setReminders] = useState<ReminderRow[]>([]);
+  const [modifyRows, setModifyRows] = useState<StaffModifyRequest[]>([]);
+  const [syncMessage, setSyncMessage] = useState("");
   const [staffForm, setStaffForm] = useState({
     employee_no: "",
     password_hash: "",
@@ -45,19 +96,23 @@ export default function PayrollPage() {
     position: "technician",
     phone: "",
     identity_info: "",
-    hire_date: ""
+    id_number: "",
+    household_address: "",
+    mailing_address: "",
+    email: "",
+    emergency_contact: "",
+    emergency_phone: "",
+    bank_account: "",
+    bank_branch: "",
+    hire_date: "",
+    base_salary_default: "0",
+    position_allowance_default: "0",
+    meal_allowance_default: "0",
+    transport_allowance_default: "0",
+    overtime_rate_default: "0",
+    leave_day_rate_default: "0"
   });
-  const [salaryForm, setSalaryForm] = useState({
-    employee_no: "",
-    salary_month: new Date().toISOString().slice(0, 7),
-    base_salary: "0",
-    construction_bonus: "0",
-    overtime_pay: "0",
-    late_deduction: "0",
-    leave_deduction: "0",
-    photo_penalty: "0",
-    other_deduction: "0"
-  });
+  const [salaryForm, setSalaryForm] = useState<SalaryForm>(emptySalaryForm());
   const [attendanceForm, setAttendanceForm] = useState({
     employee_no: "",
     work_date: new Date().toISOString().slice(0, 10),
@@ -68,41 +123,33 @@ export default function PayrollPage() {
     leave_hours: "0",
     overtime_hours: "0"
   });
-  const [reminderForm, setReminderForm] = useState({
-    employee_no: "",
-    construction_order_id: "",
-    due_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
-    penalty_amount: "300"
-  });
 
   const isHrAdmin = ["admin", "hr"].includes(profileRole);
   const canViewShop = ["shop_manager", "vice_manager"].includes(profileRole);
 
-  const salaryNet = useMemo(
-    () =>
-      calcNetSalary({
-        base_salary: Number(salaryForm.base_salary || 0),
-        construction_bonus: Number(salaryForm.construction_bonus || 0),
-        overtime_pay: Number(salaryForm.overtime_pay || 0),
-        late_deduction: Number(salaryForm.late_deduction || 0),
-        leave_deduction: Number(salaryForm.leave_deduction || 0),
-        photo_penalty: Number(salaryForm.photo_penalty || 0),
-        other_deduction: Number(salaryForm.other_deduction || 0)
-      }),
-    [salaryForm]
+  const selectedStaff = useMemo(
+    () => staffRows.find((staff) => staff.employee_no === salaryForm.employee_no),
+    [salaryForm.employee_no, staffRows]
   );
+  const salaryTotals = useMemo(() => {
+    const raw = Object.fromEntries(
+      Object.entries(salaryForm).map(([key, value]) => [key, Number(value || 0)])
+    ) as Record<SalaryField, number>;
+    return calcSalaryTotals(raw);
+  }, [salaryForm]);
 
   async function load() {
     const profile = await getCurrentProfile();
     setProfileRole(profile?.role || "");
     setProfileShopId(profile?.shop_id || null);
+    setProfileId(profile?.id || null);
 
-    const [shopResult, staffResult, salaryResult, attendanceResult, reminderResult] = await Promise.all([
+    const [shopResult, staffResult, salaryResult, attendanceResult, modifyResult] = await Promise.all([
       supabase.from("shops").select("id, name").order("name"),
-      supabase.from("staff_info").select("id, employee_no, name, shop_id, position, phone, identity_info, hire_date, resigned").order("created_at", { ascending: false }),
-      supabase.from("staff_salary").select("id, employee_no, salary_month, base_salary, construction_bonus, overtime_pay, late_deduction, leave_deduction, photo_penalty, other_deduction, net_salary, created_at").order("salary_month", { ascending: false }),
-      supabase.from("staff_attendance").select("id, employee_no, work_date, late_minutes, leave_type, leave_hours, overtime_hours").order("work_date", { ascending: false }).limit(60),
-      supabase.from("work_photo_remind").select("id, employee_no, construction_order_id, due_at, photo_completed, penalty_applied, penalty_amount").order("due_at", { ascending: false }).limit(60)
+      supabase.from("staff_info").select("*").order("employee_no", { ascending: true }),
+      supabase.from("salary_records").select("*").order("salary_month", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("staff_attendance").select("id, employee_no, work_date, late_minutes, leave_type, leave_hours, overtime_hours").order("work_date", { ascending: false }).limit(80),
+      supabase.from("staff_info_modify_request").select("*").order("requested_at", { ascending: false }).limit(80)
     ]);
 
     const allStaff = (staffResult.data || []) as StaffInfo[];
@@ -116,46 +163,137 @@ export default function PayrollPage() {
     setStaffRows(scopedStaff);
     setSalaryRows(((salaryResult.data || []) as StaffSalary[]).filter((row) => scopedNos.has(row.employee_no)));
     setAttendanceRows(((attendanceResult.data || []) as AttendanceRow[]).filter((row) => scopedNos.has(row.employee_no)));
-    setReminders(((reminderResult.data || []) as ReminderRow[]).filter((row) => scopedNos.has(row.employee_no)));
+    setModifyRows(((modifyResult.data || []) as StaffModifyRequest[]).filter((row) => !row.employee_no || scopedNos.has(row.employee_no)));
   }
 
   useEffect(() => {
     load();
   }, []);
 
+  function fillSalaryDefaults(employeeNo: string) {
+    const staff = staffRows.find((row) => row.employee_no === employeeNo);
+    setSalaryForm((current) => ({
+      ...current,
+      employee_no: employeeNo,
+      base_salary: String(staff?.base_salary_default || 0),
+      position_allowance: String(staff?.position_allowance_default || 0),
+      meal_allowance: String(staff?.meal_allowance_default || 0),
+      transport_allowance: String(staff?.transport_allowance_default || 0),
+      overtime_rate: String(staff?.overtime_rate_default || 0),
+      leave_day_rate: String(staff?.leave_day_rate_default || 0)
+    }));
+  }
+
   async function createStaff(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isHrAdmin) return alert("只有總管理員或人資可以新增員工。");
-    const { error } = await supabase.from("staff_info").insert({
+    const payload = {
       ...staffForm,
       shop_id: staffForm.shop_id || profileShopId,
       hire_date: staffForm.hire_date || null,
+      base_salary_default: Number(staffForm.base_salary_default || 0),
+      position_allowance_default: Number(staffForm.position_allowance_default || 0),
+      meal_allowance_default: Number(staffForm.meal_allowance_default || 0),
+      transport_allowance_default: Number(staffForm.transport_allowance_default || 0),
+      overtime_rate_default: Number(staffForm.overtime_rate_default || 0),
+      leave_day_rate_default: Number(staffForm.leave_day_rate_default || 0),
+      created_by: profileId,
       resigned: false
-    });
+    };
+    const { error } = await supabase.from("staff_info").insert(payload);
     if (error) return alert(error.message);
-    setStaffForm({ employee_no: "", password_hash: "", name: "", shop_id: "", position: "technician", phone: "", identity_info: "", hire_date: "" });
+    setStaffForm({
+      employee_no: "",
+      password_hash: "",
+      name: "",
+      shop_id: "",
+      position: "technician",
+      phone: "",
+      identity_info: "",
+      id_number: "",
+      household_address: "",
+      mailing_address: "",
+      email: "",
+      emergency_contact: "",
+      emergency_phone: "",
+      bank_account: "",
+      bank_branch: "",
+      hire_date: "",
+      base_salary_default: "0",
+      position_allowance_default: "0",
+      meal_allowance_default: "0",
+      transport_allowance_default: "0",
+      overtime_rate_default: "0",
+      leave_day_rate_default: "0"
+    });
     await load();
   }
 
   async function saveSalary(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSyncMessage("");
     if (!isHrAdmin) return alert("只有總管理員或人資可以建立薪資單。");
-    const { error } = await supabase.from("staff_salary").upsert(
-      {
-        employee_no: salaryForm.employee_no,
-        salary_month: salaryForm.salary_month,
-        base_salary: Number(salaryForm.base_salary || 0),
-        construction_bonus: Number(salaryForm.construction_bonus || 0),
-        overtime_pay: Number(salaryForm.overtime_pay || 0),
-        late_deduction: Number(salaryForm.late_deduction || 0),
-        leave_deduction: Number(salaryForm.leave_deduction || 0),
-        photo_penalty: Number(salaryForm.photo_penalty || 0),
-        other_deduction: Number(salaryForm.other_deduction || 0),
-        net_salary: salaryNet
-      },
-      { onConflict: "employee_no,salary_month" }
-    );
+    if (!selectedStaff) return alert("請先選擇員工。");
+    const shopName = shops.find((shop) => shop.id === selectedStaff.shop_id)?.name || "";
+    const totals = salaryTotals;
+    const payload = {
+      salary_month: salaryForm.salary_month,
+      employee_no: selectedStaff.employee_no,
+      shop_id: selectedStaff.shop_id,
+      shop_name: shopName,
+      position: selectedStaff.position,
+      base_salary: Number(salaryForm.base_salary || 0),
+      position_allowance: Number(salaryForm.position_allowance || 0),
+      meal_allowance: Number(salaryForm.meal_allowance || 0),
+      attendance_bonus: Number(salaryForm.attendance_bonus || 0),
+      overtime_hours: Number(salaryForm.overtime_hours || 0),
+      overtime_rate: Number(salaryForm.overtime_rate || 0),
+      overtime_pay: totals.overtime_pay,
+      transport_allowance: Number(salaryForm.transport_allowance || 0),
+      incentive_bonus: Number(salaryForm.incentive_bonus || 0),
+      dispatch_allowance: Number(salaryForm.dispatch_allowance || 0),
+      unused_leave_pay: Number(salaryForm.unused_leave_pay || 0),
+      mentor_bonus: Number(salaryForm.mentor_bonus || 0),
+      performance_bonus: Number(salaryForm.performance_bonus || 0),
+      sales_bonus: Number(salaryForm.sales_bonus || 0),
+      labor_insurance_fee: Number(salaryForm.labor_insurance_fee || 0),
+      health_insurance_fee: Number(salaryForm.health_insurance_fee || 0),
+      pension_self_pay: Number(salaryForm.pension_self_pay || 0),
+      leave_days: Number(salaryForm.leave_days || 0),
+      leave_day_rate: Number(salaryForm.leave_day_rate || 0),
+      sick_leave_deduction: totals.sick_leave_deduction,
+      advance_payment: Number(salaryForm.advance_payment || 0),
+      kip_penalty: Number(salaryForm.kip_penalty || 0),
+      gross_amount: totals.gross_amount,
+      deduction_amount: totals.deduction_amount,
+      net_salary: totals.net_salary,
+      created_by: profileId
+    };
+
+    const { data, error } = await supabase.from("salary_records").insert(payload).select("*").single();
     if (error) return alert(error.message);
+
+    try {
+      const response = await fetch("/api/hr/salary-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          unique_key: data.id,
+          record: {
+            ...data,
+            staff_name: selectedStaff.name,
+            employee_phone: selectedStaff.phone || ""
+          },
+          shop_id: selectedStaff.shop_id,
+          shop_name: shopName
+        })
+      });
+      setSyncMessage(response.ok ? "薪資單已建檔，並已送出 N8N 雲端薪資同步。" : "薪資單已建檔，但 N8N 同步回報失敗，請到 N8N 紀錄檢查。");
+    } catch {
+      setSyncMessage("薪資單已建檔，但 N8N 暫時無法連線；系統資料不受影響。");
+    }
+
+    setSalaryForm(emptySalaryForm());
     await load();
   }
 
@@ -176,23 +314,26 @@ export default function PayrollPage() {
     await load();
   }
 
-  async function createReminder(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!isHrAdmin && !canViewShop) return alert("沒有建立照片提醒的權限。");
-    const { error } = await supabase.from("work_photo_remind").insert({
-      employee_no: reminderForm.employee_no,
-      construction_order_id: reminderForm.construction_order_id || null,
-      due_at: new Date(reminderForm.due_at).toISOString(),
-      photo_completed: false,
-      penalty_applied: false,
-      penalty_amount: Number(reminderForm.penalty_amount || 0)
-    });
-    if (error) return alert(error.message);
-    await load();
-  }
-
-  async function toggleReminder(row: ReminderRow, field: "photo_completed" | "penalty_applied") {
-    const { error } = await supabase.from("work_photo_remind").update({ [field]: !row[field] }).eq("id", row.id);
+  async function reviewRequest(row: StaffModifyRequest, status: "approved" | "rejected") {
+    if (!isHrAdmin) return alert("只有總管理員或人資可以審核資料變更。");
+    if (status === "approved" && !editableRequestFields.includes(row.field_name as (typeof editableRequestFields)[number])) {
+      return alert("此欄位不開放員工自行申請變更。");
+    }
+    if (status === "approved") {
+      const { error: updateError } = await supabase
+        .from("staff_info")
+        .update({ [row.field_name]: row.new_value })
+        .eq("id", row.staff_id);
+      if (updateError) return alert(updateError.message);
+    }
+    const { error } = await supabase
+      .from("staff_info_modify_request")
+      .update({
+        review_status: status,
+        reviewer_id: profileId,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq("id", row.id);
     if (error) return alert(error.message);
     await load();
   }
@@ -202,98 +343,113 @@ export default function PayrollPage() {
       <div className="space-y-6">
         <section className="card">
           <p className="text-sm font-black text-carcare-yellow">HR Payroll</p>
-          <h1 className="text-2xl font-black">薪資作業與施工照片監控</h1>
+          <h1 className="text-2xl font-black">人資薪資作業</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            這裡可建立員工、薪資單、出勤紀錄與施工照片逾期提醒。員工登入後只能查看自己的資料。
+            建立員工人事資料、出勤紀錄與薪資單。薪資永久存入系統，並送出 N8N 備份至 Google 雲端薪資表。
           </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-4">
           <Summary title="員工總數" value={staffRows.length} />
-          <Summary title="薪資單" value={salaryRows.length} />
+          <Summary title="薪資紀錄" value={salaryRows.length} />
           <Summary title="出勤紀錄" value={attendanceRows.length} />
-          <Summary title="照片待補" value={reminders.filter((row) => !row.photo_completed).length} />
+          <Summary title="待審申請" value={modifyRows.filter((row) => row.review_status === "pending").length} />
         </section>
 
         {isHrAdmin ? (
           <section className="grid gap-5 xl:grid-cols-2">
             <form onSubmit={createStaff} className="card space-y-3">
-              <h2 className="text-xl font-black">快速新增員工帳號</h2>
+              <h2 className="text-xl font-black">員工人事建檔</h2>
               <div className="grid gap-3 md:grid-cols-2">
-                <input className="form-input" placeholder="員工編號" value={staffForm.employee_no} onChange={(e) => setStaffForm({ ...staffForm, employee_no: e.target.value })} />
-                <input className="form-input" type="password" placeholder="初始密碼" value={staffForm.password_hash} onChange={(e) => setStaffForm({ ...staffForm, password_hash: e.target.value })} />
-                <input className="form-input" placeholder="姓名" value={staffForm.name} onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })} />
-                <input className="form-input" placeholder="聯絡電話" value={staffForm.phone} onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })} />
-                <select className="form-input" value={staffForm.shop_id} onChange={(e) => setStaffForm({ ...staffForm, shop_id: e.target.value })}>
+                <input className="form-input" required placeholder="員工編號" value={staffForm.employee_no} onChange={(event) => setStaffForm({ ...staffForm, employee_no: event.target.value })} />
+                <input className="form-input" required type="password" placeholder="登入密碼" value={staffForm.password_hash} onChange={(event) => setStaffForm({ ...staffForm, password_hash: event.target.value })} />
+                <input className="form-input" required placeholder="姓名" value={staffForm.name} onChange={(event) => setStaffForm({ ...staffForm, name: event.target.value })} />
+                <input className="form-input" placeholder="聯絡手機" value={staffForm.phone} onChange={(event) => setStaffForm({ ...staffForm, phone: event.target.value })} />
+                <select className="form-input" value={staffForm.shop_id} onChange={(event) => setStaffForm({ ...staffForm, shop_id: event.target.value })}>
                   <option value="">選擇門市</option>
                   {shops.map((shop) => <option key={shop.id} value={shop.id}>{shop.name}</option>)}
                 </select>
-                <select className="form-input" value={staffForm.position} onChange={(e) => setStaffForm({ ...staffForm, position: e.target.value })}>
+                <select className="form-input" value={staffForm.position} onChange={(event) => setStaffForm({ ...staffForm, position: event.target.value })}>
                   {positionOptions.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
-                <input className="form-input" type="date" value={staffForm.hire_date} onChange={(e) => setStaffForm({ ...staffForm, hire_date: e.target.value })} />
-                <input className="form-input" placeholder="身分資料備註" value={staffForm.identity_info} onChange={(e) => setStaffForm({ ...staffForm, identity_info: e.target.value })} />
+                <input className="form-input" type="date" value={staffForm.hire_date} onChange={(event) => setStaffForm({ ...staffForm, hire_date: event.target.value })} />
+                <input className="form-input" placeholder="身分資訊" value={staffForm.identity_info} onChange={(event) => setStaffForm({ ...staffForm, identity_info: event.target.value })} />
+                <input className="form-input" placeholder="身分證字號" value={staffForm.id_number} onChange={(event) => setStaffForm({ ...staffForm, id_number: event.target.value })} />
+                <input className="form-input" placeholder="戶籍地址" value={staffForm.household_address} onChange={(event) => setStaffForm({ ...staffForm, household_address: event.target.value })} />
+                <input className="form-input" placeholder="通訊地址" value={staffForm.mailing_address} onChange={(event) => setStaffForm({ ...staffForm, mailing_address: event.target.value })} />
+                <input className="form-input" placeholder="電子信箱" value={staffForm.email} onChange={(event) => setStaffForm({ ...staffForm, email: event.target.value })} />
+                <input className="form-input" placeholder="緊急聯絡人" value={staffForm.emergency_contact} onChange={(event) => setStaffForm({ ...staffForm, emergency_contact: event.target.value })} />
+                <input className="form-input" placeholder="緊急聯絡電話" value={staffForm.emergency_phone} onChange={(event) => setStaffForm({ ...staffForm, emergency_phone: event.target.value })} />
+                <input className="form-input" placeholder="銀行帳號" value={staffForm.bank_account} onChange={(event) => setStaffForm({ ...staffForm, bank_account: event.target.value })} />
+                <input className="form-input" placeholder="銀行分行名稱" value={staffForm.bank_branch} onChange={(event) => setStaffForm({ ...staffForm, bank_branch: event.target.value })} />
+                <input className="form-input" type="number" placeholder="底薪預設值" value={staffForm.base_salary_default} onChange={(event) => setStaffForm({ ...staffForm, base_salary_default: event.target.value })} />
+                <input className="form-input" type="number" placeholder="職務津貼預設值" value={staffForm.position_allowance_default} onChange={(event) => setStaffForm({ ...staffForm, position_allowance_default: event.target.value })} />
+                <input className="form-input" type="number" placeholder="伙食津貼預設值" value={staffForm.meal_allowance_default} onChange={(event) => setStaffForm({ ...staffForm, meal_allowance_default: event.target.value })} />
+                <input className="form-input" type="number" placeholder="交通津貼預設值" value={staffForm.transport_allowance_default} onChange={(event) => setStaffForm({ ...staffForm, transport_allowance_default: event.target.value })} />
+                <input className="form-input" type="number" placeholder="加班時薪預設值" value={staffForm.overtime_rate_default} onChange={(event) => setStaffForm({ ...staffForm, overtime_rate_default: event.target.value })} />
+                <input className="form-input" type="number" placeholder="事病假每日扣款預設值" value={staffForm.leave_day_rate_default} onChange={(event) => setStaffForm({ ...staffForm, leave_day_rate_default: event.target.value })} />
               </div>
               <button className="primary-btn" type="submit">新增員工</button>
             </form>
 
             <form onSubmit={saveSalary} className="card space-y-3">
-              <h2 className="text-xl font-black">建立 / 更新薪資單</h2>
+              <h2 className="text-xl font-black">建立薪資單</h2>
               <div className="grid gap-3 md:grid-cols-2">
-                <select className="form-input" value={salaryForm.employee_no} onChange={(e) => setSalaryForm({ ...salaryForm, employee_no: e.target.value })}>
+                <select className="form-input" required value={salaryForm.employee_no} onChange={(event) => fillSalaryDefaults(event.target.value)}>
                   <option value="">選擇員工</option>
                   {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
                 </select>
-                <input className="form-input" type="month" value={salaryForm.salary_month} onChange={(e) => setSalaryForm({ ...salaryForm, salary_month: e.target.value })} />
-                {(["base_salary", "construction_bonus", "overtime_pay", "late_deduction", "leave_deduction", "photo_penalty", "other_deduction"] as const).map((field) => (
-                  <input key={field} className="form-input" type="number" placeholder={field} value={salaryForm[field]} onChange={(e) => setSalaryForm({ ...salaryForm, [field]: e.target.value })} />
+                <input className="form-input" type="month" value={salaryForm.salary_month} onChange={(event) => setSalaryForm({ ...salaryForm, salary_month: event.target.value })} />
+                <input className="form-input" type="number" placeholder="加班時數" value={salaryForm.overtime_hours} onChange={(event) => setSalaryForm({ ...salaryForm, overtime_hours: event.target.value })} />
+                <input className="form-input" type="number" placeholder="加班時薪" value={salaryForm.overtime_rate} onChange={(event) => setSalaryForm({ ...salaryForm, overtime_rate: event.target.value })} />
+                <input className="form-input" type="number" placeholder="事病假天數" value={salaryForm.leave_days} onChange={(event) => setSalaryForm({ ...salaryForm, leave_days: event.target.value })} />
+                <input className="form-input" type="number" placeholder="事病假每日扣款" value={salaryForm.leave_day_rate} onChange={(event) => setSalaryForm({ ...salaryForm, leave_day_rate: event.target.value })} />
+              </div>
+              <h3 className="font-black">應給加項</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {incomeFields.map(([field, label]) => (
+                  <input key={field} className="form-input" type="number" placeholder={label} value={field === "overtime_pay" ? String(salaryTotals.overtime_pay) : salaryForm[field]} onChange={(event) => setSalaryForm({ ...salaryForm, [field]: event.target.value })} readOnly={field === "overtime_pay"} />
                 ))}
               </div>
-              <div className="rounded-2xl bg-carcare-black p-4 text-white">
-                <p className="text-sm text-white/70">預估實發薪資</p>
-                <p className="text-3xl font-black text-carcare-yellow">{money(salaryNet)}</p>
+              <h3 className="font-black">應扣減項</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {deductionFields.map(([field, label]) => (
+                  <input key={field} className="form-input" type="number" placeholder={label} value={field === "sick_leave_deduction" ? String(salaryTotals.sick_leave_deduction) : salaryForm[field]} onChange={(event) => setSalaryForm({ ...salaryForm, [field]: event.target.value })} readOnly={field === "sick_leave_deduction"} />
+                ))}
               </div>
-              <button className="primary-btn" type="submit">儲存薪資單</button>
+              <div className="grid gap-3 md:grid-cols-3">
+                <TotalCard title="應給總額" value={salaryTotals.gross_amount} />
+                <TotalCard title="應扣總額" value={salaryTotals.deduction_amount} />
+                <TotalCard title="實領金額" value={salaryTotals.net_salary} important />
+              </div>
+              {syncMessage ? <p className="rounded-xl border border-carcare-yellow bg-carcare-yellow/10 p-3 text-sm">{syncMessage}</p> : null}
+              <button className="primary-btn" type="submit">儲存薪資單並同步雲端</button>
             </form>
           </section>
         ) : null}
 
         {isHrAdmin ? (
-          <section className="grid gap-5 xl:grid-cols-2">
-            <form onSubmit={createAttendance} className="card space-y-3">
-              <h2 className="text-xl font-black">出勤登記</h2>
-              <div className="grid gap-3 md:grid-cols-2">
-                <select className="form-input" value={attendanceForm.employee_no} onChange={(e) => setAttendanceForm({ ...attendanceForm, employee_no: e.target.value })}>
-                  <option value="">選擇員工</option>
-                  {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
-                </select>
-                <input className="form-input" type="date" value={attendanceForm.work_date} onChange={(e) => setAttendanceForm({ ...attendanceForm, work_date: e.target.value })} />
-                <input className="form-input" placeholder="上班時間" value={attendanceForm.clock_in_at} onChange={(e) => setAttendanceForm({ ...attendanceForm, clock_in_at: e.target.value })} />
-                <input className="form-input" placeholder="下班時間" value={attendanceForm.clock_out_at} onChange={(e) => setAttendanceForm({ ...attendanceForm, clock_out_at: e.target.value })} />
-                <input className="form-input" type="number" placeholder="遲到分鐘" value={attendanceForm.late_minutes} onChange={(e) => setAttendanceForm({ ...attendanceForm, late_minutes: e.target.value })} />
-                <input className="form-input" placeholder="請假類型" value={attendanceForm.leave_type} onChange={(e) => setAttendanceForm({ ...attendanceForm, leave_type: e.target.value })} />
-                <input className="form-input" type="number" placeholder="請假時數" value={attendanceForm.leave_hours} onChange={(e) => setAttendanceForm({ ...attendanceForm, leave_hours: e.target.value })} />
-                <input className="form-input" type="number" placeholder="加班時數" value={attendanceForm.overtime_hours} onChange={(e) => setAttendanceForm({ ...attendanceForm, overtime_hours: e.target.value })} />
-              </div>
-              <button className="primary-btn" type="submit">新增出勤紀錄</button>
-            </form>
-
-            <form onSubmit={createReminder} className="card space-y-3">
-              <h2 className="text-xl font-black">施工照片提醒</h2>
-              <select className="form-input" value={reminderForm.employee_no} onChange={(e) => setReminderForm({ ...reminderForm, employee_no: e.target.value })}>
-                <option value="">選擇技師</option>
+          <section className="card">
+            <h2 className="text-xl font-black">出勤登記</h2>
+            <form onSubmit={createAttendance} className="mt-4 grid gap-3 md:grid-cols-4">
+              <select className="form-input" required value={attendanceForm.employee_no} onChange={(event) => setAttendanceForm({ ...attendanceForm, employee_no: event.target.value })}>
+                <option value="">選擇員工</option>
                 {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
               </select>
-              <input className="form-input" placeholder="施工單 ID，可留空" value={reminderForm.construction_order_id} onChange={(e) => setReminderForm({ ...reminderForm, construction_order_id: e.target.value })} />
-              <input className="form-input" type="datetime-local" value={reminderForm.due_at} onChange={(e) => setReminderForm({ ...reminderForm, due_at: e.target.value })} />
-              <input className="form-input" type="number" placeholder="逾期罰扣金額" value={reminderForm.penalty_amount} onChange={(e) => setReminderForm({ ...reminderForm, penalty_amount: e.target.value })} />
-              <button className="primary-btn" type="submit">建立提醒</button>
+              <input className="form-input" type="date" value={attendanceForm.work_date} onChange={(event) => setAttendanceForm({ ...attendanceForm, work_date: event.target.value })} />
+              <input className="form-input" placeholder="上班時間" value={attendanceForm.clock_in_at} onChange={(event) => setAttendanceForm({ ...attendanceForm, clock_in_at: event.target.value })} />
+              <input className="form-input" placeholder="下班時間" value={attendanceForm.clock_out_at} onChange={(event) => setAttendanceForm({ ...attendanceForm, clock_out_at: event.target.value })} />
+              <input className="form-input" type="number" placeholder="遲到分鐘" value={attendanceForm.late_minutes} onChange={(event) => setAttendanceForm({ ...attendanceForm, late_minutes: event.target.value })} />
+              <input className="form-input" placeholder="請假類型" value={attendanceForm.leave_type} onChange={(event) => setAttendanceForm({ ...attendanceForm, leave_type: event.target.value })} />
+              <input className="form-input" type="number" placeholder="請假時數" value={attendanceForm.leave_hours} onChange={(event) => setAttendanceForm({ ...attendanceForm, leave_hours: event.target.value })} />
+              <input className="form-input" type="number" placeholder="加班時數" value={attendanceForm.overtime_hours} onChange={(event) => setAttendanceForm({ ...attendanceForm, overtime_hours: event.target.value })} />
+              <button className="primary-btn md:col-span-4" type="submit">新增出勤紀錄</button>
             </form>
           </section>
         ) : null}
 
         <section className="card">
-          <h2 className="text-xl font-black">員工清單</h2>
+          <h2 className="text-xl font-black">員工總檔</h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {staffRows.map((staff) => (
               <div key={staff.employee_no} className="rounded-2xl border border-neutral-200 p-4">
@@ -306,10 +462,39 @@ export default function PayrollPage() {
         </section>
 
         <section className="card">
-          <h2 className="text-xl font-black">薪資清單</h2>
+          <h2 className="text-xl font-black">員工資料變更申請審核</h2>
+          <div className="mt-4 space-y-3">
+            {modifyRows.map((row) => (
+              <div key={row.id} className="rounded-2xl border border-neutral-200 p-4">
+                <p className="font-black">{row.employee_no || row.staff_id} / {row.field_name}</p>
+                <p className="mt-1 text-sm text-neutral-600">新內容：{row.new_value}</p>
+                <p className="mt-1 text-sm text-neutral-500">狀態：{row.review_status}</p>
+                {isHrAdmin && row.review_status === "pending" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" className="primary-btn" onClick={() => reviewRequest(row, "approved")}>核准</button>
+                    <button type="button" className="secondary-btn" onClick={() => reviewRequest(row, "rejected")}>駁回</button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            {!modifyRows.length ? <p className="text-neutral-500">目前沒有資料變更申請。</p> : null}
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="text-xl font-black">薪資歷史建檔紀錄</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
-              <thead><tr className="bg-neutral-100 text-left"><th className="p-3">員工</th><th className="p-3">月份</th><th className="p-3">實發</th><th className="p-3">PDF</th></tr></thead>
+              <thead>
+                <tr className="bg-neutral-100 text-left">
+                  <th className="p-3">員工</th>
+                  <th className="p-3">薪資年月</th>
+                  <th className="p-3">應給總額</th>
+                  <th className="p-3">應扣總額</th>
+                  <th className="p-3">實領金額</th>
+                  <th className="p-3">PDF</th>
+                </tr>
+              </thead>
               <tbody>
                 {salaryRows.map((salary) => {
                   const staff = staffRows.find((item) => item.employee_no === salary.employee_no);
@@ -317,6 +502,8 @@ export default function PayrollPage() {
                     <tr key={salary.id} className="border-b border-neutral-200">
                       <td className="p-3">{staff?.name || salary.employee_no}</td>
                       <td className="p-3">{salary.salary_month}</td>
+                      <td className="p-3">{money(salary.gross_amount)}</td>
+                      <td className="p-3">{money(salary.deduction_amount)}</td>
                       <td className="p-3 font-black text-carcare-yellow">{money(salary.net_salary)}</td>
                       <td className="p-3">{staff ? <SalaryPdfButton staff={staff} salary={salary} /> : null}</td>
                     </tr>
@@ -324,35 +511,19 @@ export default function PayrollPage() {
                 })}
               </tbody>
             </table>
+            {!salaryRows.length ? <p className="p-6 text-center text-neutral-500">目前沒有薪資建檔紀錄。</p> : null}
           </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-2">
-          <div className="card">
-            <h2 className="text-xl font-black">出勤紀錄</h2>
-            <div className="mt-4 space-y-3">
-              {attendanceRows.map((row) => (
-                <div key={row.id} className="rounded-2xl border border-neutral-200 p-4">
-                  <p className="font-black">{row.employee_no} / {row.work_date}</p>
-                  <p className="text-sm text-neutral-600">遲到 {row.late_minutes || 0} 分鐘 / 請假 {row.leave_type || "無"} {row.leave_hours || 0} 小時 / 加班 {row.overtime_hours || 0} 小時</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="card">
-            <h2 className="text-xl font-black">施工照片監控</h2>
-            <div className="mt-4 space-y-3">
-              {reminders.map((row) => (
-                <div key={row.id} className={`rounded-2xl border p-4 ${row.photo_completed ? "border-neutral-200" : "border-carcare-yellow bg-carcare-yellow/10"}`}>
-                  <p className="font-black">{row.employee_no} / {row.construction_order_id || "未指定工單"}</p>
-                  <p className="text-sm text-neutral-600">截止：{row.due_at} / 罰扣：{money(row.penalty_amount)}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button className="secondary-btn" type="button" onClick={() => toggleReminder(row, "photo_completed")}>{row.photo_completed ? "改回待補" : "標記已補齊"}</button>
-                    {isHrAdmin ? <button className="secondary-btn" type="button" onClick={() => toggleReminder(row, "penalty_applied")}>{row.penalty_applied ? "取消扣薪" : "納入扣薪"}</button> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
+        <section className="card">
+          <h2 className="text-xl font-black">出勤紀錄</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {attendanceRows.map((row) => (
+              <div key={row.id} className="rounded-2xl border border-neutral-200 p-4">
+                <p className="font-black">{row.employee_no} / {row.work_date}</p>
+                <p className="text-sm text-neutral-600">遲到 {row.late_minutes || 0} 分鐘 / 請假 {row.leave_type || "-"} {row.leave_hours || 0} 小時 / 加班 {row.overtime_hours || 0} 小時</p>
+              </div>
+            ))}
           </div>
         </section>
       </div>
@@ -365,6 +536,15 @@ function Summary({ title, value }: { title: string; value: number }) {
     <div className="card">
       <p className="text-sm text-neutral-500">{title}</p>
       <p className="mt-2 text-3xl font-black text-carcare-yellow">{value}</p>
+    </div>
+  );
+}
+
+function TotalCard({ title, value, important }: { title: string; value: number; important?: boolean }) {
+  return (
+    <div className={`rounded-2xl p-4 ${important ? "bg-carcare-black text-white" : "bg-neutral-50"}`}>
+      <p className="text-sm opacity-70">{title}</p>
+      <p className="mt-2 text-2xl font-black text-carcare-yellow">{money(value)}</p>
     </div>
   );
 }

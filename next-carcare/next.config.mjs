@@ -7,6 +7,10 @@ const nextConfig = {
         hostname: "*.supabase.co"
       }
     ]
+  },
+  webpack(config) {
+    config.cache = false;
+    return config;
   }
 };
 

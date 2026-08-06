@@ -36,8 +36,8 @@ const quickLinks = [
   { href: "/finance/payments", title: "收款登記", desc: "登記收款、訂金、尾款與核銷紀錄。" },
   { href: "/finance/reports", title: "財務報表", desc: "查看營收、支出、稅額與匯出報表。" },
   { href: "/hr/staff-accounts", title: "人資員工建檔", desc: "建立員工編號、密碼、個人資料與變更審核。" },
-  { href: "/hr/payroll", title: "薪資作業", desc: "建立薪資單、出勤扣款與照片逾期罰扣。" },
-  { href: "/staff/login", title: "員工後台登入", desc: "員工用編號登入，查看個人資料、薪資與待辦。" },
+  { href: "/hr/payroll", title: "薪資作業", desc: "建立薪資單、出勤紀錄與薪資雲端備份。" },
+  { href: "/staff/login", title: "員工後台登入", desc: "員工用編號登入，查看個人資料、薪資與出勤。" },
   { href: "/permissions", title: "權限管理", desc: "管理後台角色與可用功能。" },
 ];
 
