@@ -96,7 +96,7 @@ function todayKey() {
 }
 
 function n8nSecurityKey() {
-  return process.env.N8N_WEBHOOK_SECRET || process.env.N8N_SECURITY_KEY || "";
+  return process.env.N8N_WEBHOOK_SECRET || process.env.N8N_SECURITY_KEY || "peiway-realtime-sync-2026";
 }
 
 export async function getN8nSettings() {
