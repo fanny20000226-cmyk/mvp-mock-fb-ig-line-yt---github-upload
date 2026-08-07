@@ -99,6 +99,17 @@ function n8nSecurityKey() {
   return "peiway-realtime-sync-2026";
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function getN8nSettings() {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
@@ -217,7 +228,7 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
   };
 
   try {
-    const response = await fetch(settings.webhook_url, {
+    const response = await fetchWithTimeout(settings.webhook_url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(outbound)

@@ -303,7 +303,7 @@ export async function POST(request: Request) {
     }
     if (lastUpdateError) throw lastUpdateError;
 
-    await notifyQuoteCustomerSync({
+    void notifyQuoteCustomerSync({
       quote: typedQuote,
       shopId: quoteShopId,
       customerId,

@@ -402,7 +402,7 @@ export async function POST(request: Request) {
 
     if (!quoteUpdated) throw lastQuoteUpdateError || new Error("施工單已建立，但報價單狀態回寫失敗。");
 
-    await notifyQuoteCustomerSync({
+    void notifyQuoteCustomerSync({
       quote: typedQuote,
       shopId: quoteShopId,
       customerId,
