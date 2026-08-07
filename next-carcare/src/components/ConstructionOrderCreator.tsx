@@ -40,6 +40,14 @@ const emptyForm = {
   paid_amount: "",
 };
 
+function normalizePlate(value?: string | null) {
+  return (value || "").trim().toLowerCase();
+}
+
+function quoteAmount(quote?: QuoteRow | null) {
+  return Number(quote?.final_amount || quote?.total_amount || 0);
+}
+
 export default function ConstructionOrderCreator({ onCreated }: { onCreated: () => void }) {
   const [cars, setCars] = useState<CarRow[]>([]);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
@@ -72,25 +80,30 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     [form.quotation_id, quotes]
   );
 
+  const matchedQuoteCar = useMemo(() => {
+    if (!selectedQuote?.plate_no) return null;
+    const quotePlate = normalizePlate(selectedQuote.plate_no);
+    return cars.find((car) => normalizePlate(car.plate_no || car.license_plate) === quotePlate) || null;
+  }, [cars, selectedQuote]);
+
   useEffect(() => {
     if (!selectedQuote) return;
 
-    const quotePlate = (selectedQuote.plate_no || "").trim().toLowerCase();
-    const matchedCar = cars.find((car) => ((car.plate_no || car.license_plate || "").trim().toLowerCase()) === quotePlate);
-
     setForm((current) => ({
       ...current,
-      car_id: matchedCar?.id || "",
-      total_amount: String(Number(selectedQuote.final_amount || selectedQuote.total_amount || 0)),
+      car_id: matchedQuoteCar?.id || "",
+      total_amount: String(quoteAmount(selectedQuote)),
     }));
-  }, [selectedQuote, cars]);
+  }, [matchedQuoteCar, selectedQuote]);
 
   async function convertSelectedQuote() {
-    if (!form.quotation_id) return false;
+    const quote = selectedQuote || quotes.find((item) => item.id === form.quotation_id);
+    if (!quote) throw new Error("請先選擇要轉成施工單的報價單。");
+    if (!quote.plate_no?.trim()) throw new Error("這張報價單沒有車牌，請先回報價單補上車牌。");
 
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    if (!token) throw new Error("登入狀態已失效，請重新登入。");
+    if (!token) throw new Error("登入狀態已失效，請重新登入後再轉工單。");
 
     const response = await fetch("/api/operations/convert-quote", {
       method: "POST",
@@ -99,23 +112,22 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        quoteId: form.quotation_id,
+        quoteId: quote.id,
         responsibleStaffId: form.responsible_staff_id || undefined,
         paidAmount: Number(form.paid_amount || 0),
-        totalAmount: Number(form.total_amount || selectedQuote?.final_amount || selectedQuote?.total_amount || 0),
+        totalAmount: Number(form.total_amount || quoteAmount(quote)),
         serviceNote: form.service_note,
       }),
     });
 
     const result = (await response.json().catch(() => ({}))) as { message?: string };
-    if (!response.ok) throw new Error(result.message || "轉工單失敗。");
-    return true;
+    if (!response.ok) throw new Error(result.message || "轉工單失敗，請確認報價單、車輛與門市資料是否完整。");
   }
 
   async function createManualOrder() {
     const profile = await getCurrentProfile();
     if (!profile?.shop_id) throw new Error("目前帳號尚未綁定門市，無法建立施工單。");
-    if (!form.car_id) throw new Error("請先選擇車輛，或先選擇一張報價單讓系統自動建立車輛資料。");
+    if (!form.car_id) throw new Error("請先選擇車輛；若是從報價轉工單，請改選右側的報價單。");
 
     const { error } = await supabase.from("construction_orders").insert({
       shop_id: profile.shop_id,
@@ -139,13 +151,13 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     setSaving(true);
 
     try {
-      if (form.quotation_id) await convertSelectedQuote();
+      if (selectedQuote || form.quotation_id) await convertSelectedQuote();
       else await createManualOrder();
 
       setForm(emptyForm);
       await loadOptions();
       onCreated();
-      alert("施工單已建立，工作台與施工清單會同步更新。");
+      alert("施工單已建立，工作台與施工訂單列表會同步更新。");
     } catch (error) {
       alert(error instanceof Error ? error.message : "建立施工單失敗。");
     } finally {
@@ -159,21 +171,23 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
         <p className="text-sm font-black text-carcare-yellow">施工開單</p>
         <h2 className="text-xl font-black">建立施工單</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          可綁定車輛與報價單。若車輛資料尚未建立，選擇有車牌的報價單後，系統會自動建立車輛資料再開施工單。
+          可選擇既有車輛手動建立，或選擇報價單自動歸檔客戶與車輛後轉成施工單。
         </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
         <select
           className="form-input"
-          value={form.car_id}
+          value={selectedQuote ? matchedQuoteCar?.id || "" : form.car_id}
           onChange={(event) => setForm({ ...form, car_id: event.target.value })}
           disabled={Boolean(selectedQuote)}
         >
-          <option value="">{selectedQuote ? "報價單會自動綁定車輛" : "選擇車輛"}</option>
+          <option value="">
+            {selectedQuote ? "報價轉工單會自動建立/綁定車輛" : "選擇車輛"}
+          </option>
           {cars.map((car) => (
             <option key={car.id} value={car.id}>
-              {car.customer_name || "未命名客戶"} / {car.plate_no || car.license_plate || "無車牌"}
+              {car.customer_name || "未命名客戶"} / {car.plate_no || car.license_plate || "未填車牌"}
             </option>
           ))}
         </select>
@@ -228,7 +242,8 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
 
       {selectedQuote ? (
         <p className="mt-3 rounded-xl border border-carcare-yellow/40 bg-carcare-yellow/10 px-3 py-2 text-sm text-carcare-black">
-          已選報價單 {selectedQuote.quote_no}，建立時會自動用車牌「{selectedQuote.plate_no || "無車牌"}」補齊車輛資料。
+          已選報價單 {selectedQuote.quote_no}，建立時會自動用車牌「{selectedQuote.plate_no || "未填車牌"}」
+          綁定或建立車輛資料，再轉入施工訂單。
         </p>
       ) : null}
 
