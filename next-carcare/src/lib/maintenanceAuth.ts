@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 
 const cookieName = "peiway_maintenance_session";
+const cookiePath = "/";
 
 function maintenanceUser() {
   return process.env.MAINTENANCE_MONITOR_USER || "maintenance";
@@ -37,7 +38,7 @@ export function setMaintenanceSessionCookie(token: string) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/maintenance",
+    path: cookiePath,
     maxAge: 60 * 60 * 8
   });
 }
@@ -47,7 +48,7 @@ export function clearMaintenanceSessionCookie() {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/maintenance",
+    path: cookiePath,
     maxAge: 0
   });
 }

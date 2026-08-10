@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { createMaintenanceSession, verifyMaintenanceCredentials } from "@/lib/maintenanceAuth";
 
 const cookieName = "peiway_maintenance_session";
+const cookiePath = "/";
 
 function setSessionCookie(response: NextResponse, token: string) {
   response.cookies.set(cookieName, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/maintenance",
+    path: cookiePath,
     maxAge: 60 * 60 * 8
   });
 }
