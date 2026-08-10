@@ -438,26 +438,44 @@ export default function PayrollPage() {
             <form onSubmit={saveSalary} className="card space-y-3">
               <h2 className="text-xl font-black">建立薪資單</h2>
               <div className="grid gap-3 md:grid-cols-2">
-                <select className="form-input" required value={salaryForm.employee_no} onChange={(event) => fillSalaryDefaults(event.target.value)}>
-                  <option value="">選擇員工</option>
-                  {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
-                </select>
-                <input className="form-input" type="month" value={salaryForm.salary_month} onChange={(event) => setSalaryForm({ ...salaryForm, salary_month: event.target.value })} />
-                <input className="form-input" type="number" placeholder="加班時數" value={salaryForm.overtime_hours} onChange={(event) => setSalaryForm({ ...salaryForm, overtime_hours: event.target.value })} />
-                <input className="form-input" type="number" placeholder="加班時薪" value={salaryForm.overtime_rate} onChange={(event) => setSalaryForm({ ...salaryForm, overtime_rate: event.target.value })} />
-                <input className="form-input" type="number" placeholder="事病假天數" value={salaryForm.leave_days} onChange={(event) => setSalaryForm({ ...salaryForm, leave_days: event.target.value })} />
-                <input className="form-input" type="number" placeholder="事病假每日扣款" value={salaryForm.leave_day_rate} onChange={(event) => setSalaryForm({ ...salaryForm, leave_day_rate: event.target.value })} />
+                <label className="space-y-1 text-sm font-black text-neutral-700">
+                  <span>員工</span>
+                  <select className="form-input" required value={salaryForm.employee_no} onChange={(event) => fillSalaryDefaults(event.target.value)}>
+                    <option value="">選擇員工</option>
+                    {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm font-black text-neutral-700">
+                  <span>薪資年月</span>
+                  <input className="form-input" type="month" value={salaryForm.salary_month} onChange={(event) => setSalaryForm({ ...salaryForm, salary_month: event.target.value })} />
+                </label>
+                <SalaryNumberField label="加班時數" value={salaryForm.overtime_hours} onChange={(value) => setSalaryForm({ ...salaryForm, overtime_hours: value })} />
+                <SalaryNumberField label="加班時薪" value={salaryForm.overtime_rate} onChange={(value) => setSalaryForm({ ...salaryForm, overtime_rate: value })} />
+                <SalaryNumberField label="事病假天數" value={salaryForm.leave_days} onChange={(value) => setSalaryForm({ ...salaryForm, leave_days: value })} />
+                <SalaryNumberField label="事病假每日扣款" value={salaryForm.leave_day_rate} onChange={(value) => setSalaryForm({ ...salaryForm, leave_day_rate: value })} />
               </div>
               <h3 className="font-black">應給加項</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {incomeFields.map(([field, label]) => (
-                  <input key={field} className="form-input" type="number" placeholder={label} value={field === "overtime_pay" ? String(salaryTotals.overtime_pay) : salaryForm[field]} onChange={(event) => setSalaryForm({ ...salaryForm, [field]: event.target.value })} readOnly={field === "overtime_pay"} />
+                  <SalaryNumberField
+                    key={field}
+                    label={label}
+                    value={field === "overtime_pay" ? String(salaryTotals.overtime_pay) : salaryForm[field]}
+                    onChange={(value) => setSalaryForm({ ...salaryForm, [field]: value })}
+                    readOnly={field === "overtime_pay"}
+                  />
                 ))}
               </div>
               <h3 className="font-black">應扣減項</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {deductionFields.map(([field, label]) => (
-                  <input key={field} className="form-input" type="number" placeholder={label} value={field === "sick_leave_deduction" ? String(salaryTotals.sick_leave_deduction) : salaryForm[field]} onChange={(event) => setSalaryForm({ ...salaryForm, [field]: event.target.value })} readOnly={field === "sick_leave_deduction"} />
+                  <SalaryNumberField
+                    key={field}
+                    label={label}
+                    value={field === "sick_leave_deduction" ? String(salaryTotals.sick_leave_deduction) : salaryForm[field]}
+                    onChange={(value) => setSalaryForm({ ...salaryForm, [field]: value })}
+                    readOnly={field === "sick_leave_deduction"}
+                  />
                 ))}
               </div>
               <div className="grid gap-3 md:grid-cols-3">
@@ -589,6 +607,34 @@ function TotalCard({ title, value, important }: { title: string; value: number; 
       <p className="text-sm opacity-70">{title}</p>
       <p className="mt-2 text-2xl font-black text-carcare-yellow">{money(value)}</p>
     </div>
+  );
+}
+
+function SalaryNumberField({
+  label,
+  value,
+  onChange,
+  readOnly
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  readOnly?: boolean;
+}) {
+  return (
+    <label className="space-y-1 text-sm font-black text-neutral-700">
+      <span>{label}</span>
+      <input
+        className="form-input"
+        type="number"
+        inputMode="decimal"
+        min="0"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        readOnly={readOnly}
+      />
+      {readOnly ? <span className="block text-xs font-normal text-neutral-500">系統依時數自動計算</span> : null}
+    </label>
   );
 }
 
