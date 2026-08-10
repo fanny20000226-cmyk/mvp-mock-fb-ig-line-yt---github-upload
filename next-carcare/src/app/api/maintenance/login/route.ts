@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   };
 
   if (!verifyMaintenanceCredentials(body.account || "", body.password || "")) {
-    return NextResponse.json({ ok: false, message: "維護帳號或密碼錯誤。" }, { status: 401 });
+    return NextResponse.json({ ok: false, message: "維護帳號或密碼不正確" }, { status: 401 });
   }
 
   setMaintenanceSessionCookie(createMaintenanceSession());

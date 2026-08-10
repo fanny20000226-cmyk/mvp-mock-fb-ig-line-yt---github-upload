@@ -15,18 +15,27 @@ export default function MaintenanceLoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
-    const response = await fetch("/api/maintenance/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ account, password })
-    });
-    const result = (await response.json().catch(() => ({}))) as { message?: string };
-    setLoading(false);
-    if (!response.ok) {
-      setError(result.message || "登入失敗。");
-      return;
+
+    try {
+      const response = await fetch("/api/maintenance/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account, password })
+      });
+      const result = (await response.json().catch(() => ({}))) as { message?: string };
+
+      if (!response.ok) {
+        setError(result.message || "登入失敗，請確認帳號密碼");
+        return;
+      }
+
+      router.push("/maintenance/dashboard");
+      router.refresh();
+    } catch {
+      setError("登入失敗，請稍後再試");
+    } finally {
+      setLoading(false);
     }
-    router.push("/maintenance/dashboard");
   }
 
   return (
