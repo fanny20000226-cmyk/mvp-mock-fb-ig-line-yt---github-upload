@@ -1,20 +1,42 @@
 import { NextResponse } from "next/server";
-import {
-  createMaintenanceSession,
-  setMaintenanceSessionCookie,
-  verifyMaintenanceCredentials
-} from "@/lib/maintenanceAuth";
+import { createMaintenanceSession, verifyMaintenanceCredentials } from "@/lib/maintenanceAuth";
+
+const cookieName = "peiway_maintenance_session";
+
+function setSessionCookie(response: NextResponse, token: string) {
+  response.cookies.set(cookieName, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/maintenance",
+    maxAge: 60 * 60 * 8
+  });
+}
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as {
-    account?: string;
-    password?: string;
-  };
+  const contentType = request.headers.get("content-type") || "";
+  const body = contentType.includes("application/json")
+    ? ((await request.json().catch(() => ({}))) as { account?: string; password?: string })
+    : Object.fromEntries((await request.formData()).entries());
 
-  if (!verifyMaintenanceCredentials(body.account || "", body.password || "")) {
-    return NextResponse.json({ ok: false, message: "維護帳號或密碼不正確" }, { status: 401 });
+  const account = String(body.account || "");
+  const password = String(body.password || "");
+  const isFormPost = !contentType.includes("application/json");
+
+  if (!verifyMaintenanceCredentials(account, password)) {
+    if (isFormPost) {
+      return NextResponse.redirect(new URL("/maintenance/login?error=1", request.url), { status: 303 });
+    }
+    return NextResponse.json({ ok: false, message: "Maintenance account or password is incorrect." }, { status: 401 });
   }
 
-  setMaintenanceSessionCookie(createMaintenanceSession());
-  return NextResponse.json({ ok: true });
+  if (isFormPost) {
+    const response = NextResponse.redirect(new URL("/maintenance/dashboard", request.url), { status: 303 });
+    setSessionCookie(response, createMaintenanceSession());
+    return response;
+  }
+
+  const response = NextResponse.json({ ok: true });
+  setSessionCookie(response, createMaintenanceSession());
+  return response;
 }
