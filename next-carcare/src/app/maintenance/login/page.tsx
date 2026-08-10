@@ -1,10 +1,30 @@
 import { LockKeyhole } from "lucide-react";
+import { redirect } from "next/navigation";
+import {
+  createMaintenanceSession,
+  setMaintenanceSessionCookie,
+  verifyMaintenanceCredentials
+} from "@/lib/maintenanceAuth";
 
 type PageProps = {
   searchParams?: {
     error?: string;
   };
 };
+
+async function loginAction(formData: FormData) {
+  "use server";
+
+  const account = String(formData.get("account") || "");
+  const password = String(formData.get("password") || "");
+
+  if (!verifyMaintenanceCredentials(account, password)) {
+    redirect("/maintenance/login?error=1");
+  }
+
+  setMaintenanceSessionCookie(createMaintenanceSession());
+  redirect("/maintenance/dashboard");
+}
 
 export default function MaintenanceLoginPage({ searchParams }: PageProps) {
   const hasError = searchParams?.error === "1";
@@ -26,7 +46,7 @@ export default function MaintenanceLoginPage({ searchParams }: PageProps) {
           {"\u672c\u5e73\u53f0\u70ba\u7368\u7acb\u53ea\u8b80\u76e3\u63a7\u5165\u53e3\uff0c\u4e0d\u5171\u7528\u71df\u904b\u5f8c\u53f0\u5e33\u865f\uff0c\u4e5f\u4e0d\u63d0\u4f9b\u4efb\u4f55\u696d\u52d9\u8cc7\u6599\u65b0\u589e\u3001\u4fee\u6539\u3001\u522a\u9664\u529f\u80fd\u3002"}
         </p>
 
-        <form className="space-y-4" action="/api/maintenance/login" method="post">
+        <form className="space-y-4" action={loginAction}>
           <input
             className="form-input"
             name="account"
