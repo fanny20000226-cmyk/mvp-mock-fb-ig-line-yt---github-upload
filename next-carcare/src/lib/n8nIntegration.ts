@@ -1,4 +1,4 @@
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+﻿import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export type N8nEventType =
   | "todo"
@@ -52,11 +52,11 @@ type N8nSettings = {
   is_enabled: boolean;
 };
 
-export type SheetSyncKind = "customer" | "finance" | "salary";
+export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance";
 
 export type SheetSyncInput = {
   sync_type: SheetSyncKind;
-  source_table: "customers" | "cars" | "payment" | "transaction_record" | "salary_records" | string;
+  source_table: "customers" | "cars" | "payment" | "transaction_record" | "salary_records" | "staff_info" | "employees" | "staff_attendance" | "attendance_log" | string;
   operation: "insert" | "update" | "upsert" | "test";
   unique_key: string;
   record: Record<string, unknown>;
@@ -258,13 +258,19 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {
   const sheetName =
     input.sync_type === "customer"
-      ? "\u5ba2\u6236\u4e3b\u6a94"
+      ? "客戶主檔"
       : input.sync_type === "salary"
-        ? "\u54e1\u5de5\u85aa\u8cc7\u660e\u7d30\u8868\uff08\u96f2\u7aef\u5efa\u6a94\uff09"
-        : "\u4ea4\u6613\u8ca1\u52d9\u660e\u7d30";
+        ? "每月薪資紀錄"
+        : input.sync_type === "employee"
+          ? "員工人事檔"
+          : input.sync_type === "attendance"
+            ? "出勤紀錄"
+            : "交易財務明細";
   const targetSheetId =
     input.target_sheet_id ||
-    (input.sync_type === "salary" ? process.env.GOOGLE_SALARY_SHEET_ID || "" : process.env.GOOGLE_REPORT_SHEET_ID || "");
+    (["salary", "employee", "attendance"].includes(input.sync_type)
+      ? process.env.GOOGLE_SALARY_SHEET_ID || process.env.GOOGLE_REPORT_SHEET_ID || ""
+      : process.env.GOOGLE_REPORT_SHEET_ID || "");
 
   return sendEventToN8n({
     event_type: input.is_test ? "sheet_sync_test" : "sheet_sync",
@@ -289,6 +295,47 @@ export async function sendSheetSyncToN8n(input: SheetSyncInput) {
   });
 }
 
+export async function sendEmployeeSheetSync(input: {
+  operation?: SheetSyncInput["operation"];
+  unique_key: string;
+  record: Record<string, unknown>;
+  shop_id?: string | null;
+  shop_name?: string | null;
+}) {
+  return sendSheetSyncToN8n({
+    sync_type: "employee",
+    source_table: "staff_info",
+    operation: input.operation || "upsert",
+    unique_key: input.unique_key,
+    record: {
+      ...input.record,
+      updated_at: new Date().toISOString()
+    },
+    store_id: input.shop_id || null,
+    store_name: input.shop_name || null
+  });
+}
+
+export async function sendAttendanceSheetSync(input: {
+  operation?: SheetSyncInput["operation"];
+  unique_key: string;
+  record: Record<string, unknown>;
+  shop_id?: string | null;
+  shop_name?: string | null;
+}) {
+  return sendSheetSyncToN8n({
+    sync_type: "attendance",
+    source_table: "staff_attendance",
+    operation: input.operation || "upsert",
+    unique_key: input.unique_key,
+    record: {
+      ...input.record,
+      updated_at: new Date().toISOString()
+    },
+    store_id: input.shop_id || null,
+    store_name: input.shop_name || null
+  });
+}
 export async function sendCustomerSheetSync(input: CustomerSheetSyncInput) {
   const record = {
     id: input.customerId,
@@ -368,3 +415,5 @@ export async function testN8nConnection(input?: { receiver?: string; message?: s
     }
   });
 }
+
+

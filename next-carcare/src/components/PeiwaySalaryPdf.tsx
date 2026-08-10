@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { StaffInfo, StaffSalary } from "@/lib/staff";
 import { money } from "@/lib/staff";
@@ -54,7 +54,7 @@ export default function PeiwaySalaryPdf({ staff, salary }: { staff: StaffInfo; s
             <InfoLine label="門市" value={salary.shop_name || staff.shop_id || ""} />
           </div>
           <div className="rounded-2xl border border-neutral-300 p-4">
-            <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-xl font-black">薪資合計</h3>
+            <h3 className="mb-3 inline-block border-b-4 border-[#ffc107] pb-1 text-xl font-black">薪資摘要</h3>
             <InfoLine label="建檔日期" value={new Date(salary.created_at).toLocaleDateString("zh-TW")} />
             <InfoLine label="應給總額" value={money(salary.gross_amount)} />
             <InfoLine label="應扣總額" value={money(salary.deduction_amount)} />
@@ -78,17 +78,17 @@ export default function PeiwaySalaryPdf({ staff, salary }: { staff: StaffInfo; s
         </section>
 
         <section className="rounded-2xl bg-[#111] p-5 text-center text-white">
-          <p className="text-2xl font-black">本月實領金額</p>
+          <p className="text-2xl font-black">本月實領薪資</p>
           <div className="mt-3 rounded-xl bg-[#ffc107] py-5 text-5xl font-black text-[#111]">
             {money(salary.net_salary)}
           </div>
         </section>
 
         <section className="rounded-2xl border border-neutral-300 p-5 text-sm">
-          <p>本薪資單由 PEIWAY 人資薪資系統產生，請妥善留存。</p>
+          <p>本薪資單由 PEIWAY 門店管理系統產生，請員工確認薪資項目與出勤紀錄。</p>
           <div className="mt-5 grid grid-cols-2 gap-3">
-            <p>員工簽收：_______________</p>
-            <p>日期：_____ 年 _____ 月 _____ 日</p>
+            <p>員工簽收：______________</p>
+            <p>日期：____ 年 ____ 月 ____ 日</p>
           </div>
         </section>
       </div>

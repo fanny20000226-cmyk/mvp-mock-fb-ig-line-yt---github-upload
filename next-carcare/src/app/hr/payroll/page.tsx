@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
@@ -200,8 +200,30 @@ export default function PayrollPage() {
       created_by: profileId,
       resigned: false
     };
-    const { error } = await supabase.from("staff_info").insert(payload);
+    const { data, error } = await supabase.from("staff_info").insert(payload).select("*").single();
     if (error) return alert(error.message);
+    try {
+      const shopName = shops.find((shop) => shop.id === data.shop_id)?.name || "";
+      void fetch("/api/hr/employee-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          unique_key: data.employee_no,
+          record: {
+            ...data,
+            real_name: data.name,
+            status: data.resigned ? "離職" : "在職",
+            base_salary: data.base_salary_default,
+            allowance: data.position_allowance_default
+          },
+          shop_id: data.shop_id,
+          shop_name: shopName,
+          operation: "insert"
+        })
+      });
+    } catch {
+      // N8N 同步失敗不阻擋員工建檔。
+    }
     setStaffForm({
       employee_no: "",
       password_hash: "",
@@ -300,7 +322,7 @@ export default function PayrollPage() {
   async function createAttendance(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isHrAdmin) return alert("只有總管理員或人資可以登記出勤。");
-    const { error } = await supabase.from("staff_attendance").insert({
+    const { data, error } = await supabase.from("staff_attendance").insert({
       employee_no: attendanceForm.employee_no,
       work_date: attendanceForm.work_date,
       clock_in_at: attendanceForm.clock_in_at || null,
@@ -309,8 +331,29 @@ export default function PayrollPage() {
       leave_type: attendanceForm.leave_type || null,
       leave_hours: Number(attendanceForm.leave_hours || 0),
       overtime_hours: Number(attendanceForm.overtime_hours || 0)
-    });
+    }).select("*").single();
     if (error) return alert(error.message);
+    try {
+      const staff = staffRows.find((row) => row.employee_no === data.employee_no);
+      const shopName = shops.find((shop) => shop.id === staff?.shop_id)?.name || "";
+      void fetch("/api/hr/attendance-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          unique_key: data.id,
+          record: {
+            ...data,
+            staff_name: staff?.name || "",
+            type: data.leave_type ? "請假" : Number(data.late_minutes || 0) > 0 ? "遲到" : Number(data.overtime_hours || 0) > 0 ? "加班" : "出勤"
+          },
+          shop_id: staff?.shop_id || null,
+          shop_name: shopName,
+          operation: "insert"
+        })
+      });
+    } catch {
+      // N8N 同步失敗不阻擋出勤登記。
+    }
     await load();
   }
 
@@ -548,3 +591,5 @@ function TotalCard({ title, value, important }: { title: string; value: number; 
     </div>
   );
 }
+
+

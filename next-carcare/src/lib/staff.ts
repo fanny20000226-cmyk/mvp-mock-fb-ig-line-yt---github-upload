@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { supabase } from "./supabase";
 
@@ -205,10 +205,10 @@ export async function staffLogin(employeeNo: string, password: string) {
     .eq("resigned", false)
     .single();
 
-  if (error || !data) throw new Error("找不到可登入的員工帳號。");
+  if (error || !data) throw new Error("找不到員工帳號，請確認員工編號。");
 
   const staff = data as StaffInfo;
-  if (staff.password_hash !== password) throw new Error("員工密碼不正確。");
+  if (staff.password_hash !== password) throw new Error("員工密碼錯誤，請重新確認。");
 
   saveStaffSession(staff);
   return staff;
@@ -242,3 +242,4 @@ export async function loadStaffModifyRequests(staffId: string) {
     .eq("staff_id", staffId)
     .order("requested_at", { ascending: false });
 }
+
