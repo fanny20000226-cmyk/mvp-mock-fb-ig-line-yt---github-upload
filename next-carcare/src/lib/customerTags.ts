@@ -10,6 +10,10 @@ export type CustomerTag = {
 };
 
 export const defaultCustomerTags = [
+  { tag_name: "新客", tag_color: "#ffc107" },
+  { tag_name: "高價客", tag_color: "#f97316" },
+  { tag_name: "老客", tag_color: "#22c55e" },
+  { tag_name: "潛在客", tag_color: "#0ea5e9" },
   { tag_name: "寵物車", tag_color: "#ffc107" },
   { tag_name: "異味嚴重", tag_color: "#ef4444" },
   { tag_name: "VIP客戶", tag_color: "#22c55e" },

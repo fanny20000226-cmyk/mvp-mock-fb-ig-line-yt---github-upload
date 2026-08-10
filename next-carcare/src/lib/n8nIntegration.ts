@@ -52,11 +52,11 @@ type N8nSettings = {
   is_enabled: boolean;
 };
 
-export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance";
+export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment";
 
 export type SheetSyncInput = {
   sync_type: SheetSyncKind;
-  source_table: "customers" | "cars" | "payment" | "transaction_record" | "salary_records" | "staff_info" | "employees" | "staff_attendance" | "attendance_log" | string;
+  source_table: "customers" | "cars" | "payment" | "transaction_record" | "salary_records" | "staff_info" | "employees" | "staff_attendance" | "attendance_log" | "appointments" | string;
   operation: "insert" | "update" | "upsert" | "test";
   unique_key: string;
   record: Record<string, unknown>;
@@ -265,7 +265,9 @@ export async function sendSheetSyncToN8n(input: SheetSyncInput) {
           ? "員工人事檔"
           : input.sync_type === "attendance"
             ? "出勤紀錄"
-            : "交易財務明細";
+            : input.sync_type === "appointment"
+              ? "預約紀錄"
+              : "交易財務明細";
   const targetSheetId =
     input.target_sheet_id ||
     (["salary", "employee", "attendance"].includes(input.sync_type)

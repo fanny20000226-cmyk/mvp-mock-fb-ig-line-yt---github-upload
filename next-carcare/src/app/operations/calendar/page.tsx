@@ -1,334 +1,543 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
-import { listCustomerTags, normalizeCustomerKey, type CustomerTag } from "@/lib/customerTags";
-import {
-  buildConflictNote,
-  canOverrideReservationConflict,
-  defaultReserveEnd,
-  findReservationConflicts,
-  formatReservationConflict,
-  parseReservationStart
-} from "@/lib/reservationConflicts";
+import type { Role, UserProfile } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 
-type ScheduleRow = {
+type AppointmentStatus = "待確認" | "已到店" | "已取消" | "已完成";
+
+type CustomerOption = {
   id: string;
-  order_no: string;
-  status: string;
-  store_id: string | null;
-  start_at: string | null;
-  reserve_start: string | null;
-  reserve_end: string | null;
-  finish_at: string | null;
-  conflict_override?: boolean | null;
-  conflict_note?: string | null;
+  name: string | null;
+  phone: string | null;
+  customer_tags?: string[] | null;
+  store_id?: string | null;
+};
+
+type AppointmentRow = {
+  id: string;
+  appointment_no: string;
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  license_plate: string | null;
+  car_brand: string | null;
+  car_model: string | null;
+  appoint_date: string;
+  appoint_time: string;
+  service_content: string;
+  status: AppointmentStatus;
   remark: string | null;
-  cars?: {
-    customer_name?: string | null;
-    customer_phone?: string | null;
-    plate_no?: string | null;
-    brand?: string | null;
-    model?: string | null;
-  } | null;
-  quotations?: {
-    quote_no?: string | null;
-    remark?: string | null;
-  } | null;
+  shop_id: string | null;
+  store_id: string | null;
+  forced_conflict: boolean | null;
+  conflict_note: string | null;
+  created_at: string;
 };
 
-const statusText: Record<string, string> = {
-  pending: "待施工",
-  scheduled: "已排程",
-  working: "施工中",
-  finished: "已完工",
-  picked_up: "已牽車",
-  cancelled: "取消"
+type AppointmentForm = {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_phone: string;
+  license_plate: string;
+  car_brand: string;
+  car_model: string;
+  appoint_date: string;
+  appoint_time: string;
+  service_content: string;
+  status: AppointmentStatus;
+  remark: string;
 };
 
-function dayKey(value?: string | null) {
-  return value ? String(value).slice(0, 10) : "未排程";
+const statuses: AppointmentStatus[] = ["待確認", "已到店", "已取消", "已完成"];
+const slotCapacity = 3;
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function timeText(value?: string | null) {
-  if (!value) return "未排程";
-  return String(value).slice(0, 16).replace("T", " ");
+function newAppointmentNo() {
+  return `A${Date.now()}`;
+}
+
+function emptyForm(): AppointmentForm {
+  return {
+    id: "",
+    customer_id: "",
+    customer_name: "",
+    customer_phone: "",
+    license_plate: "",
+    car_brand: "",
+    car_model: "",
+    appoint_date: today(),
+    appoint_time: "10:00",
+    service_content: "",
+    status: "待確認",
+    remark: ""
+  };
+}
+
+function canWriteAppointment(role?: Role | null) {
+  return role === "admin" || role === "shop_manager" || role === "vice_manager";
+}
+
+function normalize(value?: string | null) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function monthDays(month: string) {
+  const [year, rawMonth] = month.split("-").map(Number);
+  const count = new Date(year, rawMonth, 0).getDate();
+  return Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
+}
+
+function tagList(value?: string[] | null) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
 export default function CalendarPage() {
-  const [rows, setRows] = useState<ScheduleRow[]>([]);
-  const [store, setStore] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [view, setView] = useState<"day" | "week">("day");
-  const [tags, setTags] = useState<CustomerTag[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [rows, setRows] = useState<AppointmentRow[]>([]);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [form, setForm] = useState<AppointmentForm>(emptyForm());
+  const [view, setView] = useState<"month" | "day">("month");
+  const [month, setMonth] = useState(today().slice(0, 7));
+  const [filterDate, setFilterDate] = useState(today());
+  const [filterStatus, setFilterStatus] = useState<"" | AppointmentStatus>("");
+  const [keyword, setKeyword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const canWrite = canWriteAppointment(profile?.role);
 
   async function load() {
-    const { data, error } = await supabase
-      .from("construction_orders")
-      .select(`
-        id,
-        order_no,
-        status,
-        store_id,
-        start_at,
-        reserve_start,
-        reserve_end,
-        finish_at,
-        conflict_override,
-        conflict_note,
-        remark,
-        cars(customer_name, customer_phone, plate_no, brand, model),
-        quotations(quote_no, remark)
-      `)
-      .order("start_at", { ascending: true });
-    if (error) return alert(error.message);
-    setRows((data || []) as ScheduleRow[]);
-    const tagRows = await listCustomerTags();
-    if (!tagRows.error) setTags((tagRows.data || []) as CustomerTag[]);
+    const currentProfile = await getCurrentProfile();
+    setProfile(currentProfile);
+
+    const appointmentResult = await supabase
+      .from("appointments")
+      .select(
+        "id, appointment_no, customer_id, customer_name, customer_phone, license_plate, car_brand, car_model, appoint_date, appoint_time, service_content, status, remark, shop_id, store_id, forced_conflict, conflict_note, created_at"
+      )
+      .order("appoint_date", { ascending: true })
+      .order("appoint_time", { ascending: true });
+
+    if (appointmentResult.error) {
+      alert(`讀取預約失敗：${appointmentResult.error.message}\n請先執行 supabase-step17-appointments-tags-sync.sql`);
+    } else {
+      setRows((appointmentResult.data || []) as AppointmentRow[]);
+    }
+
+    const customerResult = await supabase
+      .from("customers")
+      .select("id, name, phone, customer_tags, store_id")
+      .order("updated_at", { ascending: false })
+      .limit(200);
+
+    if (!customerResult.error) {
+      setCustomers((customerResult.data || []) as CustomerOption[]);
+      return;
+    }
+
+    const fallback = await supabase
+      .from("customers")
+      .select("id, name, phone, store_id")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (!fallback.error) setCustomers((fallback.data || []) as CustomerOption[]);
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  const visibleRows = useMemo(() => {
-    const base = rows.filter((row) => {
-      const haystack = `${row.remark || ""} ${row.quotations?.remark || ""}`;
-      return !store || haystack.includes(store);
-    });
-    if (view === "day") return base.filter((row) => dayKey(row.start_at) === date);
-    const start = new Date(`${date}T00:00:00`);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 7);
-    return base.filter((row) => {
-      if (!row.start_at) return false;
-      const current = new Date(row.start_at);
-      return current >= start && current < end;
-    });
-  }, [date, rows, store, view]);
+  const customerById = useMemo(() => {
+    const map = new Map<string, CustomerOption>();
+    customers.forEach((customer) => map.set(customer.id, customer));
+    return map;
+  }, [customers]);
 
-  const groupedRows = useMemo(() => {
-    const groups = new Map<string, ScheduleRow[]>();
-    visibleRows.forEach((row) => {
-      const key = dayKey(row.start_at);
-      groups.set(key, [...(groups.get(key) || []), row]);
+  const filteredRows = useMemo(() => {
+    const term = normalize(keyword);
+    return rows.filter((row) => {
+      if (filterStatus && row.status !== filterStatus) return false;
+      if (view === "day" && row.appoint_date !== filterDate) return false;
+      if (view === "month" && !row.appoint_date.startsWith(month)) return false;
+      if (!term) return true;
+      return normalize(
+        `${row.appointment_no} ${row.customer_name} ${row.customer_phone} ${row.license_plate} ${row.car_brand} ${row.car_model} ${row.service_content}`
+      ).includes(term);
     });
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [visibleRows]);
+  }, [filterDate, filterStatus, keyword, month, rows, view]);
 
-  const tagsByCustomer = useMemo(() => {
-    const grouped = new Map<string, CustomerTag[]>();
-    tags.forEach((tag) => grouped.set(tag.customer_id, [...(grouped.get(tag.customer_id) || []), tag]));
+  const rowsByDay = useMemo(() => {
+    const grouped = new Map<string, AppointmentRow[]>();
+    filteredRows.forEach((row) => grouped.set(row.appoint_date, [...(grouped.get(row.appoint_date) || []), row]));
     return grouped;
-  }, [tags]);
+  }, [filteredRows]);
 
-  function tagsForRow(row: ScheduleRow) {
-    const key = normalizeCustomerKey(row.cars?.customer_name, row.cars?.customer_phone, row.cars?.plate_no);
-    return tagsByCustomer.get(key) || [];
+  function selectCustomer(customerId: string) {
+    const customer = customerById.get(customerId);
+    setForm((current) => ({
+      ...current,
+      customer_id: customerId,
+      customer_name: customer?.name || current.customer_name,
+      customer_phone: customer?.phone || current.customer_phone
+    }));
   }
 
-  async function updateStatus(row: ScheduleRow, status: string) {
-    const patch: Record<string, string | null> = { status };
-    if (status === "working" && !row.start_at) patch.start_at = new Date().toISOString();
-    if (status === "finished" && !row.finish_at) patch.finish_at = new Date().toISOString();
-    const { error } = await supabase.from("construction_orders").update(patch).eq("id", row.id);
-    if (error) return alert(error.message);
-    load();
+  function editRow(row: AppointmentRow) {
+    setForm({
+      id: row.id,
+      customer_id: row.customer_id || "",
+      customer_name: row.customer_name || "",
+      customer_phone: row.customer_phone || "",
+      license_plate: row.license_plate || "",
+      car_brand: row.car_brand || "",
+      car_model: row.car_model || "",
+      appoint_date: row.appoint_date,
+      appoint_time: row.appoint_time,
+      service_content: row.service_content || "",
+      status: row.status,
+      remark: row.remark || ""
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function reschedule(row: ScheduleRow) {
-    const next = window.prompt("請輸入新的預約日期時間，例如 2026-07-21T10:30", row.start_at || `${date}T10:00`);
-    if (!next) return;
-    const remark = [
-      row.remark || "",
-      `[改期紀錄] ${new Date().toLocaleString("zh-TW")}：${row.start_at || "未排程"} -> ${next}`
-    ]
-      .filter(Boolean)
-      .join("\n");
-    const { error } = await supabase
-      .from("construction_orders")
-      .update({ start_at: next, status: "scheduled", remark })
-      .eq("id", row.id);
-    if (error) return alert(error.message);
-    load();
-  }
-
-  async function rescheduleWithConflict(row: ScheduleRow) {
-    const next = window.prompt("請輸入新的預約日期時間，例如 2026-07-21T10:30", row.start_at || `${date}T10:00`);
-    if (!next) return;
-    const profile = await getCurrentProfile();
-    const reserveStart = parseReservationStart(next);
-    const reserveEnd = reserveStart ? defaultReserveEnd(reserveStart) : null;
-    let conflictOverride = row.conflict_override || false;
-    let conflictNote = row.conflict_note || "";
-
-    if (reserveStart && reserveEnd) {
-      const { data: conflicts, error: conflictError } = await findReservationConflicts({
-        storeId: row.store_id || profile?.shop_id || null,
-        start: reserveStart,
-        end: reserveEnd,
-        excludeId: row.id
-      });
-      if (conflictError) return alert(conflictError.message);
-      if (conflicts?.length) {
-        const message = `同門市同時段已有預約：\n${formatReservationConflict(conflicts)}`;
-        if (!canOverrideReservationConflict(profile?.role)) {
-          alert(`${message}\n\n請調整預約時間。`);
-          return;
+  function syncAppointment(record: AppointmentRow | Record<string, unknown>, operation: "insert" | "update") {
+    fetch("/api/appointments/sync", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        operation,
+        unique_key: String(record.appointment_no || record.id || ""),
+        store_id: String(record.shop_id || record.store_id || profile?.shop_id || ""),
+        plate: String(record.license_plate || ""),
+        model: String(record.car_model || ""),
+        record: {
+          ...record,
+          updated_at: new Date().toISOString()
         }
-        const ok = window.confirm(`${message}\n\n是否強制改期建立重疊預約？`);
-        if (!ok) return;
-        conflictOverride = true;
-        conflictNote = buildConflictNote(conflicts);
-      }
+      })
+    }).catch(() => {
+      // N8N/Google Sheets sync is best-effort and must not block appointment saves.
+    });
+  }
+
+  async function ensureCustomerId() {
+    if (form.customer_id) return form.customer_id;
+    if (!form.customer_name.trim() && !form.customer_phone.trim()) return null;
+
+    const payload = {
+      name: form.customer_name.trim() || "未命名客戶",
+      phone: form.customer_phone.trim(),
+      store_id: profile?.shop_id || null,
+      customer_tags: [] as string[],
+      updated_at: new Date().toISOString()
+    };
+
+    const inserted = await supabase.from("customers").insert(payload).select("id").single();
+    if (!inserted.error && inserted.data?.id) return inserted.data.id as string;
+
+    const fallback = await supabase
+      .from("customers")
+      .insert({ name: payload.name, phone: payload.phone, store_id: payload.store_id })
+      .select("id")
+      .single();
+    if (fallback.error) throw fallback.error;
+    return fallback.data.id as string;
+  }
+
+  async function validateConflict() {
+    const activeRows = rows.filter((row) => row.status !== "已取消" && row.id !== form.id);
+    const sameCar = activeRows.find(
+      (row) =>
+        normalize(row.license_plate) &&
+        normalize(row.license_plate) === normalize(form.license_plate) &&
+        row.appoint_date === form.appoint_date &&
+        row.appoint_time === form.appoint_time
+    );
+    if (sameCar) {
+      alert(`同一台車同一時段已有預約：${sameCar.customer_name || "-"} / ${sameCar.appointment_no}`);
+      return { ok: false, forced: false, note: "" };
     }
 
-    const remark = [
-      row.remark || "",
-      `[改期紀錄] ${new Date().toLocaleString("zh-TW")}：${row.start_at || "未排程"} -> ${next}`,
-      conflictNote
-    ]
-      .filter(Boolean)
-      .join("\n");
-    const { error } = await supabase
-      .from("construction_orders")
-      .update({
-        start_at: reserveStart ? reserveStart.toISOString() : next,
-        reserve_start: reserveStart ? reserveStart.toISOString() : next,
-        reserve_end: reserveEnd ? reserveEnd.toISOString() : null,
-        status: "scheduled",
-        remark,
-        conflict_override: conflictOverride,
-        conflict_note: conflictNote || null
-      })
-      .eq("id", row.id);
+    const sameSlot = activeRows.filter(
+      (row) =>
+        row.appoint_date === form.appoint_date &&
+        row.appoint_time === form.appoint_time &&
+        (!profile?.shop_id || row.shop_id === profile.shop_id || row.store_id === profile.shop_id)
+    );
+
+    if (sameSlot.length >= slotCapacity) {
+      const detail = sameSlot
+        .map((row) => `${row.appoint_time} ${row.customer_name || "-"} ${row.license_plate || "-"} ${row.service_content}`)
+        .join("\n");
+      if (!canWrite) {
+        alert(`此時段已超過可承載數量，請調整時間。\n${detail}`);
+        return { ok: false, forced: false, note: "" };
+      }
+      const ok = window.confirm(`此時段已有 ${sameSlot.length} 筆預約，是否強制建立？\n${detail}`);
+      if (!ok) return { ok: false, forced: false, note: "" };
+      return { ok: true, forced: true, note: `強制建立：同時段已有 ${sameSlot.length} 筆預約\n${detail}` };
+    }
+
+    return { ok: true, forced: false, note: "" };
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canWrite) return alert("目前角色僅可檢視預約，不能新增或修改。");
+    if (!form.customer_name.trim() || !form.license_plate.trim() || !form.service_content.trim()) {
+      return alert("請填寫客戶姓名、車牌與服務項目。");
+    }
+
+    setSaving(true);
+    try {
+      const conflict = await validateConflict();
+      if (!conflict.ok) return;
+      const customerId = await ensureCustomerId();
+      const payload = {
+        customer_id: customerId,
+        customer_name: form.customer_name.trim(),
+        customer_phone: form.customer_phone.trim(),
+        license_plate: form.license_plate.trim(),
+        car_brand: form.car_brand.trim(),
+        car_model: form.car_model.trim(),
+        appoint_date: form.appoint_date,
+        appoint_time: form.appoint_time,
+        service_content: form.service_content.trim(),
+        status: form.status,
+        remark: form.remark.trim(),
+        shop_id: profile?.shop_id || null,
+        store_id: profile?.shop_id || null,
+        forced_conflict: conflict.forced,
+        conflict_note: conflict.note || null,
+        created_by: profile?.id || null
+      };
+
+      if (form.id) {
+        const { data, error } = await supabase
+          .from("appointments")
+          .update(payload)
+          .eq("id", form.id)
+          .select()
+          .single();
+        if (error) throw error;
+        syncAppointment(data as AppointmentRow, "update");
+      } else {
+        const { data, error } = await supabase
+          .from("appointments")
+          .insert({ ...payload, appointment_no: newAppointmentNo() })
+          .select()
+          .single();
+        if (error) throw error;
+        syncAppointment(data as AppointmentRow, "insert");
+      }
+
+      setForm(emptyForm());
+      await load();
+      alert("預約已儲存，並已送出 N8N/Google Sheets 同步事件。");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "預約儲存失敗。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateStatus(row: AppointmentRow, status: AppointmentStatus) {
+    if (!canWrite) return alert("目前角色僅可檢視預約，不能修改狀態。");
+    const { data, error } = await supabase
+      .from("appointments")
+      .update({ status })
+      .eq("id", row.id)
+      .select()
+      .single();
+    if (error) return alert(error.message);
+    syncAppointment(data as AppointmentRow, "update");
+    load();
+  }
+
+  async function deleteRow(row: AppointmentRow) {
+    if (!canWrite) return alert("目前角色僅可檢視預約，不能刪除。");
+    const ok = window.confirm(`確定刪除預約 ${row.appointment_no}？`);
+    if (!ok) return;
+    const { error } = await supabase.from("appointments").delete().eq("id", row.id);
     if (error) return alert(error.message);
     load();
   }
 
   return (
     <RequireAuth>
-      <div className="space-y-6">
+      <div className="space-y-5">
         <section className="card">
-          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-black text-carcare-yellow">多門市排程</p>
+              <p className="text-sm font-black text-carcare-yellow">預約管理</p>
               <h1 className="text-2xl font-black">預約行事曆</h1>
               <p className="mt-1 text-sm text-neutral-500">
-                依門市與日期查看待施工、施工中、已完工與已牽車狀態。
+                建立、查詢與管理門市預約；員工帳號進入時僅能檢視。
               </p>
             </div>
-            <Link href="/operations/paste-reservation" className="primary-btn">
-              新增現場預約
-            </Link>
-          </div>
-          <div className="grid gap-3 md:grid-cols-4">
-            <select className="form-input" value={store} onChange={(event) => setStore(event.target.value)}>
-              <option value="">全部門市</option>
-              <option>三重</option>
-              <option>桃園</option>
-              <option>新竹</option>
-              <option>台南</option>
-              <option>台北</option>
-              <option>台中</option>
-              <option>高雄</option>
-            </select>
-            <input className="form-input" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-            <select className="form-input" value={view} onChange={(event) => setView(event.target.value as "day" | "week")}>
-              <option value="day">日檢視</option>
-              <option value="week">週檢視</option>
-            </select>
-            <button className="secondary-btn" onClick={load} type="button">
-              重新整理
-            </button>
+            <span className="rounded-full bg-carcare-yellow px-4 py-2 text-sm font-black text-carcare-black">
+              {canWrite ? "管理模式" : "員工唯讀"}
+            </span>
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
-          {["pending", "scheduled", "working", "finished"].map((status) => (
-            <div key={status} className="card">
-              <p className="text-sm font-black text-neutral-500">{statusText[status]}</p>
-              <p className="mt-2 text-3xl font-black text-carcare-yellow">
-                {visibleRows.filter((row) => row.status === status).length}
-              </p>
-            </div>
-          ))}
-        </section>
-
-        <section className="space-y-4">
-          {groupedRows.map(([day, items]) => (
-            <div key={day} className="card">
-              <h2 className="mb-4 text-xl font-black">{day}</h2>
-              <div className="grid gap-3 xl:grid-cols-2">
-                {items.map((row) => {
-                  const rowTags = tagsForRow(row);
-                  const hasConflict = Boolean(row.conflict_override || row.conflict_note);
-                  return (
-                  <article
-                    key={row.id}
-                    title={row.conflict_note || undefined}
-                    className={`rounded-2xl border bg-white p-4 shadow-sm ${
-                      hasConflict ? "border-carcare-yellow ring-2 ring-carcare-yellow/40" : "border-neutral-200"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <p className="font-black text-neutral-900">{timeText(row.start_at)} / {row.order_no}</p>
-                        <p className="mt-1 text-sm text-neutral-500">
-                          {row.cars?.customer_name || "未填車主"} / {row.cars?.plate_no || "未填車牌"}
-                        </p>
-                        <p className="text-sm text-neutral-500">
-                          {[row.cars?.brand, row.cars?.model].filter(Boolean).join(" ") || "未填車型"}
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-carcare-yellow px-3 py-1 text-xs font-black text-carcare-black">
-                        {statusText[row.status] || row.status}
-                      </span>
-                    </div>
-                    {hasConflict ? (
-                      <p className="mt-3 rounded-xl bg-carcare-yellow/20 px-3 py-2 text-xs font-black text-carcare-black">
-                        時段衝突：滑鼠停留可查看重疊預約資訊
-                      </p>
-                    ) : null}
-                    {rowTags.length ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {rowTags.map((tag) => (
-                          <span
-                            key={tag.id}
-                            className="rounded-full px-3 py-1 text-xs font-black text-carcare-black"
-                            style={{ backgroundColor: tag.tag_color || "#ffc107" }}
-                          >
-                            {tag.tag_name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button className="secondary-btn" type="button" onClick={() => rescheduleWithConflict(row)}>
-                        改期
-                      </button>
-                      <button className="secondary-btn" type="button" onClick={() => updateStatus(row, "working")}>
-                        施工中
-                      </button>
-                      <button className="secondary-btn" type="button" onClick={() => updateStatus(row, "finished")}>
-                        已完工
-                      </button>
-                      <button className="secondary-btn" type="button" onClick={() => updateStatus(row, "picked_up")}>
-                        已牽車
-                      </button>
-                    </div>
-                  </article>
-                );
-                })}
+        {canWrite ? (
+          <form onSubmit={submit} className="card">
+            <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-black text-carcare-yellow">{form.id ? "編輯預約" : "新增預約"}</p>
+                <h2 className="text-xl font-black">客戶與車輛預約資料</h2>
               </div>
+              {form.id ? (
+                <button type="button" className="secondary-btn" onClick={() => setForm(emptyForm())}>
+                  取消編輯
+                </button>
+              ) : null}
             </div>
-          ))}
-          {!groupedRows.length ? (
-            <div className="card text-center text-neutral-500">目前沒有符合條件的排程。</div>
-          ) : null}
+
+            <div className="grid gap-3 lg:grid-cols-4">
+              <select className="form-input" value={form.customer_id} onChange={(event) => selectCustomer(event.target.value)}>
+                <option value="">新客戶 / 手動填寫</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name || "未命名"} / {customer.phone || "未填電話"}
+                  </option>
+                ))}
+              </select>
+              <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(event) => setForm({ ...form, customer_name: event.target.value })} />
+              <input className="form-input" placeholder="聯絡電話" value={form.customer_phone} onChange={(event) => setForm({ ...form, customer_phone: event.target.value })} />
+              <input className="form-input" placeholder="車牌" value={form.license_plate} onChange={(event) => setForm({ ...form, license_plate: event.target.value })} />
+              <input className="form-input" placeholder="車廠品牌" value={form.car_brand} onChange={(event) => setForm({ ...form, car_brand: event.target.value })} />
+              <input className="form-input" placeholder="車型" value={form.car_model} onChange={(event) => setForm({ ...form, car_model: event.target.value })} />
+              <input className="form-input" type="date" value={form.appoint_date} onChange={(event) => setForm({ ...form, appoint_date: event.target.value })} />
+              <input className="form-input" type="time" value={form.appoint_time} onChange={(event) => setForm({ ...form, appoint_time: event.target.value })} />
+              <select className="form-input" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as AppointmentStatus })}>
+                {statuses.map((status) => <option key={status}>{status}</option>)}
+              </select>
+              <input className="form-input lg:col-span-3" placeholder="預約評估 / 施工項目" value={form.service_content} onChange={(event) => setForm({ ...form, service_content: event.target.value })} />
+              <textarea className="form-input lg:col-span-4" placeholder="備註" value={form.remark} onChange={(event) => setForm({ ...form, remark: event.target.value })} />
+            </div>
+            <button className="primary-btn mt-4" disabled={saving} type="submit">
+              {saving ? "儲存中..." : form.id ? "更新預約並同步雲端" : "建立預約並同步雲端"}
+            </button>
+          </form>
+        ) : null}
+
+        <section className="card">
+          <div className="grid gap-3 lg:grid-cols-5">
+            <select className="form-input" value={view} onChange={(event) => setView(event.target.value as "month" | "day")}>
+              <option value="month">月曆檢視</option>
+              <option value="day">日曆檢視</option>
+            </select>
+            <input className="form-input" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+            <input className="form-input" type="date" value={filterDate} onChange={(event) => setFilterDate(event.target.value)} />
+            <select className="form-input" value={filterStatus} onChange={(event) => setFilterStatus(event.target.value as "" | AppointmentStatus)}>
+              <option value="">全部狀態</option>
+              {statuses.map((status) => <option key={status}>{status}</option>)}
+            </select>
+            <input className="form-input" placeholder="搜尋姓名、電話、車牌、項目" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
+          </div>
+        </section>
+
+        {view === "month" ? (
+          <section className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+            {monthDays(month).map((day) => {
+              const dayRows = rowsByDay.get(day) || [];
+              return (
+                <div key={day} className="card min-h-32">
+                  <p className="font-black">{day.slice(5)}</p>
+                  <p className="mt-1 text-xs text-neutral-500">預約 {dayRows.length} 筆</p>
+                  <div className="mt-3 space-y-2">
+                    {dayRows.slice(0, 4).map((row) => (
+                      <button
+                        type="button"
+                        key={row.id}
+                        onClick={() => setFilterDate(row.appoint_date)}
+                        className={`w-full rounded-xl border p-2 text-left text-xs transition duration-200 hover:border-carcare-yellow ${
+                          row.forced_conflict ? "border-carcare-yellow bg-carcare-yellow/10" : "border-neutral-200 bg-white"
+                        }`}
+                        title={row.conflict_note || undefined}
+                      >
+                        <span className="font-black">{row.appoint_time}</span> {row.customer_name || "-"}
+                        <br />
+                        {row.license_plate || "-"} / {row.status}
+                      </button>
+                    ))}
+                    {dayRows.length > 4 ? <p className="text-xs text-neutral-500">另有 {dayRows.length - 4} 筆</p> : null}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        ) : null}
+
+        <section className="card">
+          <h2 className="mb-4 text-xl font-black">預約清單</h2>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>預約單號</th>
+                  <th>日期時間</th>
+                  <th>客戶 / 車牌</th>
+                  <th>車型</th>
+                  <th>服務項目</th>
+                  <th>狀態</th>
+                  <th>標籤</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => {
+                  const customerTags = tagList(customerById.get(row.customer_id || "")?.customer_tags);
+                  return (
+                    <tr key={row.id} className={row.forced_conflict ? "bg-carcare-yellow/10" : undefined}>
+                      <td>{row.appointment_no}</td>
+                      <td>{row.appoint_date} {row.appoint_time}</td>
+                      <td>{row.customer_name || "-"} / {row.license_plate || "-"}</td>
+                      <td>{[row.car_brand, row.car_model].filter(Boolean).join(" ") || "-"}</td>
+                      <td>{row.service_content}</td>
+                      <td>{row.status}</td>
+                      <td>
+                        <div className="flex min-w-28 flex-wrap gap-1">
+                          {customerTags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-carcare-yellow px-2 py-1 text-xs font-black text-carcare-black">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex min-w-72 flex-wrap gap-2">
+                          {canWrite ? (
+                            <>
+                              <button type="button" className="secondary-btn" onClick={() => editRow(row)}>編輯</button>
+                              <button type="button" className="secondary-btn" onClick={() => updateStatus(row, "已到店")}>已到店</button>
+                              <button type="button" className="secondary-btn" onClick={() => updateStatus(row, "已完成")}>完成</button>
+                              <button type="button" className="secondary-btn" onClick={() => updateStatus(row, "已取消")}>取消</button>
+                              <button type="button" className="secondary-btn text-red-600" onClick={() => deleteRow(row)}>刪除</button>
+                            </>
+                          ) : (
+                            <span className="text-sm text-neutral-500">僅檢視</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!filteredRows.length ? (
+                  <tr>
+                    <td colSpan={8} className="text-center text-neutral-500">目前沒有符合條件的預約。</td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </section>
       </div>
     </RequireAuth>

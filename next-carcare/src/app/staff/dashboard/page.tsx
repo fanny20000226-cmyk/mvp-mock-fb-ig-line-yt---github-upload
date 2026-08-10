@@ -12,11 +12,24 @@ import {
   loadStaffProfile,
   loadStaffSalary,
   money,
-  type StaffAttendance,
+type StaffAttendance,
   type StaffInfo,
   type StaffModifyRequest,
   type StaffSalary
 } from "@/lib/staff";
+
+type StaffAppointment = {
+  id: string;
+  appointment_no: string;
+  appoint_date: string;
+  appoint_time: string;
+  customer_name: string | null;
+  license_plate: string | null;
+  car_brand: string | null;
+  car_model: string | null;
+  service_content: string;
+  status: string;
+};
 
 const changeableFields = [
   { key: "phone", label: "聯絡手機" },
@@ -54,6 +67,7 @@ export default function StaffDashboardPage() {
   const [staff, setStaff] = useState<StaffInfo | null>(null);
   const [salaryRows, setSalaryRows] = useState<StaffSalary[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<StaffAttendance[]>([]);
+  const [appointmentRows, setAppointmentRows] = useState<StaffAppointment[]>([]);
   const [requests, setRequests] = useState<StaffModifyRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(currentMonth);
@@ -74,15 +88,23 @@ export default function StaffDashboardPage() {
     const profileResult = await loadStaffProfile(session.employee_no);
     const profile = (profileResult.data || null) as StaffInfo | null;
 
-    const [salaryResult, attendanceResult, requestResult] = await Promise.all([
+    const [salaryResult, attendanceResult, requestResult, appointmentResult] = await Promise.all([
       loadStaffSalary(session.employee_no),
       loadStaffAttendance(session.employee_no),
-      profile?.id ? loadStaffModifyRequests(profile.id) : Promise.resolve({ data: [] })
+      profile?.id ? loadStaffModifyRequests(profile.id) : Promise.resolve({ data: [] }),
+      supabase
+        .from("appointments")
+        .select("id, appointment_no, appoint_date, appoint_time, customer_name, license_plate, car_brand, car_model, service_content, status")
+        .gte("appoint_date", new Date().toISOString().slice(0, 10))
+        .order("appoint_date", { ascending: true })
+        .order("appoint_time", { ascending: true })
+        .limit(30)
     ]);
 
     setStaff(profile);
     setSalaryRows((salaryResult.data || []) as StaffSalary[]);
     setAttendanceRows((attendanceResult.data || []) as StaffAttendance[]);
+    setAppointmentRows(appointmentResult.error ? [] : ((appointmentResult.data || []) as StaffAppointment[]));
     setRequests((requestResult.data || []) as StaffModifyRequest[]);
     setLoading(false);
   }
@@ -257,6 +279,30 @@ export default function StaffDashboardPage() {
               </div>
             ))}
             {!monthAttendance.length ? <p className="text-neutral-500">目前沒有這個月份的出勤紀錄。</p> : null}
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="text-xl font-black">預約行事曆檢視</h2>
+          <p className="mt-1 text-sm text-neutral-500">員工端僅提供檢視，預約新增、編輯與刪除請由管理/店長帳號處理。</p>
+          <div className="mt-4 space-y-3">
+            {appointmentRows.map((row) => (
+              <div key={row.id} className="rounded-2xl border border-neutral-200 p-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="font-black">{row.appoint_date} {row.appoint_time} / {row.appointment_no}</p>
+                    <p className="mt-1 text-sm text-neutral-600">
+                      {row.customer_name || "-"} / {row.license_plate || "-"} / {[row.car_brand, row.car_model].filter(Boolean).join(" ") || "-"}
+                    </p>
+                    <p className="mt-1 text-sm text-neutral-600">{row.service_content}</p>
+                  </div>
+                  <span className="rounded-full bg-carcare-yellow px-3 py-1 text-xs font-black text-carcare-black">
+                    {row.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {!appointmentRows.length ? <p className="text-neutral-500">目前沒有可檢視的近期預約。</p> : null}
           </div>
         </section>
       </div>
