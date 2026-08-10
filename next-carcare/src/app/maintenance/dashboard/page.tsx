@@ -45,9 +45,13 @@ export default function MaintenanceDashboardPage() {
   async function load() {
     setLoading(true);
     setError("");
-    const response = await fetch("/api/maintenance/overview", { cache: "no-store" });
+    const response = await fetch("/api/maintenance/overview", {
+      cache: "no-store",
+      credentials: "include"
+    });
     if (response.status === 401) {
-      router.push("/maintenance/login");
+      setLoading(false);
+      setError("\u767b\u5165\u72c0\u614b\u5c1a\u672a\u751f\u6548\uff0c\u8acb\u91cd\u65b0\u767b\u5165\u7dad\u8b77\u5e73\u53f0\u3002");
       return;
     }
     const result = (await response.json().catch(() => ({}))) as { ok?: boolean; overview?: Overview; message?: string };
