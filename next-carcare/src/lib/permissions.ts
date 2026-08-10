@@ -128,7 +128,6 @@ export const roleMenus: Record<Role, string[]> = {
   ],
   worker: [
     "/dashboard",
-    "/operations/mobile-order",
     "/operations/calendar",
     "/operations/construction",
     "/annotations",
