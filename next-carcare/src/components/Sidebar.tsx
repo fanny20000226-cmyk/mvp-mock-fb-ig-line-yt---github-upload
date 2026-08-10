@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   BadgeDollarSign,
+  BookOpen,
   CalendarCheck,
   CalendarX,
   Car,
@@ -118,6 +119,11 @@ const menuGroups = [
       { href: "/staff/login", label: "員工登入入口", icon: Users },
       { href: "/staff/dashboard", label: "員工個人後台", icon: Users }
     ]
+  },
+  {
+    label: "系統操作手冊",
+    icon: BookOpen,
+    items: [{ href: "/manual", label: "系統操作手冊", icon: BookOpen }]
   },
   {
     label: "系統設定",
