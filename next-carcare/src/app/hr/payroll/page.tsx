@@ -622,18 +622,23 @@ function SalaryNumberField({
   readOnly?: boolean;
 }) {
   return (
-    <label className="space-y-1 text-sm font-black text-neutral-700">
-      <span>{label}</span>
+    <label className="block rounded-xl border border-neutral-200 bg-white p-3 shadow-sm transition duration-200 focus-within:border-carcare-yellow">
+      <span className="mb-2 flex items-center justify-between text-sm font-black text-neutral-800">
+        {label}
+        {readOnly ? <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-500">自動</span> : null}
+      </span>
       <input
-        className="form-input"
+        className="form-input text-base font-black"
         type="number"
         inputMode="decimal"
         min="0"
+        aria-label={label}
+        placeholder={`輸入${label}`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         readOnly={readOnly}
       />
-      {readOnly ? <span className="block text-xs font-normal text-neutral-500">系統依時數自動計算</span> : null}
+      {readOnly ? <span className="mt-2 block text-xs font-normal text-neutral-500">系統依時數與費率自動計算，不需手動填寫。</span> : null}
     </label>
   );
 }
