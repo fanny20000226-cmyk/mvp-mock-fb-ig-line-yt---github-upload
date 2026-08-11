@@ -55,7 +55,7 @@ const menuGroups = [
     label: "製作報價單",
     icon: FileText,
     items: [
-      { href: "/operations/quotations", label: "新建打翻評估報價", icon: FileText },
+      { href: "/operations/quotations", label: "新建打翻評估報價單", icon: FileText },
       { href: "/operations/quotations", label: "歷史報價 / 工單紀錄", icon: ListChecks },
       { href: "/operations/services", label: "門市服務價格設定", icon: Sparkles }
     ]
@@ -81,9 +81,9 @@ const menuGroups = [
     icon: BadgeDollarSign,
     items: [
       { href: "/finance/payments", label: "收款登記", icon: Wallet },
-      { href: "/finance/transactions", label: "交易流水", icon: ListChecks },
+      { href: "/finance/transactions", label: "交易明細", icon: ListChecks },
       { href: "/finance/reports", label: "財務報表", icon: BadgeDollarSign },
-      { href: "/finance/receipts", label: "收據紀錄", icon: ReceiptText },
+      { href: "/finance/receipts", label: "收據開立紀錄", icon: ReceiptText },
       { href: "/bonus", label: "獎金設定", icon: Gift }
     ]
   },
@@ -98,7 +98,7 @@ const menuGroups = [
     items: [
       { href: "/settings/n8n", label: "N8N 連線設定", icon: MessageSquareText },
       { href: "/settings/n8n-realtime", label: "Google Sheets 即時同步測試", icon: ListChecks },
-      { href: "/settings/n8n-logs", label: "N8N 回呼紀錄", icon: MessageSquareText },
+      { href: "/settings/n8n-logs", label: "N8N 同步紀錄", icon: MessageSquareText },
       { href: "/settings/system-test", label: "系統自動測試", icon: ListChecks }
     ]
   },
@@ -108,8 +108,8 @@ const menuGroups = [
     items: [
       { href: "/hr/staff-accounts", label: "員工建檔 / 變更審核", icon: Users },
       { href: "/hr/payroll", label: "薪資作業", icon: BadgeDollarSign },
-      { href: "/hr/attendance", label: "出勤打卡", icon: CalendarCheck },
-      { href: "/hr/employees", label: "人員資料", icon: Users }
+      { href: "/hr/attendance", label: "出勤登錄", icon: CalendarCheck },
+      { href: "/hr/employees", label: "員工資料", icon: Users }
     ]
   },
   {
@@ -121,9 +121,12 @@ const menuGroups = [
     ]
   },
   {
-    label: "系統操作手冊",
+    label: "系統文件",
     icon: BookOpen,
-    items: [{ href: "/manual", label: "系統操作手冊", icon: BookOpen }]
+    items: [
+      { href: "/manual", label: "系統操作手冊", icon: BookOpen },
+      { href: "/delivery-readiness", label: "交付驗收中心", icon: ListChecks }
+    ]
   },
   {
     label: "系統設定",

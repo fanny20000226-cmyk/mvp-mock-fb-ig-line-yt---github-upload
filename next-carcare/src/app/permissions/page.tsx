@@ -79,11 +79,11 @@ export default function PermissionsPage() {
   }
 
   async function resetPassword(row: UserRow) {
-    const password = window.prompt(`請輸入 ${row.name} 的新密碼，至少 8 碼`);
+    const password = window.prompt(`請輸入 ${row.name} 的新密碼，至少 8 碼。`);
     if (!password) return;
-    if (password.length < 8) return alert("密碼至少 8 碼。");
+    if (password.length < 8) return alert("密碼至少需要 8 碼。");
     await patchUser(row, { password });
-    alert("密碼已重置。");
+    alert("密碼已更新。");
   }
 
   return (
@@ -91,10 +91,13 @@ export default function PermissionsPage() {
       <section className="card">
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-black text-carcare-yellow">系統管理</p>
+            <p className="text-sm font-black text-carcare-yellow">System Permissions</p>
             <h1 className="text-2xl font-black">權限管理</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              建立後台帳號、調整角色、停用帳號或重設密碼。角色會影響側邊選單與頁面存取權限。
+            </p>
           </div>
-          <button onClick={createUser} className="primary-btn">新增使用者</button>
+          <button onClick={createUser} className="primary-btn">新增帳號</button>
         </div>
         <div className="mb-5 grid gap-3 md:grid-cols-3">
           <input className="form-input" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -107,7 +110,7 @@ export default function PermissionsPage() {
             <option value="hr">人資</option>
             <option value="shop_manager">店長</option>
             <option value="vice_manager">副店長</option>
-            <option value="worker">施工人員</option>
+            <option value="worker">員工</option>
           </select>
           <input className="form-input" placeholder="shop_id，可留空" value={form.shop_id} onChange={(e) => setForm({ ...form, shop_id: e.target.value })} />
         </div>
@@ -118,7 +121,7 @@ export default function PermissionsPage() {
                 <th>帳號</th>
                 <th>姓名</th>
                 <th>角色</th>
-                <th>門店</th>
+                <th>門市</th>
                 <th>狀態</th>
                 <th>操作</th>
               </tr>
@@ -139,7 +142,7 @@ export default function PermissionsPage() {
                       <option value="hr">人資</option>
                       <option value="shop_manager">店長</option>
                       <option value="vice_manager">副店長</option>
-                      <option value="worker">施工人員</option>
+                      <option value="worker">員工</option>
                     </select>
                     <p className="mt-1 text-xs text-neutral-500">{roleLabels[row.role]}</p>
                   </td>
@@ -151,7 +154,7 @@ export default function PermissionsPage() {
                         {row.active ? "停用" : "啟用"}
                       </button>
                       <button className="secondary-btn" type="button" onClick={() => resetPassword(row)}>
-                        重置密碼
+                        重設密碼
                       </button>
                     </div>
                   </td>
@@ -160,7 +163,7 @@ export default function PermissionsPage() {
               {!rows.length ? (
                 <tr>
                   <td colSpan={6} className="text-center text-neutral-500">
-                    尚未有使用者資料。
+                    目前沒有帳號資料。
                   </td>
                 </tr>
               ) : null}

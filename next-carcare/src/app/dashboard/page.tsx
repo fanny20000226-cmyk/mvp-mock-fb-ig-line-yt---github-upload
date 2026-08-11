@@ -36,9 +36,10 @@ const quickLinks = [
   { href: "/finance/payments", title: "收款登記", desc: "登記收款、訂金、尾款與核銷紀錄。" },
   { href: "/finance/reports", title: "財務報表", desc: "查看營收、支出、稅額與匯出報表。" },
   { href: "/hr/staff-accounts", title: "人資員工建檔", desc: "建立員工編號、密碼、個人資料與變更審核。" },
-  { href: "/hr/payroll", title: "薪資作業", desc: "建立薪資單、出勤紀錄與薪資雲端備份。" },
+  { href: "/hr/payroll", title: "薪資作業", desc: "建立薪資單、出勤扣款與薪資同步。" },
   { href: "/staff/login", title: "員工後台登入", desc: "員工用編號登入，查看個人資料、薪資與出勤。" },
   { href: "/permissions", title: "權限管理", desc: "管理後台角色與可用功能。" },
+  { href: "/delivery-readiness", title: "交付驗收中心", desc: "查看交付清單、測試資料清理規則與角色權限總表。" },
 ];
 
 function money(value: number) {
@@ -135,7 +136,7 @@ export default function DashboardPage() {
         .filter((order) => order.status === "finished")
         .map((order) => ({
           id: `pickup-${order.id}`,
-          title: `完工待牽車：${order.order_no}`,
+          title: `已完工待牽車：${order.order_no}`,
           href: "/operations/construction",
           urgent: true,
         })),
@@ -149,7 +150,7 @@ export default function DashboardPage() {
         .filter((order) => Number(order.total_amount || 0) > Number(order.paid_amount || 0))
         .map((order) => ({
           id: `pay-${order.id}`,
-          title: `未結帳訂單：${order.order_no}`,
+          title: `待收尾款：${order.order_no}`,
           href: "/finance/payments",
           urgent: false,
         })),
@@ -197,7 +198,7 @@ export default function DashboardPage() {
 
         <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="card">
-            <h2 className="mb-4 text-xl font-black">近期收款趨勢</h2>
+            <h2 className="mb-4 text-xl font-black">今日收款趨勢</h2>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartRows}>

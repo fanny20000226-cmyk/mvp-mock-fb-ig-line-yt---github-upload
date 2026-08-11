@@ -21,7 +21,7 @@ const checks = [
   { key: "cars", title: "車輛資料", table: "cars", href: "/operations/cars" },
   { key: "customers", title: "客戶資料", table: "customers", href: "/operations/customers" },
   { key: "payments", title: "收款紀錄", table: "payment", href: "/finance/payments" },
-  { key: "photos", title: "照片標註", table: "image_annotations", href: "/annotations" },
+  { key: "photos", title: "圖片標註", table: "image_annotations", href: "/annotations" },
   { key: "staff", title: "員工資料", table: "staff_info", href: "/hr/staff-accounts" },
   { key: "attendance", title: "出勤紀錄", table: "attendance", href: "/hr/attendance" }
 ];
@@ -66,9 +66,9 @@ export default function SystemHealthPage() {
       <section className="space-y-5">
         <div className="card">
           <p className="text-sm font-black text-carcare-yellow">System Health</p>
-          <h1 className="text-2xl font-black">系統連動檢查</h1>
+          <h1 className="text-2xl font-black">系統健康檢查</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            用這裡快速確認報價、施工、車輛、客戶、收款、人資等前後台資料表是否能正常讀取。
+            快速確認主要資料表是否能讀取，並提供對應功能頁入口。此頁只做讀取檢查，不會修改資料。
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export default function SystemHealthPage() {
             <p className="mt-2 text-3xl font-black text-red-600">{summary.failed}</p>
           </div>
           <div className="card">
-            <p className="text-sm text-neutral-500">可讀資料筆數</p>
+            <p className="text-sm text-neutral-500">讀取資料總筆數</p>
             <p className="mt-2 text-3xl font-black text-carcare-yellow">{summary.totalRows}</p>
           </div>
           <div className="card">
@@ -93,7 +93,7 @@ export default function SystemHealthPage() {
 
         <section className="card">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-black">功能對應資料檢查</h2>
+            <h2 className="text-xl font-black">主要模組資料表檢查</h2>
             <button type="button" className="primary-btn" onClick={runChecks} disabled={loading}>
               {loading ? "檢查中..." : "重新檢查"}
             </button>
@@ -103,11 +103,11 @@ export default function SystemHealthPage() {
             <table className="min-w-full text-left text-sm">
               <thead className="bg-carcare-black text-white">
                 <tr>
-                  <th className="p-3">功能</th>
+                  <th className="p-3">模組</th>
                   <th className="p-3">資料表</th>
                   <th className="p-3">筆數</th>
                   <th className="p-3">狀態</th>
-                  <th className="p-3">前往</th>
+                  <th className="p-3">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -129,7 +129,7 @@ export default function SystemHealthPage() {
                     </td>
                     <td className="p-3">
                       <Link href={row.href} className="secondary-btn">
-                        開啟
+                        前往
                       </Link>
                     </td>
                   </tr>

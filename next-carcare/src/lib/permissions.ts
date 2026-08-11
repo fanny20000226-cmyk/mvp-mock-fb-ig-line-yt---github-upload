@@ -16,12 +16,12 @@ export type UserProfile = {
 };
 
 export const roleLabels: Record<Role, string> = {
-  admin: "Admin",
-  finance: "Finance",
-  hr: "HR",
-  shop_manager: "Shop Manager",
-  vice_manager: "Vice Manager",
-  worker: "Worker",
+  admin: "總管理員",
+  finance: "財務",
+  hr: "人資",
+  shop_manager: "店長",
+  vice_manager: "副店長",
+  worker: "員工",
 };
 
 export const roleMenus: Record<Role, string[]> = {
@@ -50,6 +50,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/settings/health",
     "/settings/system-test",
     "/manual",
+    "/delivery-readiness",
     "/hr/employees",
     "/hr/attendance",
     "/hr/staff-accounts",
@@ -99,6 +100,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/settings/health",
     "/settings/system-test",
     "/manual",
+    "/delivery-readiness",
     "/hr/attendance",
     "/hr/staff-accounts",
     "/hr/payroll",
