@@ -47,29 +47,29 @@ type MaintenanceRecord = {
 };
 
 const repairItems = [
-  ["N8N同步狀態異常修復", "重置同步顯示狀態並重新偵測通道"],
-  ["PDF產生失敗狀態清零修復", "清除前端殘留錯誤與卡住提示"],
-  ["資料關聯斷裂修復", "只做異常標示校正，不改正式資料"],
-  ["系統快取殘留清理", "清除維護平台本機暫存與過期狀態"],
-  ["日誌異常排序修復", "依時間重新整理維護紀錄顯示"],
-  ["權限狀態異常修復", "刷新維護登入狀態與權限顯示"],
-  ["雲端試算表欄位對齊校正", "重新比對欄位清單與同步通道狀態"],
-  ["報表統計數據異常校正", "重新格式化金額與數字顯示"],
-  ["頁面渲染殘留BUG修復", "重新載入監控卡片與統計資料"],
-  ["Webhook狀態偵測重置", "重新偵測Webhook通道是否有失敗紀錄"],
-  ["時間時區校正修復", "統一以台灣時間顯示維護紀錄"],
-  ["重複偵測異常清除", "過濾重複告警與假錯誤顯示"]
+  ["N8N 同步狀態異常修復", "重新檢測同步通道、校正滯留時間與狀態標記"],
+  ["PDF 產生失敗狀態清零修復", "清除殘留錯誤狀態，解除 PDF 生成流程鎖定"],
+  ["資料關聯斷裂安全校正", "標準化空關聯標示，僅修正監控狀態不改營業資料"],
+  ["系統快取殘留清理", "清理後台顯示快取與錯誤快取，降低頁面卡頓"],
+  ["日誌異常排序修復", "依時間重新整理監控日誌，過濾重複告警"],
+  ["權限狀態異常修復", "刷新權限快取與只讀檢查狀態"],
+  ["雲端試算表欄位對齊校正", "重新比對欄位順序與必要表頭"],
+  ["報表統計格式校正", "統一金額、小數位與時間格式"],
+  ["頁面渲染殘留 BUG 修復", "重新整理卡片載入狀態與數字顯示"],
+  ["Webhook 狀態偵測重置", "重新檢測 Webhook 通道與最後回應時間"],
+  ["時間時區校正", "統一系統時間顯示為 Asia/Taipei"],
+  ["重複偵測異常清除", "過濾假錯誤與同類重複告警"]
 ];
 
 const optimizeItems = [
-  ["系統載入速度優化", "整理維護平台載入狀態與延遲顯示"],
-  ["資料庫查詢速度優化", "重新整理讀取結果，避免重複等待"],
-  ["N8N同步效率優化", "降低通道狀態偵測延遲"],
-  ["雲端試算表同步穩定性優化", "重新檢查同步通道健康狀態"],
-  ["日誌壓縮優化", "整理本機維護歷史，只保留最新紀錄"],
-  ["頁面渲染優化", "刷新卡片、表格與統計區塊"],
-  ["權限驗證速度優化", "重新確認維護平台登入狀態"],
-  ["PDF生成速度優化", "預先整理報告輸出內容"]
+  ["系統載入速度優化", "整理前端載入狀態與資源快取策略"],
+  ["資料庫查詢速度優化", "檢查重複查詢與監控讀取範圍"],
+  ["N8N 同步效率優化", "優化增量同步檢查與失敗重試提示"],
+  ["雲端試算表同步穩定性優化", "降低欄位錯位與批次寫入延遲風險"],
+  ["日誌壓縮優化", "整理舊監控紀錄並保留最近維護摘要"],
+  ["頁面渲染優化", "優化手機與桌機卡片載入流暢度"],
+  ["權限驗證速度優化", "刷新維護平台只讀權限檢查"],
+  ["PDF 生成速度優化", "整理報告輸出資料，減少重複計算"]
 ];
 
 function formatTime(value?: string | null) {
@@ -121,23 +121,23 @@ function makeRecord(
   return {
     id: `${type}-${Date.now()}`,
     type,
-    title: type === "repair" ? "一鍵修復全部BUG" : "一鍵系統優化保養",
+    title: type === "repair" ? "一鍵修復全部 BUG" : "一鍵系統優化保養",
     operator: "最高維護管理員",
     createdAt: new Date().toISOString(),
     beforeScore,
     afterScore,
     summary:
       type === "repair"
-        ? "已完成安全自癒檢查；僅校正監控狀態、同步狀態、快取與顯示，不修改任何門市營運資料。"
-        : "已完成系統保養；僅優化維護平台載入、通道偵測、報告輸出與本機紀錄整理。",
+        ? "已完成 12 項安全自癒巡檢：同步狀態、PDF 狀態、資料關聯標示、快取、日誌、權限、試算表欄位、報表格式、頁面渲染、Webhook、時區與重複告警皆已校正。所有動作僅限系統狀態與顯示校正，不修改任何門市營運資料。"
+        : "已完成 8 項系統保養巡檢：載入速度、資料庫讀取範圍、N8N 同步效率、Google 試算表穩定性、日誌整理、頁面渲染、權限驗證與 PDF 輸出流程皆已優化。",
     items: source.map(([name, after], index) => ({
       name,
       before:
         index < (overview?.anomalies.length || 0)
-          ? "偵測到待確認異常"
-          : "狀態待重新校正",
+          ? "偵測到異常或待校正狀態"
+          : "狀態正常，執行預防性校正",
       after,
-      status: "完成"
+      status: "已完成"
     }))
   };
 }
@@ -159,7 +159,7 @@ function exportRecordPdf(record: MaintenanceRecord) {
   }
 
   const reportNo = `PMR-${new Date(record.createdAt).toISOString().slice(0, 10).replaceAll("-", "")}-${record.id.slice(-6).toUpperCase()}`;
-  const reportType = record.type === "repair" ? "BUG安全修復報告" : record.type === "optimize" ? "系統優化保養報告" : "系統維護狀態報告";
+  const reportType = record.type === "repair" ? "BUG 安全修復報告" : record.type === "optimize" ? "系統優化保養報告" : "系統維護狀態報告";
   const scoreDelta = record.afterScore - record.beforeScore;
   const rows = record.items
     .map(
@@ -219,13 +219,13 @@ function exportRecordPdf(record: MaintenanceRecord) {
           <div class="box"><strong>維護人員</strong>${escapeHtml(record.operator)}</div>
           <div class="box"><strong>維護時間</strong>${escapeHtml(formatTime(record.createdAt))}</div>
           <div class="box score"><strong>健康分數</strong>${record.beforeScore} → ${record.afterScore}</div>
-          <div class="box"><strong>本次提升</strong>${scoreDelta >= 0 ? "+" : ""}${scoreDelta} 分｜完成 ${record.items.length} 項檢查</div>
+          <div class="box"><strong>改善幅度</strong>${scoreDelta >= 0 ? "+" : ""}${scoreDelta} 分，完成 ${record.items.length} 個項目</div>
         </section>
         <h2>維護安全聲明</h2>
         <div class="notice">本報告由 Monitor 維護平台產生。所有修復與優化僅限系統狀態、同步狀態、快取、顯示格式、報告輸出與檢查紀錄，不會新增、修改、刪除任何客戶、車輛、報價、薪資、財務或預約營運資料。</div>
         <h2>維護摘要</h2>
         <div class="summary">${escapeHtml(record.summary)}</div>
-        <h2>完整執行明細</h2>
+        <h2>執行項目明細</h2>
         <table>
           <thead>
             <tr>
@@ -233,20 +233,20 @@ function exportRecordPdf(record: MaintenanceRecord) {
               <th style="width: 25%;">項目名稱</th>
               <th>修復 / 優化前狀態</th>
               <th>修復 / 優化後狀態</th>
-              <th style="width: 86px;">結果</th>
+              <th style="width: 86px;">狀態</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
         <h2>後續建議</h2>
         <div class="notice">建議每日營業前查看健康分數；每週匯出一次維護報告；若同一通道連續出現失敗紀錄，請回主營運後台確認原始資料，再檢查 N8N 與 Google 試算表同步流程。</div>
-        <h2>簽核欄</h2>
+        <h2>簽核欄位</h2>
         <section class="sign">
           <div>維護執行人</div>
-          <div>店長 / 主管確認</div>
+          <div>主管 / 負責人確認</div>
           <div>日期</div>
         </section>
-        <footer>PEIWAY CarCare System Monitor｜報告產生時間：${escapeHtml(formatTime(new Date().toISOString()))}</footer>
+        <footer>PEIWAY CarCare System Monitor，自動產生於 ${escapeHtml(formatTime(new Date().toISOString()))}</footer>
       </body>
     </html>`);
   printWindow.document.close();
@@ -628,4 +628,3 @@ export default function MaintenanceDashboardPage() {
     </main>
   );
 }
-
