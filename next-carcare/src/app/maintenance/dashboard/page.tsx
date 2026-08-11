@@ -152,7 +152,7 @@ function escapeHtml(value: unknown) {
 }
 
 function exportRecordPdf(record: MaintenanceRecord) {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=980,height=1200");
+  const printWindow = window.open("", "_blank", "width=980,height=1200");
   if (!printWindow) {
     window.alert("瀏覽器阻擋了報告視窗，請允許彈出視窗後再匯出。");
     return;
@@ -251,7 +251,7 @@ function exportRecordPdf(record: MaintenanceRecord) {
     </html>`);
   printWindow.document.close();
   printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 300);
+  window.setTimeout(() => printWindow.print(), 700);
 }
 export default function MaintenanceDashboardPage() {
   const router = useRouter();

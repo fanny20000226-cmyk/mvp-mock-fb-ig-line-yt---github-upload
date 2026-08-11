@@ -37,7 +37,7 @@ function escapeHtml(value: unknown) {
 }
 
 function exportPdf(records: MaintenanceRecord[]) {
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+  const printWindow = window.open("", "_blank", "width=900,height=1200");
   if (!printWindow) {
     window.alert("瀏覽器阻擋了紀錄視窗，請允許彈出視窗後再匯出。");
     return;
@@ -103,7 +103,7 @@ function exportPdf(records: MaintenanceRecord[]) {
     </html>`);
   printWindow.document.close();
   printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 300);
+  window.setTimeout(() => printWindow.print(), 700);
 }
 export default function HistoryClient() {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
