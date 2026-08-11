@@ -12,18 +12,24 @@
       "name": "Realtime Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-720, 0],
+      "position": [
+        -720,
+        0
+      ],
       "webhookId": "peiway-realtime-sheets"
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.first().json || {};\nconst params = payload.content_params || {};\nconst expectedKey = $vars.PEIWAY_REALTIME_SYNC_KEY || '';\nconst suppliedKey = params.security_key || payload.security_key || '';\nconst record = params.record || payload.record || {};\nconst syncType = params.sync_type || payload.sync_type || '';\nconst uniqueKey = params.unique_key || record.id || payload.id || '';\nconst isValid = Boolean(expectedKey) && suppliedKey === expectedKey;\nreturn [{ json: {\n  ok: isValid,\n  sync_type: syncType,\n  unique_key: uniqueKey,\n  source_event_type: payload.event_type || '',\n  source_table: params.source_table || payload.source_table || '',\n  operation: params.operation || payload.operation || 'upsert',\n  received_at: new Date().toISOString(),\n  row: record,\n  error: isValid ? '' : 'invalid security key'\n}}];"
+        "jsCode": "const payload = $input.first().json || {};\nconst params = payload.content_params || {};\nconst expectedKey = $vars.PEIWAY_REALTIME_SYNC_KEY || '';\nconst suppliedKey = params.security_key || payload.security_key || '';\nconst record = params.record || payload.record || {};\nconst syncType = params.sync_type || payload.sync_type || '';\nconst uniqueKey = params.unique_key || record.id || payload.id || '';\nconst isValid = Boolean(expectedKey) && suppliedKey === expectedKey;\nreturn [{ json: {\n  ok: isValid,\n  sync_type: syncType,\n  unique_key: uniqueKey,\n  source_event_type: payload.event_type || '',\n  source_table: params.source_table || payload.source_table || '',\n  operation: params.operation || payload.operation || 'upsert',\n  sheet_name: params.sheet_name || payload.sheet_name || '',\n  target_sheet_id: params.target_sheet_id || payload.target_sheet_id || '',\n  received_at: new Date().toISOString(),\n  row: record,\n  error: isValid ? '' : 'invalid security key'\n}}];"
       },
       "id": "code-normalize-payload",
       "name": "Validate And Normalize",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [-500, 0]
+      "position": [
+        -500,
+        0
+      ]
     },
     {
       "parameters": {
@@ -53,7 +59,10 @@
       "name": "Security Key Is Valid",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [-280, 0]
+      "position": [
+        -280,
+        0
+      ]
     },
     {
       "parameters": {
@@ -104,6 +113,75 @@
               },
               "renameOutput": true,
               "outputKey": "finance"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "salary-sync",
+                    "leftValue": "={{ $json.sync_type }}",
+                    "rightValue": "salary",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "salary"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "employee-sync",
+                    "leftValue": "={{ $json.sync_type }}",
+                    "rightValue": "employee",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "employee"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "attendance-sync",
+                    "leftValue": "={{ $json.sync_type }}",
+                    "rightValue": "attendance",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "attendance"
             }
           ]
         },
@@ -113,7 +191,10 @@
       "name": "Route Sync Type",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
-      "position": [-40, -120]
+      "position": [
+        -40,
+        -120
+      ]
     },
     {
       "parameters": {
@@ -123,7 +204,10 @@
       "name": "Map Customer Row",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, -260]
+      "position": [
+        220,
+        -260
+      ]
     },
     {
       "parameters": {
@@ -133,7 +217,23 @@
       "name": "Map Finance Row",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 40]
+      "position": [
+        220,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json.row || {};\nconst salaryId = $json.unique_key || row.id || row.salary_record_id || '';\nreturn [{ json: {\n  \"薪資年/月\": row.salary_month || row.payroll_month || '',\n  \"員工編號\": row.staff_no || row.staff_code || row.employee_no || '',\n  \"員工姓名\": row.staff_name || row.employee_name || row.name || '',\n  \"職稱\": row.position || row.title || '',\n  \"門市\": row.shop_name || row.store_name || row.shop_id || row.store_id || '',\n  \"本薪\": row.base_salary || 0,\n  \"職務津貼\": row.position_allowance || 0,\n  \"伙食津貼\": row.meal_allowance || 0,\n  \"全勤獎金\": row.attendance_bonus || row.full_attendance_bonus || 0,\n  \"加班費\": row.overtime_pay || 0,\n  \"交通津貼\": row.transport_allowance || 0,\n  \"激勵獎金\": row.incentive_bonus || 0,\n  \"外派支援津貼\": row.dispatch_allowance || row.support_allowance || 0,\n  \"應休未休\": row.unused_leave_pay || 0,\n  \"帶人金\": row.mentor_bonus || row.mentoring_bonus || 0,\n  \"績效獎金\": row.performance_bonus || 0,\n  \"業績獎金\": row.sales_bonus || 0,\n  \"勞保費(自付)\": row.labor_insurance_fee || 0,\n  \"健保費(自付)\": row.health_insurance_fee || 0,\n  \"勞退自提\": row.pension_self_pay || row.pension_self || 0,\n  \"事病假扣款\": row.sick_leave_deduction || row.leave_deduction || 0,\n  \"預支\": row.advance_payment || 0,\n  \"kip未達標扣款\": row.kip_penalty || row.kip_deduction || 0,\n  \"應給總額\": row.gross_amount || row.gross_pay || 0,\n  \"應扣總額\": row.deduction_amount || row.total_deduction || 0,\n  \"實領金額\": row.net_salary || row.net_pay || 0,\n  \"建檔時間\": row.created_at || $json.received_at || '',\n  \"建立人\": row.created_by || row.created_by_name || '',\n  \"系統薪資紀錄ID\": salaryId\n}}];"
+      },
+      "id": "code-salary-row",
+      "name": "Map Salary Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        320
+      ]
     },
     {
       "parameters": {
@@ -151,7 +251,9 @@
         "columns": {
           "mappingMode": "autoMapInputData",
           "value": {},
-          "matchingColumns": ["id"],
+          "matchingColumns": [
+            "id"
+          ],
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
@@ -162,7 +264,10 @@
       "name": "Upsert Customer Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [480, -260],
+      "position": [
+        480,
+        -260
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "",
@@ -186,7 +291,9 @@
         "columns": {
           "mappingMode": "autoMapInputData",
           "value": {},
-          "matchingColumns": ["id"],
+          "matchingColumns": [
+            "id"
+          ],
           "schema": [],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
@@ -197,7 +304,50 @@
       "name": "Upsert Finance Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [480, 40],
+      "position": [
+        480,
+        40
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Validate And Normalize').first().json.target_sheet_id || $vars.GOOGLE_SALARY_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Validate And Normalize').first().json.sheet_name || '\\u54e1\\u5de5\\u85aa\\u8cc7\\u660e\\u7d30\\u8868\\uff08\\u96f2\\u7aef\\u5efa\\u6a94\\uff09' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "系統薪資紀錄ID"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "google-sheets-upsert-salary",
+      "name": "Upsert Salary Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        320
+      ],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "",
@@ -215,7 +365,10 @@
       "name": "Respond Success",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [760, -120]
+      "position": [
+        760,
+        -120
+      ]
     },
     {
       "parameters": {
@@ -228,39 +381,307 @@
       "name": "Respond Invalid Key",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [-40, 180]
+      "position": [
+        -40,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json.row || {};\nconst employeeId = $json.unique_key || row.id || row.employee_no || row.staff_no || row.staff_code || '';\nreturn [{ json: {\n  \"員工編號\": row.employee_no || row.staff_no || row.staff_code || '',\n  \"真實姓名\": row.real_name || row.staff_name || row.name || '',\n  \"聯絡電話\": row.phone || row.mobile || '',\n  \"職位\": row.position || row.title || '',\n  \"所屬門市\": row.store_name || row.shop_name || row.store_id || row.shop_id || '',\n  \"到職日\": row.hire_date || '',\n  \"狀態\": row.status || '',\n  \"本薪\": row.base_salary || 0,\n  \"津貼\": row.allowance || row.position_allowance || 0,\n  \"建立時間\": row.created_at || '',\n  \"更新時間\": row.updated_at || $json.received_at || '',\n  \"系統員工ID\": employeeId\n}}];"
+      },
+      "id": "map-employee-row",
+      "name": "Map Employee Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json.row || {};\nconst attendanceId = $json.unique_key || row.id || row.attendance_id || '';\nreturn [{ json: {\n  \"出勤紀錄ID\": attendanceId,\n  \"員工編號\": row.employee_no || row.staff_no || row.staff_code || '',\n  \"日期\": row.log_date || row.attendance_date || row.date || '',\n  \"類型\": row.type || row.attendance_type || '',\n  \"上班時間\": row.clock_in || row.start_time || '',\n  \"下班時間\": row.clock_out || row.end_time || '',\n  \"遲到次數\": row.late_count || 0,\n  \"遲到分鐘\": row.late_minutes || 0,\n  \"加班時數\": row.overtime_hour || row.overtime_hours || 0,\n  \"請假天數\": row.leave_days || 0,\n  \"備註\": row.note || row.remark || '',\n  \"建立時間\": row.created_at || '',\n  \"更新時間\": row.updated_at || $json.received_at || ''\n}}];"
+      },
+      "id": "map-attendance-row",
+      "name": "Map Attendance Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        780
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Validate And Normalize').first().json.target_sheet_id || $vars.GOOGLE_REPORT_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "員工人事檔",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "????ID"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "upsert-employee-sheet",
+      "name": "Upsert Employee Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1180,
+        620
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets OAuth2 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Validate And Normalize').first().json.target_sheet_id || $vars.GOOGLE_REPORT_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "出勤紀錄",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "????ID"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "upsert-attendance-sheet",
+      "name": "Upsert Attendance Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1180,
+        780
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets OAuth2 account"
+        }
+      }
     }
   ],
   "connections": {
     "Realtime Webhook": {
-      "main": [[{ "node": "Validate And Normalize", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate And Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate And Normalize": {
-      "main": [[{ "node": "Security Key Is Valid", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Security Key Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Security Key Is Valid": {
       "main": [
-        [{ "node": "Route Sync Type", "type": "main", "index": 0 }],
-        [{ "node": "Respond Invalid Key", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Route Sync Type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Invalid Key",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Route Sync Type": {
       "main": [
-        [{ "node": "Map Customer Row", "type": "main", "index": 0 }],
-        [{ "node": "Map Finance Row", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Map Customer Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Map Finance Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Map Salary Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Map Employee Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Map Attendance Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Map Customer Row": {
-      "main": [[{ "node": "Upsert Customer Sheet", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Customer Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Map Finance Row": {
-      "main": [[{ "node": "Upsert Finance Sheet", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Upsert Finance Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Salary Row": {
+      "main": [
+        [
+          {
+            "node": "Upsert Salary Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Customer Sheet": {
-      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Upsert Finance Sheet": {
-      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Salary Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Employee Row": {
+      "main": [
+        [
+          {
+            "node": "Upsert Employee Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Attendance Row": {
+      "main": [
+        [
+          {
+            "node": "Upsert Attendance Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Employee Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Attendance Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
