@@ -17,7 +17,6 @@ import {
   Wrench,
   XCircle
 } from "lucide-react";
-import { jsPDF } from "jspdf";
 
 type Overview = {
   generatedAt: string;
@@ -143,29 +142,117 @@ function makeRecord(
   };
 }
 
-function exportRecordPdf(record: MaintenanceRecord) {
-  const pdf = new jsPDF("p", "mm", "a4");
-  const lines = [
-    "PEIWAY Monitor 維護報告",
-    `類型：${record.title}`,
-    `維護人員：${record.operator}`,
-    `時間：${formatTime(record.createdAt)}`,
-    `健康分數：${record.beforeScore} -> ${record.afterScore}`,
-    "",
-    record.summary,
-    "",
-    "執行項目：",
-    ...record.items.map((item, index) => `${index + 1}. ${item.name}｜${item.status}｜${item.after}`)
-  ];
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(16);
-  pdf.text("PEIWAY Maintenance Report", 14, 16);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  pdf.text(pdf.splitTextToSize(lines.join("\n"), 182), 14, 28);
-  pdf.save(`PEIWAY_${record.type}_${new Date(record.createdAt).toISOString().slice(0, 10)}.pdf`);
+function escapeHtml(value: unknown) {
+  return String(value ?? "-")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
+function exportRecordPdf(record: MaintenanceRecord) {
+  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=980,height=1200");
+  if (!printWindow) {
+    window.alert("瀏覽器阻擋了報告視窗，請允許彈出視窗後再匯出。");
+    return;
+  }
+
+  const reportNo = `PMR-${new Date(record.createdAt).toISOString().slice(0, 10).replaceAll("-", "")}-${record.id.slice(-6).toUpperCase()}`;
+  const reportType = record.type === "repair" ? "BUG安全修復報告" : record.type === "optimize" ? "系統優化保養報告" : "系統維護狀態報告";
+  const scoreDelta = record.afterScore - record.beforeScore;
+  const rows = record.items
+    .map(
+      (item, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><strong>${escapeHtml(item.name)}</strong></td>
+          <td>${escapeHtml(item.before)}</td>
+          <td>${escapeHtml(item.after)}</td>
+          <td><span class="status-pill">${escapeHtml(item.status)}</span></td>
+        </tr>`
+    )
+    .join("");
+
+  printWindow.document.write(`<!doctype html>
+    <html lang="zh-Hant">
+      <head>
+        <meta charset="utf-8" />
+        <title>PEIWAY ${reportType}</title>
+        <style>
+          @page { size: A4; margin: 13mm; }
+          * { box-sizing: border-box; }
+          body { margin: 0; color: #111; font-family: "Microsoft JhengHei", "Noto Sans TC", "PingFang TC", Arial, sans-serif; line-height: 1.6; }
+          header { background: #121212; color: #fff; padding: 20px 24px; border-radius: 14px; }
+          h1 { margin: 0; font-size: 26px; letter-spacing: .03em; }
+          h2 { margin: 24px 0 10px; font-size: 18px; border-left: 6px solid #ffc107; padding-left: 10px; }
+          .subtitle { margin-top: 6px; color: #f4f4f4; font-size: 13px; }
+          .toolbar { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 10px 0; background: #fff; z-index: 2; }
+          .toolbar button { border: 0; border-radius: 8px; padding: 10px 14px; background: #ffc107; color: #121212; font-weight: 900; cursor: pointer; }
+          .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+          .box { border: 1px solid #ddd; border-radius: 12px; padding: 12px; background: #fff; }
+          .box strong { display: block; margin-bottom: 4px; color: #666; font-size: 12px; }
+          .score { background: #ffc107; border: 0; font-size: 22px; font-weight: 900; }
+          .summary { white-space: pre-wrap; border-left: 6px solid #ffc107; padding: 14px 16px; background: #fff8df; border-radius: 10px; }
+          .notice { border: 1px solid #f2d27a; background: #fff8df; border-radius: 12px; padding: 12px 14px; font-size: 13px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11.5px; page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          th { background: #121212; color: #fff; text-align: left; }
+          th, td { border: 1px solid #ddd; padding: 8px; vertical-align: top; }
+          tr:nth-child(even) td { background: #f8f8f8; }
+          .status-pill { display: inline-block; border-radius: 999px; background: #ffc107; color: #121212; padding: 3px 8px; font-weight: 900; }
+          .sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+          .sign div { border-bottom: 1px solid #111; padding-top: 36px; font-size: 12px; color: #555; }
+          footer { margin-top: 22px; color: #666; font-size: 11px; text-align: center; }
+          @media print { .toolbar { display: none; } body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+        </style>
+      </head>
+      <body>
+        <div class="toolbar"><button onclick="window.print()">列印 / 另存 PDF</button></div>
+        <header>
+          <h1>PEIWAY ${escapeHtml(reportType)}</h1>
+          <div class="subtitle">Monitor 獨立維護後台｜只做系統狀態校正與報告紀錄，不修改門市營運資料</div>
+        </header>
+        <section class="grid">
+          <div class="box"><strong>報告編號</strong>${escapeHtml(reportNo)}</div>
+          <div class="box"><strong>報告類型</strong>${escapeHtml(record.title)}</div>
+          <div class="box"><strong>維護人員</strong>${escapeHtml(record.operator)}</div>
+          <div class="box"><strong>維護時間</strong>${escapeHtml(formatTime(record.createdAt))}</div>
+          <div class="box score"><strong>健康分數</strong>${record.beforeScore} → ${record.afterScore}</div>
+          <div class="box"><strong>本次提升</strong>${scoreDelta >= 0 ? "+" : ""}${scoreDelta} 分｜完成 ${record.items.length} 項檢查</div>
+        </section>
+        <h2>維護安全聲明</h2>
+        <div class="notice">本報告由 Monitor 維護平台產生。所有修復與優化僅限系統狀態、同步狀態、快取、顯示格式、報告輸出與檢查紀錄，不會新增、修改、刪除任何客戶、車輛、報價、薪資、財務或預約營運資料。</div>
+        <h2>維護摘要</h2>
+        <div class="summary">${escapeHtml(record.summary)}</div>
+        <h2>完整執行明細</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 34px;">#</th>
+              <th style="width: 25%;">項目名稱</th>
+              <th>修復 / 優化前狀態</th>
+              <th>修復 / 優化後狀態</th>
+              <th style="width: 86px;">結果</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <h2>後續建議</h2>
+        <div class="notice">建議每日營業前查看健康分數；每週匯出一次維護報告；若同一通道連續出現失敗紀錄，請回主營運後台確認原始資料，再檢查 N8N 與 Google 試算表同步流程。</div>
+        <h2>簽核欄</h2>
+        <section class="sign">
+          <div>維護執行人</div>
+          <div>店長 / 主管確認</div>
+          <div>日期</div>
+        </section>
+        <footer>PEIWAY CarCare System Monitor｜報告產生時間：${escapeHtml(formatTime(new Date().toISOString()))}</footer>
+      </body>
+    </html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => printWindow.print(), 300);
+}
 export default function MaintenanceDashboardPage() {
   const router = useRouter();
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -541,3 +628,4 @@ export default function MaintenanceDashboardPage() {
     </main>
   );
 }
+

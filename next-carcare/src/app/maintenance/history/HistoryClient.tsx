@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
-import { jsPDF } from "jspdf";
 
 type MaintenanceRecord = {
   id: string;
@@ -28,30 +27,84 @@ function storageKey() {
   return "peiway-maintenance-history-v1";
 }
 
-function exportPdf(records: MaintenanceRecord[]) {
-  const pdf = new jsPDF("p", "mm", "a4");
-  const lines = [
-    "PEIWAY Monitor 維護歷史紀錄",
-    `匯出時間：${formatTime(new Date().toISOString())}`,
-    "",
-    ...records.flatMap((record, index) => [
-      `${index + 1}. ${record.title}`,
-      `時間：${formatTime(record.createdAt)}`,
-      `維護人員：${record.operator}`,
-      `健康分數：${record.beforeScore} -> ${record.afterScore}`,
-      `摘要：${record.summary}`,
-      ""
-    ])
-  ];
-  pdf.setFont("helvetica", "bold");
-  pdf.setFontSize(16);
-  pdf.text("PEIWAY Maintenance History", 14, 16);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  pdf.text(pdf.splitTextToSize(lines.join("\n"), 182), 14, 28);
-  pdf.save(`PEIWAY_maintenance_history_${new Date().toISOString().slice(0, 10)}.pdf`);
+function escapeHtml(value: unknown) {
+  return String(value ?? "-")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
+function exportPdf(records: MaintenanceRecord[]) {
+  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=900,height=1200");
+  if (!printWindow) {
+    window.alert("瀏覽器阻擋了紀錄視窗，請允許彈出視窗後再匯出。");
+    return;
+  }
+
+  const rows = records
+    .map(
+      (record, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(formatTime(record.createdAt))}</td>
+          <td>${escapeHtml(record.title)}</td>
+          <td>${escapeHtml(record.operator)}</td>
+          <td>${record.beforeScore} → ${record.afterScore}</td>
+          <td>${escapeHtml(record.summary)}</td>
+          <td>${record.items.length}</td>
+        </tr>`
+    )
+    .join("");
+
+  printWindow.document.write(`<!doctype html>
+    <html lang="zh-Hant">
+      <head>
+        <meta charset="utf-8" />
+        <title>PEIWAY 維護歷史紀錄</title>
+        <style>
+          @page { size: A4 landscape; margin: 12mm; }
+          * { box-sizing: border-box; }
+          body { margin: 0; color: #111; font-family: "Microsoft JhengHei", "Noto Sans TC", "PingFang TC", Arial, sans-serif; line-height: 1.5; }
+          header { background: #121212; color: #fff; padding: 18px 22px; border-radius: 12px; }
+          h1 { margin: 0; font-size: 24px; }
+          .meta { margin-top: 8px; color: #f4f4f4; }
+          table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 11px; }
+          th { background: #121212; color: #fff; text-align: left; }
+          th, td { border: 1px solid #ddd; padding: 7px; vertical-align: top; }
+          tr:nth-child(even) td { background: #f8f8f8; }
+          .no-print { position: sticky; top: 0; display: flex; justify-content: flex-end; gap: 8px; padding: 10px 0; background: #fff; }
+          .no-print button { border: 0; border-radius: 8px; padding: 10px 14px; background: #ffc107; color: #121212; font-weight: 900; cursor: pointer; }
+          @media print { .no-print { display: none; } }
+        </style>
+      </head>
+      <body>
+        <div class="no-print"><button onclick="window.print()">列印 / 另存 PDF</button></div>
+        <header>
+          <h1>PEIWAY 維護歷史紀錄</h1>
+          <div class="meta">匯出時間：${escapeHtml(formatTime(new Date().toISOString()))}｜紀錄筆數：${records.length}</div>
+        </header>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>時間</th>
+              <th>類型</th>
+              <th>維護人員</th>
+              <th>健康分數</th>
+              <th>摘要</th>
+              <th>項目數</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </body>
+    </html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => printWindow.print(), 300);
+}
 export default function HistoryClient() {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [query, setQuery] = useState("");
@@ -142,3 +195,4 @@ export default function HistoryClient() {
     </main>
   );
 }
+
