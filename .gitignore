@@ -9,3 +9,11 @@ next-carcare/node_modules/
 next-carcare/.next/
 next-carcare/out/
 next-carcare/.vercel/
+
+.vercel
+.codex-vercel-home/
+next-carcare/.codex-vercel-home/
+next-carcare/com.vercel.cli/
+next-carcare/pnpm/
+next-carcare/store/
+*.tsbuildinfo
