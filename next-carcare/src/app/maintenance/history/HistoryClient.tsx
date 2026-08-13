@@ -36,13 +36,19 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#39;");
 }
 
-function exportPdf(records: MaintenanceRecord[]) {
-  const printWindow = window.open("", "_blank", "width=900,height=1200");
-  if (!printWindow) {
-    window.alert("瀏覽器阻擋了紀錄視窗，請允許彈出視窗後再匯出。");
-    return;
-  }
+function downloadHtml(filename: string, html: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
+function exportPdf(records: MaintenanceRecord[]) {
   const rows = records
     .map(
       (record, index) => `
@@ -58,7 +64,7 @@ function exportPdf(records: MaintenanceRecord[]) {
     )
     .join("");
 
-  printWindow.document.write(`<!doctype html>
+  const html = `<!doctype html>
     <html lang="zh-Hant">
       <head>
         <meta charset="utf-8" />
@@ -100,10 +106,9 @@ function exportPdf(records: MaintenanceRecord[]) {
           <tbody>${rows}</tbody>
         </table>
       </body>
-    </html>`);
-  printWindow.document.close();
-  printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 700);
+    </html>`;
+
+  downloadHtml(`PEIWAY_維護歷史紀錄_${new Date().toISOString().slice(0, 10)}.html`, html);
 }
 export default function HistoryClient() {
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
@@ -140,7 +145,7 @@ export default function HistoryClient() {
               返回監控看板
             </Link>
             <button type="button" className="primary-btn" onClick={() => exportPdf(filtered)} disabled={!filtered.length}>
-              <Download size={16} /> 匯出紀錄PDF
+              <Download size={16} /> 下載紀錄報告
             </button>
           </div>
         </div>

@@ -113,6 +113,17 @@ const roleTestSteps = [
   "用一般員工登入，確認只能查看自身員工後台與允許的施工/行事曆資料。"
 ];
 
+const onlineAcceptanceSteps = [
+  "建立一筆 TEST_ 客戶與測試車牌，確認 customers、cars 與 Google 試算表客戶 / 車輛分頁都有資料。",
+  "用手機快速開單建立測試報價，確認報價列表、工作台報價總數與 Google 報價分頁同步更新。",
+  "把測試報價轉施工單，確認施工單列表與工作台施工訂單統計同步更新。",
+  "建立一筆測試收款，確認 transaction_record 與 Google 財務分頁同步更新。",
+  "建立一筆測試預約，確認行事曆、預約清單與 Google 預約分頁同步更新。",
+  "建立一筆測試員工、出勤與薪資單，確認員工後台可查看，Google 薪資 / 出勤分頁同步更新。",
+  "分別匯出報價 PDF、施工 PDF、收據 PDF、薪資 PDF 與維護報告 HTML，確認中文與金額可讀。",
+  "測試完成後依測試資料前綴清理測試資料，並確認正式營運資料沒有被誤刪。"
+];
+
 const gapList = [
   "建議在 N8N 增加失敗通知管道，例如 Telegram 或 email，避免同步中斷沒人知道。",
   "建議每週固定匯出一次維護報告與財務報表，建立交付後維護節奏。",
@@ -263,6 +274,16 @@ export default function DeliveryReadinessPage() {
           <h2 className="text-xl font-black">角色登入實測步驟</h2>
           <div className="mt-4">
             <CheckList items={roleTestSteps} />
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="text-xl font-black">線上端到端驗收流程</h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            正式交付前請用線上網址照順序跑一次。每筆測試資料都使用 TEST_ 或 TST- 前綴，方便後續清理。
+          </p>
+          <div className="mt-4">
+            <CheckList items={onlineAcceptanceSteps} />
           </div>
         </section>
       </div>

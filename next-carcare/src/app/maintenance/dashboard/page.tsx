@@ -151,13 +151,19 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#39;");
 }
 
-function exportRecordPdf(record: MaintenanceRecord) {
-  const printWindow = window.open("", "_blank", "width=980,height=1200");
-  if (!printWindow) {
-    window.alert("瀏覽器阻擋了報告視窗，請允許彈出視窗後再匯出。");
-    return;
-  }
+function downloadHtml(filename: string, html: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 
+function exportRecordPdf(record: MaintenanceRecord) {
   const reportNo = `PMR-${new Date(record.createdAt).toISOString().slice(0, 10).replaceAll("-", "")}-${record.id.slice(-6).toUpperCase()}`;
   const reportType = record.type === "repair" ? "BUG 安全修復報告" : record.type === "optimize" ? "系統優化保養報告" : "系統維護狀態報告";
   const scoreDelta = record.afterScore - record.beforeScore;
@@ -174,7 +180,7 @@ function exportRecordPdf(record: MaintenanceRecord) {
     )
     .join("");
 
-  printWindow.document.write(`<!doctype html>
+  const html = `<!doctype html>
     <html lang="zh-Hant">
       <head>
         <meta charset="utf-8" />
@@ -248,10 +254,9 @@ function exportRecordPdf(record: MaintenanceRecord) {
         </section>
         <footer>PEIWAY CarCare System Monitor，自動產生於 ${escapeHtml(formatTime(new Date().toISOString()))}</footer>
       </body>
-    </html>`);
-  printWindow.document.close();
-  printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 700);
+    </html>`;
+
+  downloadHtml(`${reportNo}-${reportType}.html`, html);
 }
 export default function MaintenanceDashboardPage() {
   const router = useRouter();
@@ -380,7 +385,7 @@ export default function MaintenanceDashboardPage() {
               <RefreshCcw size={16} /> 重新整理
             </button>
             <button type="button" className="primary-btn" onClick={exportOverviewPdf} disabled={!overview}>
-              <Download size={16} /> 匯出維護報告PDF
+              <Download size={16} /> 下載維護報告
             </button>
             <button type="button" className="secondary-btn bg-white" onClick={logout}>
               <LogOut size={16} /> 登出
@@ -473,7 +478,7 @@ export default function MaintenanceDashboardPage() {
                 <p className="mt-1 text-sm text-neutral-600">{history[0].summary}</p>
               </div>
               <button type="button" className="secondary-btn" onClick={() => exportRecordPdf(history[0])}>
-                <Download size={16} /> 匯出本次報告
+                <Download size={16} /> 下載本次報告
               </button>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-4">
