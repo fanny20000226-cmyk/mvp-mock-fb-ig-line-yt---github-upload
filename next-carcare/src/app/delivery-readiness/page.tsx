@@ -40,6 +40,31 @@ const readinessItems = [
   }
 ];
 
+const environmentChecklist = [
+  { key: "NEXT_PUBLIC_SUPABASE_URL", purpose: "前端連線 Supabase 專案網址", owner: "Vercel 環境變數" },
+  { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", purpose: "前端讀寫允許範圍內資料", owner: "Vercel 環境變數" },
+  { key: "SUPABASE_SERVICE_ROLE_KEY", purpose: "伺服器端執行轉單、歸檔、同步測試等管理動作", owner: "只可放 Vercel server-side" },
+  { key: "N8N_WEBHOOK_URL", purpose: "系統送出即時同步事件到 N8N", owner: "Vercel 與 N8N 設定需一致" },
+  { key: "N8N_WEBHOOK_SECRET", purpose: "N8N Webhook 安全驗證", owner: "Vercel 與 N8N 變數需一致" },
+  { key: "GOOGLE_REPORT_SHEET_ID", purpose: "客戶、車輛、報價、預約、財務報表同步目標", owner: "N8N 變數" },
+  { key: "GOOGLE_SALARY_SHEET_ID", purpose: "員工、人資、薪資、出勤同步目標", owner: "N8N 變數" }
+];
+
+const storageChecklist = [
+  "Supabase Storage 必須存在 car-images bucket。",
+  "施工前、施工後、車輛相簿、圖片標註都要能上傳與預覽。",
+  "PDF 取用雲端照片時不能出現 404 或權限拒絕。",
+  "正式使用前請用一張測試照片完成上傳、放大、刪除、PDF 匯出。"
+];
+
+const pdfChecklist = [
+  "報價單 PDF：客戶車輛資訊、施工項目、照片、金額與總額框都要正常。",
+  "施工工單 PDF：五大分類、施工前後圖片、簽名欄與日期欄正常。",
+  "收據 PDF：門市資訊、稅額、含稅總金額、列印次數正常。",
+  "薪資單 PDF：員工編號、薪資年月、應給、應扣、實領金額正常。",
+  "維護報告 PDF：中文不亂碼，連線狀態、異常清單、同步時間可讀。"
+];
+
 const cleanupRules = [
   "測試資料必須使用固定前綴，例如 TEST_、測試客戶、測試車牌 TST- 開頭，方便查詢與清理。",
   "測試完成後先確認 Google 試算表已同步，再刪除或標記測試資料，避免正式資料被誤判。",
@@ -80,13 +105,34 @@ const permissionMatrix = [
   }
 ];
 
+const roleTestSteps = [
+  "用總管理員登入，確認可進入權限、N8N、財務、人資、交付驗收中心。",
+  "用店長登入，確認可處理門市營運與交付驗收，但不可越權管理全系統。",
+  "用人資登入，確認可建員工、登出勤、建薪資，不可查看不必要的營運設定。",
+  "用財務登入，確認可查看收款、交易、收據、報表，不可進入薪資個資。",
+  "用一般員工登入，確認只能查看自身員工後台與允許的施工/行事曆資料。"
+];
+
 const gapList = [
-  "正式驗收時需保留一份測試帳號與測試資料命名規則，避免之後找不到測試紀錄。",
   "建議在 N8N 增加失敗通知管道，例如 Telegram 或 email，避免同步中斷沒人知道。",
   "建議每週固定匯出一次維護報告與財務報表，建立交付後維護節奏。",
   "正式使用前請確認 Supabase service role key 只放在 Vercel server-side 環境變數，不出現在前端。",
-  "若 Google 試算表要給店長查看，建議建立只讀分享權限，不直接給編輯權。"
+  "若 Google 試算表要給店長查看，建議建立只讀分享權限，不直接給編輯權。",
+  "正式營運前請建立一組測試員工、一筆測試薪資、一筆測試報價，完成端到端驗收。"
 ];
+
+function CheckList({ items }: { items: string[] }) {
+  return (
+    <ul className="space-y-2 text-sm leading-6 text-neutral-700">
+      {items.map((item) => (
+        <li key={item} className="flex gap-2">
+          <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-carcare-yellow" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function DeliveryReadinessPage() {
   return (
@@ -96,7 +142,7 @@ export default function DeliveryReadinessPage() {
           <p className="text-sm font-black text-carcare-yellow">Delivery Readiness</p>
           <h1 className="mt-1 text-2xl font-black text-neutral-950">交付驗收中心</h1>
           <p className="mt-2 text-sm text-neutral-600">
-            這裡整理正式交付前應確認的功能、測試資料清理規則、角色權限總表與仍可補強項目。此頁只做檢查與說明，不會改動營運資料。
+            這裡整理正式交付前應確認的功能、環境變數、Storage、PDF、測試資料清理規則、角色權限總表與仍可補強項目。此頁只做檢查與說明，不會改動營運資料。
           </p>
         </section>
 
@@ -115,16 +161,53 @@ export default function DeliveryReadinessPage() {
             {readinessItems.map((group) => (
               <div key={group.group} className="rounded-xl border border-neutral-200 bg-white p-4">
                 <h3 className="font-black text-neutral-950">{group.group}</h3>
-                <ul className="mt-3 space-y-2 text-sm leading-6 text-neutral-700">
-                  {group.items.map((item) => (
-                    <li key={item} className="flex gap-2">
-                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-carcare-yellow" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-3">
+                  <CheckList items={group.items} />
+                </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="text-xl font-black">環境變數核對表</h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            下列值不應顯示在前端頁面，只需確認 Vercel 或 N8N 後台已設定。這裡只列名稱與用途，不存放金鑰內容。
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-carcare-black text-white">
+                <tr>
+                  <th className="p-3">變數名稱</th>
+                  <th className="p-3">用途</th>
+                  <th className="p-3">設定位置</th>
+                </tr>
+              </thead>
+              <tbody>
+                {environmentChecklist.map((row) => (
+                  <tr key={row.key} className="border-b border-neutral-200">
+                    <td className="p-3 font-black">{row.key}</td>
+                    <td className="p-3">{row.purpose}</td>
+                    <td className="p-3 text-neutral-600">{row.owner}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-2">
+          <div className="card">
+            <h2 className="text-xl font-black">Supabase Storage 檢查</h2>
+            <div className="mt-4">
+              <CheckList items={storageChecklist} />
+            </div>
+          </div>
+          <div className="card">
+            <h2 className="text-xl font-black">PDF 實測清單</h2>
+            <div className="mt-4">
+              <CheckList items={pdfChecklist} />
+            </div>
           </div>
         </section>
 
@@ -173,6 +256,13 @@ export default function DeliveryReadinessPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="text-xl font-black">角色登入實測步驟</h2>
+          <div className="mt-4">
+            <CheckList items={roleTestSteps} />
           </div>
         </section>
       </div>
