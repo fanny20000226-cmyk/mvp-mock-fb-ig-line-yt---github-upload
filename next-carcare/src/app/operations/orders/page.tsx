@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { supabase } from "@/lib/supabase";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { MoreActions } from "@/components/UiPatterns";
 
 type OrderRow = {
   id: string;
@@ -42,6 +43,8 @@ const statusText: Record<string, string> = {
   cancel_requested: "取消待審核",
   reschedule_requested: "改期待審核"
 };
+const orderStages = ["pending", "scheduled", "working", "finished", "picked_up"] as const;
+function statusTone(status: string) { return status === "cancelled" ? "status-danger" : status === "finished" || status === "picked_up" ? "status-success" : status === "working" ? "status-info" : "status-neutral"; }
 
 function downloadCsv(rows: OrderRow[]) {
   const header = ["訂單編號", "客戶", "電話", "車牌", "車型", "狀態", "總金額", "已收", "建立時間", "備註"];
@@ -79,6 +82,7 @@ export default function OrdersPage() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState("");
 
   async function load() {
     setLoading(true);
@@ -136,20 +140,29 @@ export default function OrdersPage() {
   }, [keyword, rows, status]);
 
   async function updateStatus(row: OrderRow, nextStatus: string) {
+    if (actionId) return;
+    setActionId(row.id);
     const patch: Record<string, string | null> = { status: nextStatus };
     if (nextStatus === "working" && !row.start_at) patch.start_at = new Date().toISOString();
     if (nextStatus === "finished" && !row.finish_at) patch.finish_at = new Date().toISOString();
 
     const { error } = await supabase.from("construction_orders").update(patch).eq("id", row.id);
-    if (error) return toast(error.message, "error");
+    if (error) { setActionId(""); return toast(error.message, "error"); }
     toast(`訂單已更新為「${statusText[nextStatus] || nextStatus}」。`, "success");
-    load();
+    await load();
+    setActionId("");
   }
 
   async function cancelOrder(row: OrderRow) {
     const ok = await confirm({ title: "取消訂單", message: `確定要取消訂單 ${row.order_no} 嗎？系統會保留紀錄，不會刪除歷史資料。`, confirmLabel: "確認取消", tone: "warning" });
     if (!ok) return;
     await updateStatus(row, "cancelled");
+  }
+
+  async function advanceOrder(row: OrderRow) {
+    const current = orderStages.indexOf(row.status as (typeof orderStages)[number]);
+    if (current < 0 || current >= orderStages.length - 1) return;
+    await updateStatus(row, orderStages[current + 1]);
   }
 
   return (
@@ -236,22 +249,7 @@ export default function OrdersPage() {
                           {car?.customer_phone || quote?.customer_phone || ""}
                         </p>
                       </td>
-                      <td>
-                        <select
-                          className="form-input min-w-32"
-                          value={row.status}
-                          onChange={(event) => updateStatus(row, event.target.value)}
-                        >
-                          <option value="pending">待確認</option>
-                          <option value="scheduled">已排車</option>
-                          <option value="working">施工中</option>
-                          <option value="finished">已完工</option>
-                          <option value="picked_up">已牽車</option>
-                          <option value="cancel_requested">取消待審核</option>
-                          <option value="reschedule_requested">改期待審核</option>
-                          <option value="cancelled">取消</option>
-                        </select>
-                      </td>
+                      <td><span className={`status-chip ${statusTone(row.status)}`}>{statusText[row.status] || row.status}</span></td>
                       <td>
                         <p className="font-black text-neutral-900">${amount.toLocaleString()}</p>
                         <p className="text-xs text-neutral-500">已收 ${Number(row.paid_amount || 0).toLocaleString()}</p>
@@ -261,11 +259,7 @@ export default function OrdersPage() {
                         {row.start_at ? <p className="text-xs text-neutral-500">開工 {String(row.start_at).slice(0, 16).replace("T", " ")}</p> : null}
                       </td>
                       <td className="max-w-72 whitespace-pre-wrap text-sm text-neutral-600">{row.remark || "-"}</td>
-                      <td>
-                        <button type="button" onClick={() => cancelOrder(row)} className="secondary-btn">
-                          取消訂單
-                        </button>
-                      </td>
+                      <td><div className="flex flex-wrap gap-2">{orderStages.includes(row.status as (typeof orderStages)[number]) && row.status !== "picked_up" ? <button type="button" disabled={Boolean(actionId)} onClick={() => advanceOrder(row)} className="primary-btn">{actionId === row.id ? <><span className="button-spinner" />處理中</> : `設為${statusText[orderStages[orderStages.indexOf(row.status as (typeof orderStages)[number]) + 1]]}`}</button> : null}{!['cancelled','picked_up'].includes(row.status) ? <MoreActions><button type="button" disabled={Boolean(actionId)} onClick={() => cancelOrder(row)} className="secondary-btn">取消訂單</button></MoreActions> : null}</div></td>
                     </tr>
                   );
                 })}

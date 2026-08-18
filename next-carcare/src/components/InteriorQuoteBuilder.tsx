@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { exportElementToPdf } from "@/lib/pdf";
 import { getCurrentProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { useUnsavedChanges } from "@/components/UiPatterns";
 
 export type QuoteOption = {
   id: string;
@@ -137,6 +138,9 @@ export default function InteriorQuoteBuilder({
     ],
     [carpets, extras, seats]
   );
+  const formSignature = JSON.stringify({ carType, store, customerName, customerPhone, plateNo, brand, categoryA, categoryB, noteA, noteB, carpets, seats, extras, deposit, beforePhotos, afterPhotos });
+  const savedSignature = useRef(formSignature);
+  useUnsavedChanges(formSignature !== savedSignature.current && !saving);
 
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return;
@@ -215,6 +219,7 @@ export default function InteriorQuoteBuilder({
         note: buildNote(),
         items: allItems,
       });
+      savedSignature.current = formSignature;
       toast("報價單已儲存。", "success");
 
       if (exportPdf) {
@@ -230,7 +235,7 @@ export default function InteriorQuoteBuilder({
   return (
     <section className="space-y-5">
       <div className="grid gap-4 xl:grid-cols-3">
-        <div className="card">
+        <div className="form-section">
           <h2 className="mb-4 text-xl font-black">車型與車輛資料</h2>
           <div className="space-y-3">
             <label><span className="field-label required">車型</span><select className="form-input" value={carType} onChange={(event) => setCarType(event.target.value)}>
@@ -248,7 +253,7 @@ export default function InteriorQuoteBuilder({
           </div>
         </div>
 
-        <div className="card">
+        <div className="form-section">
           <h2 className="mb-4 text-xl font-black">施作分類左備註</h2>
           <label><span className="field-label">施作分類</span><select className="form-input" value={categoryA} onChange={(event) => setCategoryA(event.target.value)}>
             {categories.map((category) => (
@@ -258,7 +263,7 @@ export default function InteriorQuoteBuilder({
           <label className="mt-3 block"><span className="field-label">施作備註</span><textarea className="form-input min-h-32" value={noteA} onChange={(event) => setNoteA(event.target.value)} placeholder="左排或第一組施作備註" /></label>
         </div>
 
-        <div className="card">
+        <div className="form-section">
           <h2 className="mb-4 text-xl font-black">施作分類右備註</h2>
           <label><span className="field-label">施作分類</span><select className="form-input" value={categoryB} onChange={(event) => setCategoryB(event.target.value)}>
             {categories.map((category) => (

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentProfile } from "@/lib/auth";
 import { listCars, listQuotations } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { SearchSelect, useUnsavedChanges } from "@/components/UiPatterns";
 
 type CarRow = {
   id: string;
@@ -58,6 +59,8 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
   const [saving, setSaving] = useState(false);
   const [profileRole, setProfileRole] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const savedForm = useRef(JSON.stringify(emptyForm));
+  useUnsavedChanges(JSON.stringify(form) !== savedForm.current && !saving);
 
   const loadOptions = useCallback(async () => {
     const [{ data: carData }, { data: quoteData }, { data: staffData }] = await Promise.all([
@@ -174,6 +177,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       else await createManualOrder();
 
       setForm(emptyForm);
+      savedForm.current = JSON.stringify(emptyForm);
       await loadOptions();
       onCreated();
       toast(autoCreatedCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "施工單已建立。", "success");
@@ -195,47 +199,11 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <label><span className="field-label required">車輛</span><select
-          className="form-input"
-          value={selectedQuote ? matchedQuoteCar?.id || "" : form.car_id}
-          onChange={(event) => setForm({ ...form, car_id: event.target.value })}
-          disabled={Boolean(selectedQuote)}
-        >
-          <option value="">
-            {selectedQuote ? "報價轉工單會自動建立/綁定車輛" : "選擇車輛"}
-          </option>
-          {cars.map((car) => (
-            <option key={car.id} value={car.id}>
-              {car.customer_name || "未命名客戶"} / {car.plate_no || car.license_plate || "未填車牌"}
-            </option>
-          ))}
-        </select></label>
+        <SearchSelect label="車輛" required value={selectedQuote ? matchedQuoteCar?.id || "" : form.car_id} onChange={(value) => setForm({ ...form, car_id: value })} disabled={Boolean(selectedQuote)} placeholder={selectedQuote ? "報價轉工單會自動綁定車輛" : "搜尋客戶或車牌"} options={cars.map((car) => ({ value: car.id, label: `${car.customer_name || "未命名客戶"} / ${car.plate_no || car.license_plate || "未填車牌"}` }))} />
 
-        <label><span className="field-label">來源報價單</span><select
-          className="form-input"
-          value={form.quotation_id}
-          onChange={(event) => setForm({ ...form, quotation_id: event.target.value })}
-        >
-          <option value="">選擇報價單</option>
-          {quotes.map((quote) => (
-            <option key={quote.id} value={quote.id}>
-              {quote.quote_no} / {quote.customer_name || quote.plate_no || "未命名客戶"}
-            </option>
-          ))}
-        </select></label>
+        <SearchSelect label="來源報價單" value={form.quotation_id} onChange={(value) => setForm({ ...form, quotation_id: value })} placeholder="搜尋單號、客戶或車牌" options={quotes.map((quote) => ({ value: quote.id, label: `${quote.quote_no} / ${quote.customer_name || quote.plate_no || "未命名客戶"}`, keywords: quote.plate_no || "" }))} />
 
-        <label><span className="field-label">負責技師</span><select
-          className="form-input"
-          value={form.responsible_staff_id}
-          onChange={(event) => setForm({ ...form, responsible_staff_id: event.target.value })}
-        >
-          <option value="">選擇負責技師</option>
-          {staffRows.map((staff) => (
-            <option key={staff.employee_no} value={staff.employee_no}>
-              {staff.name} / {staff.employee_no}
-            </option>
-          ))}
-        </select></label>
+        <SearchSelect label="負責技師" value={form.responsible_staff_id} onChange={(value) => setForm({ ...form, responsible_staff_id: value })} placeholder="搜尋姓名或員工編號" options={staffRows.map((staff) => ({ value: staff.employee_no, label: `${staff.name} / ${staff.employee_no}`, keywords: staff.position || "" }))} />
 
         <label><span className="field-label required">施工總額</span><input
           className="form-input"

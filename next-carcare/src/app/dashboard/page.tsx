@@ -135,6 +135,7 @@ export default function DashboardPage() {
           title: `今日待施工：${order.order_no}`,
           href: "/operations/calendar?status=today",
           urgent: order.status === "pending",
+          overdue: false,
         })),
       ...orders
         .filter((order) => order.status === "finished")
@@ -143,12 +144,14 @@ export default function DashboardPage() {
           title: `已完工待牽車：${order.order_no}`,
           href: "/operations/construction?status=finished",
           urgent: true,
+          overdue: String(order.created_at || "").slice(0, 10) < today,
         })),
       ...quoteTodos.map((quote) => ({
         id: `quote-${quote.id}`,
         title: `待確認報價：${quote.quote_no}`,
         href: "/operations/quotations?status=pending",
         urgent: true,
+        overdue: false,
       })),
       ...orders
         .filter((order) => Number(order.total_amount || 0) > Number(order.paid_amount || 0))
@@ -157,6 +160,7 @@ export default function DashboardPage() {
           title: `待收尾款：${order.order_no}`,
           href: "/finance/payments?status=unpaid",
           urgent: false,
+          overdue: String(order.created_at || "").slice(0, 10) < today,
         })),
     ].filter((todo) => !doneTodos.includes(todo.id)).filter((todo) => role === "technician" ? todo.id.startsWith("order-") || todo.id.startsWith("pickup-") : role === "frontdesk" ? todo.id.startsWith("quote-") || todo.id.startsWith("order-") : true);
   }, [doneTodos, orders, quoteTodos, role]);
@@ -239,7 +243,7 @@ export default function DashboardPage() {
         <section className="card">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-black">待辦提醒</h2>
-            <span className="rounded-full bg-carcare-yellow px-3 py-1 text-xs font-black text-carcare-black">
+            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-black text-neutral-700">
               {todos.length} 筆
             </span>
           </div>
@@ -247,11 +251,10 @@ export default function DashboardPage() {
             {todos.map((todo) => (
               <div
                 key={todo.id}
-                className={`rounded-2xl border p-4 ${
-                  todo.urgent ? "border-carcare-yellow bg-carcare-yellow/10" : "border-neutral-200 bg-white"
-                }`}
+                className={`rounded-xl border border-neutral-200 bg-white p-4 ${todo.overdue ? "overdue-hint" : ""}`}
               >
                 <p className="font-black">{todo.title}</p>
+                {todo.overdue ? <p className="mt-1 text-xs font-bold text-amber-700">已逾期，建議優先處理</p> : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link href={todo.href} className="primary-btn">
                     前往處理

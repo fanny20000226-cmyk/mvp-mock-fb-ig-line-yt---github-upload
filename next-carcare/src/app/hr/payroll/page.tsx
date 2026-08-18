@@ -8,6 +8,7 @@ import { calcSalaryTotals, money, type StaffInfo, type StaffModifyRequest, type 
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import SyncStatusBadge from "@/components/SyncStatusBadge";
+import { SearchSelect } from "@/components/UiPatterns";
 
 type ShopRow = { id: string; name: string };
 type AttendanceRow = {
@@ -442,13 +443,7 @@ export default function PayrollPage() {
             <form onSubmit={saveSalary} className="card space-y-3">
               <h2 className="text-xl font-black">建立薪資單</h2>
               <div className="grid gap-3 md:grid-cols-2">
-                <label className="space-y-1 text-sm font-black text-neutral-700">
-                  <span>員工</span>
-                  <select className="form-input" required value={salaryForm.employee_no} onChange={(event) => fillSalaryDefaults(event.target.value)}>
-                    <option value="">選擇員工</option>
-                    {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
-                  </select>
-                </label>
+                <SearchSelect label="員工" required value={salaryForm.employee_no} onChange={fillSalaryDefaults} placeholder="搜尋姓名或員工編號" options={staffRows.map((staff) => ({ value: staff.employee_no, label: `${staff.name} / ${staff.employee_no}`, keywords: staff.position || "" }))} />
                 <label className="space-y-1 text-sm font-black text-neutral-700">
                   <span>薪資年月</span>
                   <input className="form-input" type="month" value={salaryForm.salary_month} onChange={(event) => setSalaryForm({ ...salaryForm, salary_month: event.target.value })} />
@@ -497,10 +492,7 @@ export default function PayrollPage() {
           <section className="card">
             <h2 className="text-xl font-black">出勤登記</h2>
             <form onSubmit={createAttendance} className="mt-4 grid gap-3 md:grid-cols-4">
-              <select className="form-input" required value={attendanceForm.employee_no} onChange={(event) => setAttendanceForm({ ...attendanceForm, employee_no: event.target.value })}>
-                <option value="">選擇員工</option>
-                {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
-              </select>
+              <SearchSelect label="員工" required value={attendanceForm.employee_no} onChange={(value) => setAttendanceForm({ ...attendanceForm, employee_no: value })} placeholder="搜尋姓名或員工編號" options={staffRows.map((staff) => ({ value: staff.employee_no, label: `${staff.name} / ${staff.employee_no}`, keywords: staff.position || "" }))} />
               <input className="form-input" type="date" value={attendanceForm.work_date} onChange={(event) => setAttendanceForm({ ...attendanceForm, work_date: event.target.value })} />
               <input className="form-input" placeholder="上班時間" value={attendanceForm.clock_in_at} onChange={(event) => setAttendanceForm({ ...attendanceForm, clock_in_at: event.target.value })} />
               <input className="form-input" placeholder="下班時間" value={attendanceForm.clock_out_at} onChange={(event) => setAttendanceForm({ ...attendanceForm, clock_out_at: event.target.value })} />

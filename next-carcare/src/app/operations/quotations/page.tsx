@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import InteriorQuoteBuilder, { type QuoteDraft } from "@/components/InteriorQuoteBuilder";
 import PdfExportButton from "@/components/PdfExportButton";
@@ -11,6 +11,7 @@ import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import type { Role } from "@/lib/permissions";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { MoreActions, SideDrawer } from "@/components/UiPatterns";
 
 type QuoteRow = {
   id: string;
@@ -248,6 +249,7 @@ export default function QuotationsPage() {
       converted: rows.filter((row) => row.status === "converted").length,
     };
   }, [rows]);
+  const expandedRow = rows.find((row) => row.id === expandedId) || null;
 
   return (
     <RequireAuth>
@@ -298,68 +300,21 @@ export default function QuotationsPage() {
             </thead>
             <tbody>
               {rows.map((row) => (
-                <Fragment key={row.id}>
-                  <tr>
+                  <tr key={row.id}>
                     <td>{row.quote_no}</td>
                     <td>{row.customer_name || "-"}</td>
                     <td>{row.customer_phone || "-"}</td>
                     <td>{row.plate_no || "-"}</td>
                     <td>{money(Number(row.final_amount || row.total_amount || 0))}</td>
-                    <td><div className="min-w-[38rem]"><div className="quote-progress">{quoteStages.map((stage, index) => { const current = Math.max(0, quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number])); return <span key={stage} className={`quote-progress-step ${index < current ? "is-done" : ""} ${index === current ? "is-current" : ""}`}>{statusText[stage]}</span>; })}</div></div></td>
+                    <td><div className="md:min-w-[38rem]"><div className="quote-progress">{quoteStages.map((stage, index) => { const current = Math.max(0, quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number])); return <span key={stage} className={`quote-progress-step ${index < current ? "is-done" : ""} ${index === current ? "is-current" : ""}`}>{statusText[stage]}</span>; })}</div></div></td>
                     <td><SyncStatusBadge table="quotations" row={row as QuoteRow & Record<string, unknown>} syncType="customer" isAdmin={role === "admin"} onChanged={load} /></td>
                     <td>
                       <div className="flex min-w-72 flex-wrap gap-2">
-                        <button type="button" className="secondary-btn" onClick={() => toggleDetail(row)}>
-                          {expandedId === row.id ? "收合明細" : "展開明細"}
-                        </button>
                         {row.status !== "paid" && row.status !== "void" ? <button type="button" className="primary-btn" disabled={saving} onClick={() => advanceQuote(row)}>{saving ? <><span className="button-spinner" />處理中</> : quoteStages[Math.min(quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number]) + 1, quoteStages.length - 1)] === "converted" ? "轉施工單" : `設為${statusText[quoteStages[Math.min(quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number]) + 1, quoteStages.length - 1)]]}`}</button> : null}
+                        <MoreActions><button type="button" className="secondary-btn" onClick={() => toggleDetail(row)}>查看明細</button></MoreActions>
                       </div>
                     </td>
                   </tr>
-                  {expandedId === row.id ? (
-                    <tr>
-                      <td colSpan={8}>
-                        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                          <div className="mb-3 flex flex-wrap gap-2">
-                            <PhotoZipButton
-                              urls={extractPhotoUrls(row.remark)}
-                              filename={`PEIWAY_${row.plate_no || row.quote_no}_${String(row.created_at).slice(0, 10)}`}
-                            />
-                            <PdfExportButton targetId="quotation-pdf-area" filename={`${row.quote_no || "報價單"}.pdf`} />
-                          </div>
-                          <table className="data-table">
-                            <thead>
-                              <tr>
-                                <th>項目</th>
-                                <th>分類</th>
-                                <th>數量</th>
-                                <th>單價</th>
-                                <th>小計</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(quoteItems[row.id] || []).map((item) => (
-                                <tr key={item.id}>
-                                  <td>{item.item_name}</td>
-                                  <td>{item.category || "-"}</td>
-                                  <td>{Number(item.quantity || 0)}</td>
-                                  <td>{money(Number(item.unit_price || 0))}</td>
-                                  <td>{money(Number(item.subtotal || 0))}</td>
-                                </tr>
-                              ))}
-                              {!quoteItems[row.id]?.length ? (
-                                <tr>
-                                  <td colSpan={5} className="text-center text-neutral-500">目前沒有明細資料。</td>
-                                </tr>
-                              ) : null}
-                            </tbody>
-                          </table>
-                          {row.remark ? <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-white p-4 text-sm text-neutral-700">{row.remark}</pre> : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
               ))}
               {!rows.length ? (
                 <tr>
@@ -368,6 +323,14 @@ export default function QuotationsPage() {
               ) : null}
             </tbody>
           </table>
+          <SideDrawer open={Boolean(expandedRow)} title={expandedRow ? `${expandedRow.quote_no} 報價明細` : "報價明細"} onClose={() => setExpandedId("")}>
+            {expandedRow ? <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm"><p><span className="field-label">客戶</span>{expandedRow.customer_name || "-"}</p><p><span className="field-label">車牌</span>{expandedRow.plate_no || "-"}</p><p><span className="field-label">金額</span><strong className="text-lg">{money(Number(expandedRow.final_amount || expandedRow.total_amount || 0))}</strong></p><p><span className="field-label">狀態</span>{statusText[expandedRow.status] || expandedRow.status}</p></div>
+              <div className="flex flex-wrap gap-2"><PhotoZipButton urls={extractPhotoUrls(expandedRow.remark)} filename={`PEIWAY_${expandedRow.plate_no || expandedRow.quote_no}_${String(expandedRow.created_at).slice(0, 10)}`} /><PdfExportButton targetId="quotation-pdf-area" filename={`${expandedRow.quote_no}.pdf`} /></div>
+              <div className="space-y-2">{(quoteItems[expandedRow.id] || []).map((item) => <article key={item.id} className="rounded-xl border border-neutral-200 p-3"><div className="flex justify-between gap-3"><strong>{item.item_name}</strong><strong>{money(Number(item.subtotal || 0))}</strong></div><p className="mt-1 text-xs text-neutral-500">{item.category || "未分類"}・{Number(item.quantity || 0)} × {money(Number(item.unit_price || 0))}</p></article>)}</div>
+              {expandedRow.remark ? <details><summary className="secondary-btn cursor-pointer">展開備註</summary><pre className="mt-2 whitespace-pre-wrap rounded-xl bg-neutral-50 p-4 text-sm">{expandedRow.remark}</pre></details> : null}
+            </div> : null}
+          </SideDrawer>
         </div>
       </section>
     </RequireAuth>
