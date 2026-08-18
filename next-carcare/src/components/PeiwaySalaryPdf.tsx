@@ -10,21 +10,21 @@ const incomeRows: Array<[keyof StaffSalary, string]> = [
   ["attendance_bonus", "全勤獎金"],
   ["overtime_pay", "加班費"],
   ["transport_allowance", "交通津貼"],
-  ["incentive_bonus", "激勵獎金"],
-  ["dispatch_allowance", "外派支援津貼"],
-  ["unused_leave_pay", "應休未休"],
-  ["mentor_bonus", "帶人金"],
-  ["performance_bonus", "績效獎金"],
-  ["sales_bonus", "業績獎金"]
+  ["incentive_bonus", "獎金類－激勵獎金"],
+  ["dispatch_allowance", "獎金類－外派支援津貼"],
+  ["unused_leave_pay", "獎金類－應休未休"],
+  ["mentor_bonus", "獎金類－帶人金"],
+  ["performance_bonus", "獎金類－績效獎金"],
+  ["sales_bonus", "獎金類－業績獎金"]
 ];
 
 const deductionRows: Array<[keyof StaffSalary, string]> = [
-  ["labor_insurance_fee", "勞保費(自付)"],
-  ["health_insurance_fee", "健保費(自付)"],
+  ["labor_insurance_fee", "勞健保－勞保費（員工自付）"],
+  ["health_insurance_fee", "勞健保－健保費（員工自付）"],
   ["pension_self_pay", "勞退自提"],
-  ["sick_leave_deduction", "事病假扣款"],
+  ["sick_leave_deduction", "請假扣款－事病假"],
   ["advance_payment", "預支"],
-  ["kip_penalty", "kip未達標扣款"]
+  ["kip_penalty", "KPI 未達標扣款"]
 ];
 
 export default function PeiwaySalaryPdf({ staff, salary }: { staff: StaffInfo; salary: StaffSalary }) {

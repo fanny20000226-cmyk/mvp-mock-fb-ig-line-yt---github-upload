@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getCurrentProfile } from "@/lib/auth";
 import { listCars, listQuotations } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { errorMessageZh } from "@/lib/errorMessageZh";
 
 type CarRow = {
   id: string;
@@ -53,6 +54,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [staffRows, setStaffRows] = useState<StaffRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [profileRole, setProfileRole] = useState("");
   const [form, setForm] = useState(emptyForm);
 
   const loadOptions = useCallback(async () => {
@@ -69,6 +71,8 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     setCars((carData || []) as CarRow[]);
     setQuotes(((quoteData || []) as QuoteRow[]).filter((quote) => quote.status !== "converted"));
     setStaffRows((staffData || []) as StaffRow[]);
+    const profile = await getCurrentProfile();
+    setProfileRole(profile?.role || "");
   }, []);
 
   useEffect(() => {
@@ -151,15 +155,28 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
     setSaving(true);
 
     try {
+      const totalAmount = Number(form.total_amount || (selectedQuote ? quoteAmount(selectedQuote) : 0));
+      const paidAmount = Number(form.paid_amount || 0);
+      if (!Number.isFinite(totalAmount) || totalAmount < 0) throw new Error("施工總額不可小於 0。");
+      if (!Number.isFinite(paidAmount) || paidAmount < 0) throw new Error("已收金額不可小於 0。");
+      if (paidAmount > totalAmount) throw new Error("已收金額不可大於施工總額。");
+      if (selectedQuote && !selectedQuote.customer_name?.trim()) throw new Error("請先選擇或建立客戶");
+      if (selectedQuote && !selectedQuote.plate_no?.trim()) throw new Error("請先補車牌");
+      if (selectedQuote && selectedQuote.status === "converted") throw new Error("此報價單已轉工單，不可重複轉換");
+      if (selectedQuote && totalAmount === 0) {
+        if (profileRole !== "admin") throw new Error("報價金額為 0，僅管理員可確認後轉工單。");
+        if (!window.confirm("警告：此報價單金額為 0，確認仍要轉工單？")) return;
+      }
+      const autoCreatedCar = Boolean(selectedQuote && !matchedQuoteCar);
       if (selectedQuote || form.quotation_id) await convertSelectedQuote();
       else await createManualOrder();
 
       setForm(emptyForm);
       await loadOptions();
       onCreated();
-      alert("施工單已建立，工作台與施工訂單列表會同步更新。");
+      alert(autoCreatedCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "施工單已建立，工作台與施工訂單列表會同步更新。");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "建立施工單失敗。");
+      alert(errorMessageZh(error, "建立施工單失敗。"));
     } finally {
       setSaving(false);
     }

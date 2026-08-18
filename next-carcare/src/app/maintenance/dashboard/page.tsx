@@ -268,6 +268,17 @@ export default function MaintenanceDashboardPage() {
   const [progress, setProgress] = useState(0);
   const [running, setRunning] = useState<"repair" | "optimize" | "">("");
   const [history, setHistory] = useState<MaintenanceRecord[]>([]);
+  const [testRunning, setTestRunning] = useState("");
+  const [testMessage, setTestMessage] = useState("");
+
+  async function runTestAction(action: string) {
+    if (testRunning) return;
+    if (action === "cleanup" && !window.confirm("只會刪除 is_test=true 的測試資料，確認清理？")) return;
+    setTestRunning(action); setTestMessage("");
+    const response = await fetch("/api/maintenance/test-data", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
+    const result = (await response.json().catch(() => ({}))) as { message?: string };
+    setTestMessage(result.message || (response.ok ? "操作完成。" : "操作失敗。")); setTestRunning("");
+  }
 
   async function load() {
     setLoading(true);
@@ -397,6 +408,16 @@ export default function MaintenanceDashboardPage() {
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
         {loading ? <section className="card font-black">讀取監控資料中...</section> : null}
         {error ? <section className="card font-black text-red-600">{error}</section> : null}
+
+        <section className="card border-2 border-carcare-yellow">
+          <p className="text-sm font-black text-carcare-yellow">Monitor Test Data</p>
+          <h2 className="text-xl font-black">測試資料入口（僅監控平台可見）</h2>
+          <p className="mt-1 text-sm text-neutral-600">所有資料皆標記 is_test=true；清理動作不會碰觸正式資料。</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {[["employee","建立測試員工"],["attendance","建立測試出勤"],["salary","建立測試薪資單"],["appointment","建立測試預約"],["sync","執行測試同步到 Google"],["cleanup","清理全部測試資料"]].map(([action, text]) => <button key={action} type="button" className={action === "cleanup" ? "secondary-btn justify-center text-red-600" : "primary-btn justify-center"} disabled={Boolean(testRunning)} onClick={() => runTestAction(action)}>{testRunning === action ? "執行中…" : text}</button>)}
+          </div>
+          {testMessage ? <p role="status" className="mt-3 rounded-xl bg-neutral-100 p-3 font-bold">{testMessage}</p> : null}
+        </section>
 
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr_280px]">
           <article className="card border-2 border-carcare-yellow">

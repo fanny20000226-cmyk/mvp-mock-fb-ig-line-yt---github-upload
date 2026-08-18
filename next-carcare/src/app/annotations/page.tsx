@@ -5,6 +5,7 @@ import RequireAuth from "@/components/RequireAuth";
 import ImageAnnotator, { type AnnotationMark } from "@/components/ImageAnnotator";
 import { supabase } from "@/lib/supabase";
 import { getCurrentProfile } from "@/lib/auth";
+import { errorMessageZh } from "@/lib/errorMessageZh";
 
 export default function AnnotationsPage() {
   const [imageUrl, setImageUrl] = useState("");
@@ -31,7 +32,8 @@ export default function AnnotationsPage() {
     });
     if (error) {
       setUploading(false);
-      return alert(`${error.message}\n\n如果看到 Bucket not found，請先建立 car-images 儲存桶。`);
+      console.error("annotation upload raw error", error);
+      return alert(errorMessageZh(error, "圖片上傳失敗。"));
     }
     const { data } = supabase.storage.from("car-images").getPublicUrl(path);
     setImageUrl(data.publicUrl);
@@ -58,7 +60,7 @@ export default function AnnotationsPage() {
       created_by: profile.id
     });
     setSaving(false);
-    if (error) return alert(error.message);
+    if (error) return alert(errorMessageZh(error, "標註儲存失敗。"));
     alert("標註已儲存。");
   }
 

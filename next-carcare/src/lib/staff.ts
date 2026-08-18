@@ -83,6 +83,10 @@ export type StaffSalary = {
   net_salary: number;
   created_by?: string | null;
   created_at: string;
+  sync_status?: "synced" | "pending" | "failed" | null;
+  last_sync_at?: string | null;
+  sync_error?: string | null;
+  is_test?: boolean;
 };
 
 export type StaffAttendance = {

@@ -5,6 +5,7 @@ import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
 import type { Role, UserProfile } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
+import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
 
 type AppointmentStatus = "待確認" | "已到店" | "已取消" | "已完成";
 
@@ -35,6 +36,7 @@ type AppointmentRow = {
   forced_conflict: boolean | null;
   conflict_note: string | null;
   created_at: string;
+  sync_status?: SyncState | null; last_sync_at?: string | null; sync_error?: string | null;
 };
 
 type AppointmentForm = {
@@ -118,7 +120,7 @@ export default function CalendarPage() {
     const appointmentResult = await supabase
       .from("appointments")
       .select(
-        "id, appointment_no, customer_id, customer_name, customer_phone, license_plate, car_brand, car_model, appoint_date, appoint_time, service_content, status, remark, shop_id, store_id, forced_conflict, conflict_note, created_at"
+        "id, appointment_no, customer_id, customer_name, customer_phone, license_plate, car_brand, car_model, appoint_date, appoint_time, service_content, status, remark, shop_id, store_id, forced_conflict, conflict_note, created_at, sync_status, last_sync_at, sync_error"
       )
       .order("appoint_date", { ascending: true })
       .order("appoint_time", { ascending: true });
@@ -489,6 +491,7 @@ export default function CalendarPage() {
                   <th>服務項目</th>
                   <th>狀態</th>
                   <th>標籤</th>
+                  <th>同步狀態</th>
                   <th>操作</th>
                 </tr>
               </thead>
@@ -512,6 +515,7 @@ export default function CalendarPage() {
                           ))}
                         </div>
                       </td>
+                      <td><SyncStatusBadge table="appointments" row={row as AppointmentRow & Record<string, unknown>} syncType="appointment" isAdmin={profile?.role === "admin"} onChanged={load} /></td>
                       <td>
                         <div className="flex min-w-72 flex-wrap gap-2">
                           {canWrite ? (
@@ -532,7 +536,7 @@ export default function CalendarPage() {
                 })}
                 {!filteredRows.length ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-neutral-500">目前沒有符合條件的預約。</td>
+                    <td colSpan={9} className="text-center text-neutral-500">目前沒有符合條件的預約。</td>
                   </tr>
                 ) : null}
               </tbody>

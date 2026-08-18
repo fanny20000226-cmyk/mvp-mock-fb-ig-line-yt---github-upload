@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getCurrentProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { errorMessageZh } from "@/lib/errorMessageZh";
 
 type CarOption = {
   id: string;
@@ -29,7 +30,8 @@ export default function CarAlbumUploader({ cars }: { cars: CarOption[] }) {
     });
     if (error) {
       setUploading(false);
-      return alert(`${error.message}\n\n如果顯示 Bucket not found，請先在 Supabase 建立 car-images 儲存桶。`);
+      console.error("car album upload raw error", error);
+      return alert(errorMessageZh(error, "照片上傳失敗。"));
     }
 
     const { data } = supabase.storage.from("car-images").getPublicUrl(path);
@@ -47,7 +49,7 @@ export default function CarAlbumUploader({ cars }: { cars: CarOption[] }) {
     });
 
     setUploading(false);
-    if (insertError) return alert(insertError.message);
+    if (insertError) return alert(errorMessageZh(insertError, "照片歸檔失敗。"));
     setCaption("");
     setLastUrl(publicUrl);
     alert("照片已上傳並歸檔。");

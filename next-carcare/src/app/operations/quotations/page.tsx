@@ -7,10 +7,14 @@ import PdfExportButton from "@/components/PdfExportButton";
 import PhotoZipButton from "@/components/PhotoZipButton";
 import { getCurrentProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
+import { errorMessageZh } from "@/lib/errorMessageZh";
+import type { Role } from "@/lib/permissions";
 
 type QuoteRow = {
   id: string;
   shop_id: string | null;
+  customer_id: string | null;
   quote_no: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -20,6 +24,9 @@ type QuoteRow = {
   status: string;
   remark: string | null;
   created_at: string;
+  sync_status?: SyncState | null;
+  last_sync_at?: string | null;
+  sync_error?: string | null;
 };
 
 type QuoteItemRow = {
@@ -61,11 +68,12 @@ export default function QuotationsPage() {
   const [expandedId, setExpandedId] = useState("");
   const [quoteItems, setQuoteItems] = useState<Record<string, QuoteItemRow[]>>({});
   const [saving, setSaving] = useState(false);
+  const [role, setRole] = useState<Role | null>(null);
 
   async function load() {
     const { data, error } = await supabase
       .from("quotations")
-      .select("id, shop_id, quote_no, customer_name, customer_phone, plate_no, total_amount, final_amount, status, remark, created_at")
+      .select("id, shop_id, customer_id, quote_no, customer_name, customer_phone, plate_no, total_amount, final_amount, status, remark, created_at, sync_status, last_sync_at, sync_error")
       .order("created_at", { ascending: false });
     if (error) return alert(error.message);
     setRows((data || []) as QuoteRow[]);
@@ -89,6 +97,7 @@ export default function QuotationsPage() {
 
   useEffect(() => {
     load();
+    getCurrentProfile().then((profile) => setRole(profile?.role || null));
   }, []);
 
   async function createQuotationFromDraft(draft: QuoteDraft) {
@@ -173,7 +182,16 @@ export default function QuotationsPage() {
 
   async function convertToOrder(row: QuoteRow) {
     if (saving) return;
-    if (row.status === "converted") return alert("這張報價單已經轉為施工單。");
+    if (row.status === "converted") return alert("此報價單已轉工單，不可重複轉換");
+    if (!row.customer_id) return alert("請先選擇或建立客戶");
+    if (!row.plate_no?.trim()) return alert("請先補車牌");
+    const amount = Number(row.final_amount ?? row.total_amount ?? 0);
+    if (amount === 0) {
+      if (role !== "admin") return alert("報價金額為 0，僅管理員可確認後轉工單。");
+      if (!window.confirm("警告：此報價單金額為 0，確認仍要轉工單？")) return;
+    }
+    const { data: existingCar } = await supabase.from("cars").select("id").or(`plate_no.eq.${row.plate_no},license_plate.eq.${row.plate_no}`).limit(1).maybeSingle();
+    const willCreateCar = !existingCar;
     if (!window.confirm(`確認將 ${row.quote_no} 轉為施工單？`)) return;
 
     setSaving(true);
@@ -194,9 +212,10 @@ export default function QuotationsPage() {
       if (!response.ok) throw new Error(result.message || "轉工單失敗。");
 
       await load();
-      alert("已轉為施工單，工作台與施工單管理會同步更新。");
+      alert(willCreateCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "已轉為施工單，工作台與施工單管理會同步更新。");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "轉工單失敗。");
+      console.error("convert quote failed", error);
+      alert(errorMessageZh(error, "轉工單失敗。"));
     } finally {
       setSaving(false);
     }
@@ -255,7 +274,7 @@ export default function QuotationsPage() {
                 <th>電話</th>
                 <th>車牌</th>
                 <th>金額</th>
-                <th>狀態</th>
+                <th>狀態</th><th>同步狀態</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -269,6 +288,7 @@ export default function QuotationsPage() {
                     <td>{row.plate_no || "-"}</td>
                     <td>{money(Number(row.final_amount || row.total_amount || 0))}</td>
                     <td>{statusText[row.status] || row.status}</td>
+                    <td><SyncStatusBadge table="quotations" row={row as QuoteRow & Record<string, unknown>} syncType="customer" isAdmin={role === "admin"} onChanged={load} /></td>
                     <td>
                       <div className="flex min-w-72 flex-wrap gap-2">
                         <select className="form-input min-w-36" value={row.status} onChange={(event) => updateStatus(row, event.target.value)}>
@@ -288,7 +308,7 @@ export default function QuotationsPage() {
                   </tr>
                   {expandedId === row.id ? (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
                           <div className="mb-3 flex flex-wrap gap-2">
                             <PhotoZipButton
@@ -333,7 +353,7 @@ export default function QuotationsPage() {
               ))}
               {!rows.length ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-neutral-500">目前沒有報價資料。</td>
+                  <td colSpan={8} className="text-center text-neutral-500">目前沒有報價資料。</td>
                 </tr>
               ) : null}
             </tbody>

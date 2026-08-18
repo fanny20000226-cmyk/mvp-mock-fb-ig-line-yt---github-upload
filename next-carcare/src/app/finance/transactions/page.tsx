@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { supabase } from "@/lib/supabase";
+import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
+import { getCurrentProfile } from "@/lib/auth";
 
 type PaymentRow = {
   id: string;
@@ -12,6 +14,7 @@ type PaymentRow = {
   paid_at: string;
   check_status: string;
   remark: string | null;
+  sync_status?: SyncState | null; last_sync_at?: string | null; sync_error?: string | null;
 };
 
 function downloadCsv(rows: PaymentRow[]) {
@@ -50,6 +53,7 @@ function monthStart() {
 
 export default function TransactionsPage() {
   const [rows, setRows] = useState<PaymentRow[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [filters, setFilters] = useState({
     store: "",
     start: monthStart(),
@@ -61,7 +65,7 @@ export default function TransactionsPage() {
   async function load() {
     const { data, error } = await supabase
       .from("payment")
-      .select("id, payment_no, pay_type, amount, paid_at, check_status, remark")
+      .select("id, payment_no, pay_type, amount, paid_at, check_status, remark, sync_status, last_sync_at, sync_error")
       .order("paid_at", { ascending: false });
     if (error) return alert(error.message);
     setRows((data || []) as PaymentRow[]);
@@ -69,6 +73,7 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     load();
+    getCurrentProfile().then((profile) => setIsAdmin(profile?.role === "admin"));
   }, []);
 
   const filteredRows = useMemo(
@@ -167,6 +172,7 @@ export default function TransactionsPage() {
                   <th>日期</th>
                   <th>狀態</th>
                   <th>備註</th>
+                  <th>同步狀態</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,11 +186,12 @@ export default function TransactionsPage() {
                     <td>{String(row.paid_at || "").slice(0, 16).replace("T", " ")}</td>
                     <td>{row.check_status}</td>
                     <td className="whitespace-pre-wrap">{row.remark || "-"}</td>
+                    <td><SyncStatusBadge table="payment" row={row as PaymentRow & Record<string, unknown>} syncType="finance" isAdmin={isAdmin} onChanged={load} /></td>
                   </tr>
                 ))}
                 {!filteredRows.length ? (
                   <tr>
-                    <td colSpan={6} className="text-center text-neutral-500">查無交易明細。</td>
+                    <td colSpan={7} className="text-center text-neutral-500">查無交易明細。</td>
                   </tr>
                 ) : null}
               </tbody>

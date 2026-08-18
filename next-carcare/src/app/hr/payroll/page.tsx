@@ -6,6 +6,8 @@ import SalaryPdfButton from "@/components/SalaryPdfButton";
 import { getCurrentProfile } from "@/lib/auth";
 import { calcSalaryTotals, money, type StaffInfo, type StaffModifyRequest, type StaffSalary } from "@/lib/staff";
 import { supabase } from "@/lib/supabase";
+import { errorMessageZh } from "@/lib/errorMessageZh";
+import SyncStatusBadge from "@/components/SyncStatusBadge";
 
 type ShopRow = { id: string; name: string };
 type AttendanceRow = {
@@ -34,12 +36,12 @@ const incomeFields = [
   ["sales_bonus", "業績獎金"]
 ] as const;
 const deductionFields = [
-  ["labor_insurance_fee", "勞保費(自付)"],
-  ["health_insurance_fee", "健保費(自付)"],
+  ["labor_insurance_fee", "勞保費（員工自付）"],
+  ["health_insurance_fee", "健保費（員工自付）"],
   ["pension_self_pay", "勞退自提"],
   ["sick_leave_deduction", "事病假扣款"],
   ["advance_payment", "預支"],
-  ["kip_penalty", "kip未達標扣款"]
+  ["kip_penalty", "KPI 未達標扣款"]
 ] as const;
 const editableRequestFields = ["phone", "mailing_address", "email", "emergency_contact", "emergency_phone", "avatar_url"] as const;
 
@@ -201,7 +203,7 @@ export default function PayrollPage() {
       resigned: false
     };
     const { data, error } = await supabase.from("staff_info").insert(payload).select("*").single();
-    if (error) return alert(error.message);
+    if (error) return alert(errorMessageZh(error, "薪資單建檔失敗。"));
     try {
       const shopName = shops.find((shop) => shop.id === data.shop_id)?.name || "";
       void fetch("/api/hr/employee-sync", {
@@ -310,9 +312,11 @@ export default function PayrollPage() {
           shop_name: shopName
         })
       });
-      setSyncMessage(response.ok ? "薪資單已建檔，並已送出 N8N 雲端薪資同步。" : "薪資單已建檔，但 N8N 同步回報失敗，請到 N8N 紀錄檢查。");
+      const syncResult = (await response.json().catch(() => ({}))) as { message?: string };
+      await supabase.from("salary_records").update({ sync_status: response.ok ? "synced" : "failed", last_sync_at: response.ok ? new Date().toISOString() : null, sync_error: response.ok ? null : syncResult.message || "N8N 同步失敗" }).eq("id", data.id);
+      setSyncMessage(response.ok ? "同步狀態：已送出 N8N 雲端薪資同步。" : `同步狀態：失敗｜${errorMessageZh(syncResult.message, "請到 N8N 紀錄檢查。")}`);
     } catch {
-      setSyncMessage("薪資單已建檔，但 N8N 暫時無法連線；系統資料不受影響。");
+      setSyncMessage("同步狀態：待重試｜N8N 暫時無法連線；薪資建檔資料不受影響。");
     }
 
     setSalaryForm(emptySalaryForm());
@@ -483,7 +487,7 @@ export default function PayrollPage() {
                 <TotalCard title="應扣總額" value={salaryTotals.deduction_amount} />
                 <TotalCard title="實領金額" value={salaryTotals.net_salary} important />
               </div>
-              {syncMessage ? <p className="rounded-xl border border-carcare-yellow bg-carcare-yellow/10 p-3 text-sm">{syncMessage}</p> : null}
+              {syncMessage ? <p role="status" className="rounded-xl border border-carcare-yellow bg-carcare-yellow/10 p-3 text-sm font-bold">{syncMessage}</p> : null}
               <button className="primary-btn" type="submit">儲存薪資單並同步雲端</button>
             </form>
           </section>
@@ -553,6 +557,7 @@ export default function PayrollPage() {
                   <th className="p-3">應給總額</th>
                   <th className="p-3">應扣總額</th>
                   <th className="p-3">實領金額</th>
+                  <th className="p-3">同步狀態</th>
                   <th className="p-3">PDF</th>
                 </tr>
               </thead>
@@ -566,6 +571,7 @@ export default function PayrollPage() {
                       <td className="p-3">{money(salary.gross_amount)}</td>
                       <td className="p-3">{money(salary.deduction_amount)}</td>
                       <td className="p-3 font-black text-carcare-yellow">{money(salary.net_salary)}</td>
+                      <td className="p-3"><SyncStatusBadge table="salary_records" row={salary as StaffSalary & Record<string, unknown>} syncType="salary" isAdmin={profileRole === "admin"} onChanged={load} /></td>
                       <td className="p-3">{staff ? <SalaryPdfButton staff={staff} salary={salary} /> : null}</td>
                     </tr>
                   );

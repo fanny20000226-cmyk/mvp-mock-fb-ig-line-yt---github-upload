@@ -20,6 +20,9 @@ import {
 import { listCars, listQuotations } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
+import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
+
+type CustomerSyncRow = { id: string; name: string | null; phone: string | null; sync_status?: SyncState | null; last_sync_at?: string | null; sync_error?: string | null };
 
 type CarRow = {
   id: string;
@@ -62,6 +65,7 @@ type CustomerGroup = {
   quotes: QuoteRow[];
   totalSpent: number;
   latestAt: string;
+  customer?: CustomerSyncRow;
 };
 
 const statusText: Record<string, string> = {
@@ -96,24 +100,27 @@ export default function CustomersPage() {
   const [expandedKey, setExpandedKey] = useState("");
   const [previewPhoto, setPreviewPhoto] = useState("");
   const [loading, setLoading] = useState(false);
+  const [customerRows, setCustomerRows] = useState<CustomerSyncRow[]>([]);
 
   async function load() {
     setLoading(true);
     const currentProfile = await getCurrentProfile();
     setProfile(currentProfile ? { id: currentProfile.id, shop_id: currentProfile.shop_id, role: currentProfile.role } : null);
-    const [{ data: carData }, { data: quoteData }, { data: photoData }, tagRows] = await Promise.all([
+    const [{ data: carData }, { data: quoteData }, { data: photoData }, tagRows, customerResult] = await Promise.all([
       listCars(),
       listQuotations(),
       supabase
         .from("image_annotations")
         .select("id, car_id, image_url, annot_data, created_at")
         .order("created_at", { ascending: false }),
-      listCustomerTags()
+      listCustomerTags(),
+      supabase.from("customers").select("id, name, phone, sync_status, last_sync_at, sync_error")
     ]);
     setCars((carData || []) as CarRow[]);
     setQuotes((quoteData || []) as QuoteRow[]);
     setPhotos((photoData || []) as AlbumPhoto[]);
     if (!tagRows.error) setTags((tagRows.data || []) as CustomerTag[]);
+    if (!customerResult.error) setCustomerRows((customerResult.data || []) as CustomerSyncRow[]);
     setLoading(false);
   }
 
@@ -171,8 +178,11 @@ export default function CustomersPage() {
       groups.set(key, group);
     });
 
+    groups.forEach((group) => {
+      group.customer = customerRows.find((customer) => normalize(customer.phone) === normalize(group.phone) || normalize(customer.name) === normalize(group.name));
+    });
     return Array.from(groups.values()).sort((a, b) => (b.latestAt || "").localeCompare(a.latestAt || ""));
-  }, [cars, quotes]);
+  }, [cars, customerRows, quotes]);
 
   const tagsByCustomer = useMemo(() => {
     const grouped = new Map<string, CustomerTag[]>();
@@ -333,6 +343,7 @@ export default function CustomersPage() {
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h2 className="text-xl font-black">{group.name}</h2>
+                      {group.customer ? <div className="mt-2"><SyncStatusBadge table="customers" row={group.customer as CustomerSyncRow & Record<string, unknown>} syncType="customer" isAdmin={profile?.role === "admin"} onChanged={load} /></div> : null}
                       <div className="mt-3 flex flex-wrap gap-2">
                         {groupTags.map((tag) => (
                           <button
