@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { supabase } from "@/lib/supabase";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type OrderRow = {
   id: string;
@@ -73,6 +74,7 @@ function downloadCsv(rows: OrderRow[]) {
 }
 
 export default function OrdersPage() {
+  const { toast, confirm } = useUiFeedback();
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
@@ -99,7 +101,7 @@ export default function OrdersPage() {
 
     setLoading(false);
     if (error) {
-      alert(error.message);
+      toast(error.message, "error");
       return;
     }
     setRows((data || []) as OrderRow[]);
@@ -139,12 +141,13 @@ export default function OrdersPage() {
     if (nextStatus === "finished" && !row.finish_at) patch.finish_at = new Date().toISOString();
 
     const { error } = await supabase.from("construction_orders").update(patch).eq("id", row.id);
-    if (error) return alert(error.message);
+    if (error) return toast(error.message, "error");
+    toast(`訂單已更新為「${statusText[nextStatus] || nextStatus}」。`, "success");
     load();
   }
 
   async function cancelOrder(row: OrderRow) {
-    const ok = window.confirm(`確定要取消訂單 ${row.order_no} 嗎？\n系統會保留紀錄，不會刪除歷史資料。`);
+    const ok = await confirm({ title: "取消訂單", message: `確定要取消訂單 ${row.order_no} 嗎？系統會保留紀錄，不會刪除歷史資料。`, confirmLabel: "確認取消", tone: "warning" });
     if (!ok) return;
     await updateStatus(row, "cancelled");
   }

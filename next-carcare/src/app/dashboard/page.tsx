@@ -6,6 +6,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recha
 import RequireAuth from "@/components/RequireAuth";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/lib/supabase";
+import { getCurrentProfile } from "@/lib/auth";
 
 type OrderRow = {
   id: string;
@@ -51,6 +52,7 @@ function todayString() {
 }
 
 export default function DashboardPage() {
+  const [role, setRole] = useState("");
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [orderCount, setOrderCount] = useState(0);
   const [revenue, setRevenue] = useState(0);
@@ -63,6 +65,8 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       const today = todayString();
+      const profile = await getCurrentProfile();
+      setRole(profile?.role || "");
 
       const [
         { data: orderRows },
@@ -129,7 +133,7 @@ export default function DashboardPage() {
         .map((order) => ({
           id: `order-${order.id}`,
           title: `今日待施工：${order.order_no}`,
-          href: "/operations/calendar",
+          href: "/operations/calendar?status=today",
           urgent: order.status === "pending",
         })),
       ...orders
@@ -137,13 +141,13 @@ export default function DashboardPage() {
         .map((order) => ({
           id: `pickup-${order.id}`,
           title: `已完工待牽車：${order.order_no}`,
-          href: "/operations/construction",
+          href: "/operations/construction?status=finished",
           urgent: true,
         })),
       ...quoteTodos.map((quote) => ({
         id: `quote-${quote.id}`,
         title: `待確認報價：${quote.quote_no}`,
-        href: "/operations/quotations",
+        href: "/operations/quotations?status=pending",
         urgent: true,
       })),
       ...orders
@@ -151,11 +155,17 @@ export default function DashboardPage() {
         .map((order) => ({
           id: `pay-${order.id}`,
           title: `待收尾款：${order.order_no}`,
-          href: "/finance/payments",
+          href: "/finance/payments?status=unpaid",
           urgent: false,
         })),
-    ].filter((todo) => !doneTodos.includes(todo.id));
-  }, [doneTodos, orders, quoteTodos]);
+    ].filter((todo) => !doneTodos.includes(todo.id)).filter((todo) => role === "technician" ? todo.id.startsWith("order-") || todo.id.startsWith("pickup-") : role === "frontdesk" ? todo.id.startsWith("quote-") || todo.id.startsWith("order-") : true);
+  }, [doneTodos, orders, quoteTodos, role]);
+
+  const roleLinks = useMemo(() => {
+    if (role === "technician") return quickLinks.filter((item) => ["/operations/construction", "/operations/orders", "/operations/calendar", "/operations/cars"].includes(item.href));
+    if (role === "frontdesk") return quickLinks.filter((item) => ["/operations/paste-reservation", "/operations/evaluation", "/operations/quotations", "/operations/customers", "/operations/calendar"].includes(item.href));
+    return quickLinks;
+  }, [role]);
 
   function markTodoDone(id: string) {
     const next = [...doneTodos, id];
@@ -176,14 +186,14 @@ export default function DashboardPage() {
         <section className="card">
           <div className="mb-4">
             <p className="text-sm font-black text-carcare-yellow">CarCare System</p>
-            <h1 className="text-2xl font-black">工作台總覽</h1>
+            <h1 className="text-2xl font-black">{role === "technician" ? "今日施工待辦" : role === "frontdesk" ? "預約與報價待辦" : "營運待辦中心"}</h1>
             <p className="mt-1 text-sm text-neutral-500">
               常用功能都放在這裡，也可以從左側選單進入各模組。
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {quickLinks.map((item) => (
+            {roleLinks.map((item) => (
               <Link
                 key={`${item.href}-${item.title}`}
                 href={item.href}

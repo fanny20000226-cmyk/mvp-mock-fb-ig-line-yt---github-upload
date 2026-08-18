@@ -21,6 +21,7 @@ import { listCars, listQuotations } from "@/lib/db";
 import type { Role } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type CustomerSyncRow = { id: string; name: string | null; phone: string | null; sync_status?: SyncState | null; last_sync_at?: string | null; sync_error?: string | null };
 
@@ -89,6 +90,7 @@ function dateText(value?: string | null) {
 }
 
 export default function CustomersPage() {
+  const { confirm } = useUiFeedback();
   const [cars, setCars] = useState<CarRow[]>([]);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [photos, setPhotos] = useState<AlbumPhoto[]>([]);
@@ -235,7 +237,7 @@ export default function CustomersPage() {
   }
 
   async function deletePhoto(photoId: string) {
-    const ok = window.confirm("確定要從相簿移除這張照片紀錄嗎？");
+    const ok = await confirm({ title: "移除照片", message: "確定要從相簿移除這張照片紀錄嗎？", confirmLabel: "確認移除", tone: "warning" });
     if (!ok) return;
     const { error } = await supabase.from("image_annotations").delete().eq("id", photoId);
     if (error) return alert(error.message);
@@ -270,7 +272,7 @@ export default function CustomersPage() {
 
   async function deleteTagLibrary(tagName: string) {
     if (!profile || !canManageCustomerTags(profile.role)) return;
-    const ok = window.confirm(`確定刪除「${tagName}」標籤庫？已套用的同名標籤也會一併移除。`);
+    const ok = await confirm({ title: "刪除標籤", message: `確定刪除「${tagName}」標籤庫？已套用的同名標籤也會一併移除。`, confirmLabel: "確認刪除", tone: "warning" });
     if (!ok) return;
     const { error } = await removeTagEverywhere(tagName, profile.shop_id);
     if (error) return alert(error.message);

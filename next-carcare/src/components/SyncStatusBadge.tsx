@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 export type SyncState = "synced" | "pending" | "failed";
 
@@ -20,6 +21,7 @@ export default function SyncStatusBadge({ table, row, syncType, isAdmin, onChang
   isAdmin?: boolean;
   onChanged?: () => void;
 }) {
+  const { toast } = useUiFeedback();
   const [running, setRunning] = useState(false);
   const status = row.sync_status || "pending";
   async function retry() {
@@ -31,15 +33,16 @@ export default function SyncStatusBadge({ table, row, syncType, isAdmin, onChang
       const result = (await response.json().catch(() => ({}))) as { message?: string };
       const next = response.ok ? "synced" : "failed";
       await supabase.from(table).update({ sync_status: next, last_sync_at: response.ok ? new Date().toISOString() : row.last_sync_at || null, sync_error: response.ok ? null : result.message || "N8N 同步失敗" }).eq("id", row.id);
-      if (!response.ok) window.alert(errorMessageZh(result.message, "重新同步失敗。"));
+      if (!response.ok) toast(errorMessageZh(result.message, "重新同步失敗。"), "error");
+      else toast("重新同步已送出。", "success");
       onChanged?.();
     } catch (error) {
-      window.alert(errorMessageZh(error, "重新同步失敗。"));
+      toast(errorMessageZh(error, "重新同步失敗。"), "error");
     } finally { setRunning(false); }
   }
   return <div className="flex min-w-32 flex-col items-start gap-1" title={status === "failed" ? row.sync_error || "同步失敗" : undefined}>
     <span className={`rounded-full border px-2.5 py-1 text-xs font-black ${style[status]}`}>{label[status]}</span>
     <span className="text-[11px] text-neutral-500">{row.last_sync_at ? new Date(row.last_sync_at).toLocaleString("zh-TW") : "尚無同步時間"}</span>
-    {isAdmin ? <button type="button" className="text-xs font-black text-blue-700 underline disabled:opacity-50" disabled={running} onClick={retry}>{running ? "同步中…" : "重新同步"}</button> : null}
+    {isAdmin && status === "failed" ? <button type="button" className="min-h-0 text-xs font-black text-red-700 underline disabled:opacity-50" disabled={running} onClick={retry}>{running ? "同步中…" : "重新同步"}</button> : null}
   </div>;
 }

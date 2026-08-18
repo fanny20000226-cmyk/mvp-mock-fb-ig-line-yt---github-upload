@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { exportElementToPdf } from "@/lib/pdf";
 import { getCurrentProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 export type QuoteOption = {
   id: string;
@@ -65,7 +66,7 @@ function formatMoney(amount: number) {
 }
 
 function parseAmount(value: string) {
-  const amount = Number(value || 0);
+  const amount = Number(value.replace(/,/g, "") || 0);
   return Number.isFinite(amount) ? Math.max(amount, 0) : 0;
 }
 
@@ -101,6 +102,7 @@ export default function InteriorQuoteBuilder({
   onGenerate: (draft: QuoteDraft) => Promise<void> | void;
   compact?: boolean;
 }) {
+  const { toast } = useUiFeedback();
   const [carType, setCarType] = useState(carTypes[0]);
   const [store, setStore] = useState(stores[1]);
   const [customerName, setCustomerName] = useState("");
@@ -197,8 +199,8 @@ export default function InteriorQuoteBuilder({
 
   async function saveQuote(exportPdf: boolean) {
     if (saving) return;
-    if (!customerName.trim()) return alert("請填寫車主姓名。");
-    if (!plateNo.trim()) return alert("請填寫車牌號碼。");
+    if (!customerName.trim()) { document.getElementById("quote-customer-name")?.scrollIntoView({ behavior: "smooth", block: "center" }); return toast("請填寫車主姓名。", "error"); }
+    if (!plateNo.trim()) { document.getElementById("quote-plate-no")?.scrollIntoView({ behavior: "smooth", block: "center" }); return toast("請填寫車牌號碼。", "error"); }
 
     setSaving(true);
     try {
@@ -213,6 +215,7 @@ export default function InteriorQuoteBuilder({
         note: buildNote(),
         items: allItems,
       });
+      toast("報價單已儲存。", "success");
 
       if (exportPdf) {
         await exportElementToPdf("interior-quote-preview", `PEIWAY_${plateNo || quoteNo}_報價單.pdf`);
@@ -230,15 +233,15 @@ export default function InteriorQuoteBuilder({
         <div className="card">
           <h2 className="mb-4 text-xl font-black">車型與車輛資料</h2>
           <div className="space-y-3">
-            <select className="form-input" value={carType} onChange={(event) => setCarType(event.target.value)}>
+            <label><span className="field-label required">車型</span><select className="form-input" value={carType} onChange={(event) => setCarType(event.target.value)}>
               {carTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
-            </select>
-            <input className="form-input" value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="車主姓名" />
-            <input className="form-input" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="聯絡電話" />
-            <input className="form-input" value={plateNo} onChange={(event) => setPlateNo(event.target.value)} placeholder="車牌號碼" />
-            <input className="form-input" value={brand} onChange={(event) => setBrand(event.target.value)} placeholder="車廠品牌，可留空" />
+            </select></label>
+            <label><span className="field-label required">車主姓名</span><input id="quote-customer-name" className="form-input" value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="例：王小明" /></label>
+            <label><span className="field-label">聯絡電話</span><input className="form-input" value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value.replace(/[^\d-]/g, "").replace(/^(\d{4})(\d)/, "$1-$2").slice(0, 12))} placeholder="0912-345-678" inputMode="tel" /></label>
+            <label><span className="field-label required">車牌號碼</span><input id="quote-plate-no" className="form-input uppercase" value={plateNo} onChange={(event) => setPlateNo(event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""))} placeholder="ABC-1234" autoCapitalize="characters" /></label>
+            <label><span className="field-label">車廠品牌</span><input className="form-input" value={brand} onChange={(event) => setBrand(event.target.value)} placeholder="可留空" /></label>
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
               <img src={carPreview[carType]} alt={carType} loading="lazy" className="mx-auto max-h-48 w-full object-contain" />
             </div>
@@ -247,22 +250,22 @@ export default function InteriorQuoteBuilder({
 
         <div className="card">
           <h2 className="mb-4 text-xl font-black">施作分類左備註</h2>
-          <select className="form-input" value={categoryA} onChange={(event) => setCategoryA(event.target.value)}>
+          <label><span className="field-label">施作分類</span><select className="form-input" value={categoryA} onChange={(event) => setCategoryA(event.target.value)}>
             {categories.map((category) => (
               <option key={category} value={category}>{category}</option>
             ))}
-          </select>
-          <textarea className="form-input mt-3 min-h-32" value={noteA} onChange={(event) => setNoteA(event.target.value)} placeholder="左排或第一組施作備註" />
+          </select></label>
+          <label className="mt-3 block"><span className="field-label">施作備註</span><textarea className="form-input min-h-32" value={noteA} onChange={(event) => setNoteA(event.target.value)} placeholder="左排或第一組施作備註" /></label>
         </div>
 
         <div className="card">
           <h2 className="mb-4 text-xl font-black">施作分類右備註</h2>
-          <select className="form-input" value={categoryB} onChange={(event) => setCategoryB(event.target.value)}>
+          <label><span className="field-label">施作分類</span><select className="form-input" value={categoryB} onChange={(event) => setCategoryB(event.target.value)}>
             {categories.map((category) => (
               <option key={category} value={category}>{category}</option>
             ))}
-          </select>
-          <textarea className="form-input mt-3 min-h-32" value={noteB} onChange={(event) => setNoteB(event.target.value)} placeholder="右排或第二組施作備註" />
+          </select></label>
+          <label className="mt-3 block"><span className="field-label">施作備註</span><textarea className="form-input min-h-32" value={noteB} onChange={(event) => setNoteB(event.target.value)} placeholder="右排或第二組施作備註" /></label>
         </div>
       </div>
 
@@ -313,9 +316,9 @@ export default function InteriorQuoteBuilder({
             <button type="button" className={optionButtonClass(photoPhase === "before")} onClick={() => setPhotoPhase("before")}>施工前照片</button>
             <button type="button" className={optionButtonClass(photoPhase === "after")} onClick={() => setPhotoPhase("after")}>施工後照片</button>
           </div>
-          <label className="flex min-h-24 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 text-sm font-black text-neutral-500">
+          <label htmlFor="quote-photo-input" className="flex min-h-24 cursor-pointer items-center justify-center rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 text-sm font-black text-neutral-500">
             {uploading ? "上傳中..." : "點擊上傳照片"}
-            <input type="file" accept="image/*" multiple className="hidden" onChange={(event) => uploadFiles(event.target.files)} />
+            <input id="quote-photo-input" type="file" accept="image/*" multiple className="hidden" onChange={(event) => uploadFiles(event.target.files)} />
           </label>
           <div className="mt-3 grid grid-cols-4 gap-2">
             {activePhotos.map((url) => (
@@ -381,9 +384,9 @@ export default function InteriorQuoteBuilder({
           <p>地毯小計：<strong>{formatMoney(carpetSubtotal)}</strong></p>
           <p>座椅小計：<strong>{formatMoney(seatSubtotal)}</strong></p>
           <p>加購小計：<strong>{formatMoney(extraSubtotal)}</strong></p>
-          <label className="flex items-center gap-2">
-            訂金
-            <input className="form-input max-w-32" value={deposit} onChange={(event) => setDeposit(event.target.value)} inputMode="numeric" />
+          <label>
+            <span className="field-label">訂金</span>
+            <input className="form-input max-w-40" value={deposit} onChange={(event) => setDeposit(event.target.value.replace(/\D/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ","))} inputMode="numeric" />
           </label>
         </div>
         <div className="bg-carcare-black p-5 text-white">
@@ -394,12 +397,18 @@ export default function InteriorQuoteBuilder({
 
       <div className={`grid gap-3 ${compact ? "" : "md:grid-cols-2"}`}>
         <button type="button" className="primary-btn w-full justify-center py-4 text-lg" disabled={saving} onClick={() => saveQuote(false)}>
-          {saving ? "儲存中..." : "儲存單據"}
+          {saving ? <><span className="button-spinner" />儲存中...</> : "儲存單據"}
         </button>
-        <button type="button" className="primary-btn w-full justify-center py-4 text-lg" disabled={saving} onClick={() => saveQuote(true)}>
-          {saving ? "處理中..." : "儲存並匯出報價單 PDF"}
+        <button type="button" className="secondary-btn w-full justify-center py-4 text-lg" disabled={saving} onClick={() => saveQuote(true)}>
+          {saving ? <><span className="button-spinner" />處理中...</> : "儲存並匯出 PDF"}
         </button>
       </div>
+      <div className="mobile-action-bar">
+        <button type="button" className="primary-btn" disabled={saving} onClick={() => saveQuote(false)}>儲存</button>
+        <button type="button" className="secondary-btn" disabled={uploading} onClick={() => document.getElementById("quote-photo-input")?.click()}>拍照</button>
+        <button type="button" className="secondary-btn" onClick={() => document.getElementById("interior-quote-preview")?.scrollIntoView({ behavior: "smooth" })}>下一步</button>
+      </div>
+      <button type="button" className="back-to-top" aria-label="返回頂部" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>↑</button>
     </section>
   );
 }

@@ -15,6 +15,7 @@ import {
   parseReservationStart
 } from "@/lib/reservationConflicts";
 import { supabase } from "@/lib/supabase";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type ServiceRow = {
   id: string;
@@ -109,6 +110,7 @@ function parseReservation(text: string): ParsedForm {
 }
 
 export default function PasteReservationPage() {
+  const { confirm } = useUiFeedback();
   const [pasteText, setPasteText] = useState(templateText);
   const [form, setForm] = useState<ParsedForm>(emptyForm);
   const [services, setServices] = useState<ServiceRow[]>([]);
@@ -199,7 +201,7 @@ export default function PasteReservationPage() {
           alert(`${message}\n\n請調整預約時間後再建立。`);
           return;
         }
-        const ok = window.confirm(`${message}\n\n是否由店長/總管理權限強制建立？`);
+        const ok = await confirm({ title: "預約衝突", message: `${message}\n是否由店長／總管理權限強制建立？`, confirmLabel: "強制建立", tone: "warning" });
         if (!ok) {
           setSaving(false);
           return;

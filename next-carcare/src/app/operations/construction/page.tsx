@@ -8,6 +8,7 @@ import PhotoZipButton from "@/components/PhotoZipButton";
 import ReceiptExportButton from "@/components/ReceiptExportButton";
 import { listConstructionOrders } from "@/lib/db";
 import { createMockSmsNotification, defaultPickupTemplates, photoPreviewLink, renderNotifyTemplate } from "@/lib/notifications";
+import { useUiFeedback } from "@/components/UiFeedback";
 import { exportElementToPdf } from "@/lib/pdf";
 import { supabase } from "@/lib/supabase";
 
@@ -59,6 +60,7 @@ function money(value: number) {
 }
 
 export default function ConstructionPage() {
+  const { confirm } = useUiFeedback();
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [expandedId, setExpandedId] = useState("");
   const [photoMap, setPhotoMap] = useState<Record<string, WorkOrderPhotos>>({});
@@ -127,9 +129,7 @@ export default function ConstructionPage() {
 
   async function promptPickupNotice(row: OrderRow) {
     const phone = row.cars?.customer_phone || "";
-    const ok = window.confirm(
-      `施工單已切換為完工待牽車。\n\n是否建立取車通知紀錄？\n客戶電話：${phone || "未填"}`
-    );
+    const ok = await confirm({ title: "建立取車通知", message: `施工單已切換為完工待牽車。是否建立取車通知紀錄？客戶電話：${phone || "未填"}`, confirmLabel: "建立通知" });
     if (!ok) return;
 
     const photos = await loadWorkOrderPhotos(row);

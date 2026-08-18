@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import type { Role } from "@/lib/permissions";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type QuoteRow = {
   id: string;
@@ -38,10 +39,15 @@ type QuoteItemRow = {
   subtotal: number | null;
 };
 
+const quoteStages = ["draft", "pending", "confirmed", "converted", "completed", "paid"] as const;
 const statusText: Record<string, string> = {
+  draft: "草稿",
   pending: "待確認",
   confirmed: "已確認",
-  converted: "已轉工單",
+  converted: "施工中",
+  in_progress: "施工中",
+  completed: "已完工",
+  paid: "已收款",
   void: "作廢",
 };
 
@@ -64,6 +70,7 @@ function itemCategory(itemId: string) {
 }
 
 export default function QuotationsPage() {
+  const { toast, confirm } = useUiFeedback();
   const [rows, setRows] = useState<QuoteRow[]>([]);
   const [expandedId, setExpandedId] = useState("");
   const [quoteItems, setQuoteItems] = useState<Record<string, QuoteItemRow[]>>({});
@@ -75,7 +82,7 @@ export default function QuotationsPage() {
       .from("quotations")
       .select("id, shop_id, customer_id, quote_no, customer_name, customer_phone, plate_no, total_amount, final_amount, status, remark, created_at, sync_status, last_sync_at, sync_error")
       .order("created_at", { ascending: false });
-    if (error) return alert(error.message);
+    if (error) return toast(errorMessageZh(error, "報價紀錄讀取失敗。"), "error");
     setRows((data || []) as QuoteRow[]);
   }
 
@@ -85,7 +92,7 @@ export default function QuotationsPage() {
       .from("quotation_items")
       .select("id, item_name, category, quantity, unit_price, subtotal")
       .eq("quotation_id", quoteId);
-    if (error) return alert(error.message);
+    if (error) return toast(errorMessageZh(error, "報價明細讀取失敗。"), "error");
     setQuoteItems((current) => ({ ...current, [quoteId]: (data || []) as QuoteItemRow[] }));
   }
 
@@ -103,8 +110,8 @@ export default function QuotationsPage() {
   async function createQuotationFromDraft(draft: QuoteDraft) {
     if (saving) return;
     const profile = await getCurrentProfile();
-    if (!profile?.shop_id) return alert("目前帳號尚未綁定門市，無法建立報價單。");
-    if (!draft.customer_name || !draft.plate_no) return alert("請填寫車主姓名與車牌號碼。");
+    if (!profile?.shop_id) return toast("目前帳號尚未綁定門市，無法建立報價單。", "error");
+    if (!draft.customer_name || !draft.plate_no) return toast("請填寫車主姓名與車牌號碼。", "error");
 
     const amount = Number(draft.final_amount || 0);
     setSaving(true);
@@ -163,9 +170,9 @@ export default function QuotationsPage() {
       }
 
       await load();
-      alert("報價單已建立，客戶、車輛與歷史紀錄已同步。");
+      toast("報價單已建立。", "success");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "建立報價單失敗。");
+      toast(error instanceof Error ? error.message : "建立報價單失敗。", "error");
     } finally {
       setSaving(false);
     }
@@ -176,23 +183,24 @@ export default function QuotationsPage() {
       .from("quotations")
       .update({ status, updated_at: new Date().toISOString() })
       .eq("id", row.id);
-    if (error) return alert(error.message);
+    if (error) return toast(errorMessageZh(error, "狀態更新失敗。"), "error");
     await load();
+    toast(`狀態已更新為「${statusText[status] || status}」。`, "success");
   }
 
   async function convertToOrder(row: QuoteRow) {
     if (saving) return;
-    if (row.status === "converted") return alert("此報價單已轉工單，不可重複轉換");
-    if (!row.customer_id) return alert("請先選擇或建立客戶");
-    if (!row.plate_no?.trim()) return alert("請先補車牌");
+    if (["converted", "in_progress", "completed", "paid"].includes(row.status)) return toast("此報價單已轉工單，不可重複轉換", "warning");
+    if (!row.customer_id) return toast("請先選擇或建立客戶", "error", { label: "前往客戶", onClick: () => { window.location.href = "/operations/customers"; } });
+    if (!row.plate_no?.trim()) return toast("請先補車牌", "error", { label: "前往車輛", onClick: () => { window.location.href = "/operations/cars"; } });
     const amount = Number(row.final_amount ?? row.total_amount ?? 0);
     if (amount === 0) {
-      if (role !== "admin") return alert("報價金額為 0，僅管理員可確認後轉工單。");
-      if (!window.confirm("警告：此報價單金額為 0，確認仍要轉工單？")) return;
+      if (role !== "admin") return toast("報價金額為 0，僅管理員可確認後轉工單。", "warning");
+      if (!(await confirm({ title: "零元報價警告", message: "此報價單金額為 0，確認仍要轉工單？", confirmLabel: "確認轉換", tone: "warning" }))) return;
     }
     const { data: existingCar } = await supabase.from("cars").select("id").or(`plate_no.eq.${row.plate_no},license_plate.eq.${row.plate_no}`).limit(1).maybeSingle();
     const willCreateCar = !existingCar;
-    if (!window.confirm(`確認將 ${row.quote_no} 轉為施工單？`)) return;
+    if (!(await confirm({ title: "轉為施工單", message: `確認將 ${row.quote_no} 轉為施工單？`, confirmLabel: "確認轉換" }))) return;
 
     setSaving(true);
     try {
@@ -212,13 +220,23 @@ export default function QuotationsPage() {
       if (!response.ok) throw new Error(result.message || "轉工單失敗。");
 
       await load();
-      alert(willCreateCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "已轉為施工單，工作台與施工單管理會同步更新。");
+      toast(willCreateCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "已轉為施工單。", "success");
     } catch (error) {
       console.error("convert quote failed", error);
-      alert(errorMessageZh(error, "轉工單失敗。"));
+      toast(errorMessageZh(error, "轉工單失敗。"), "error");
     } finally {
       setSaving(false);
     }
+  }
+
+  async function advanceQuote(row: QuoteRow) {
+    if (saving) return;
+    const normalized = row.status === "in_progress" ? "converted" : row.status;
+    const index = quoteStages.indexOf(normalized as (typeof quoteStages)[number]);
+    if (index < 0 || index >= quoteStages.length - 1) return;
+    const next = quoteStages[index + 1];
+    if (next === "converted") return convertToOrder(row);
+    await updateStatus(row, next);
   }
 
   const summary = useMemo(() => {
@@ -287,22 +305,14 @@ export default function QuotationsPage() {
                     <td>{row.customer_phone || "-"}</td>
                     <td>{row.plate_no || "-"}</td>
                     <td>{money(Number(row.final_amount || row.total_amount || 0))}</td>
-                    <td>{statusText[row.status] || row.status}</td>
+                    <td><div className="min-w-[38rem]"><div className="quote-progress">{quoteStages.map((stage, index) => { const current = Math.max(0, quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number])); return <span key={stage} className={`quote-progress-step ${index < current ? "is-done" : ""} ${index === current ? "is-current" : ""}`}>{statusText[stage]}</span>; })}</div></div></td>
                     <td><SyncStatusBadge table="quotations" row={row as QuoteRow & Record<string, unknown>} syncType="customer" isAdmin={role === "admin"} onChanged={load} /></td>
                     <td>
                       <div className="flex min-w-72 flex-wrap gap-2">
-                        <select className="form-input min-w-36" value={row.status} onChange={(event) => updateStatus(row, event.target.value)}>
-                          <option value="pending">待確認</option>
-                          <option value="confirmed">已確認</option>
-                          <option value="converted">已轉工單</option>
-                          <option value="void">作廢</option>
-                        </select>
                         <button type="button" className="secondary-btn" onClick={() => toggleDetail(row)}>
                           {expandedId === row.id ? "收合明細" : "展開明細"}
                         </button>
-                        <button type="button" className="primary-btn" disabled={saving || row.status === "converted"} onClick={() => convertToOrder(row)}>
-                          轉工單
-                        </button>
+                        {row.status !== "paid" && row.status !== "void" ? <button type="button" className="primary-btn" disabled={saving} onClick={() => advanceQuote(row)}>{saving ? <><span className="button-spinner" />處理中</> : quoteStages[Math.min(quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number]) + 1, quoteStages.length - 1)] === "converted" ? "轉施工單" : `設為${statusText[quoteStages[Math.min(quoteStages.indexOf((row.status === "in_progress" ? "converted" : row.status) as (typeof quoteStages)[number]) + 1, quoteStages.length - 1)]]}`}</button> : null}
                       </div>
                     </td>
                   </tr>

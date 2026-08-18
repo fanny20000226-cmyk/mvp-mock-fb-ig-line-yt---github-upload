@@ -12,6 +12,14 @@ body {
   background: #f8f8f8;
 }
 
+:root { --ui-yellow: #f5b800; --ui-black: #171717; --ui-border: #e5e5e5; }
+button, a, input, select, textarea { min-height: 44px; }
+.field-label { @apply mb-1.5 block text-sm font-black text-neutral-800; }
+.field-label.required::after { content: " *"; color: #b91c1c; }
+.field-help { @apply mt-1 text-xs text-neutral-500; }
+.field-error { @apply mt-1 text-xs font-bold text-red-700; }
+.form-field-invalid { @apply border-red-600 ring-2 ring-red-100; }
+
 body {
   margin: 0;
   background: #f8f8f8;
@@ -54,16 +62,35 @@ p {
 }
 
 .card {
-  @apply rounded-xl bg-white p-4 shadow-soft;
+  @apply rounded-xl border border-neutral-200 bg-white p-4;
 }
 
 .primary-btn {
-  @apply rounded-lg bg-carcare-yellow px-5 py-3 font-black text-carcare-black shadow-sm hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-carcare-yellow px-5 py-2.5 font-black text-carcare-black hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .secondary-btn {
-  @apply rounded-lg border border-neutral-300 bg-white px-5 py-3 font-black text-carcare-black shadow-sm hover:border-carcare-yellow disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-neutral-300 bg-white px-5 py-2.5 font-black text-carcare-black hover:border-neutral-500 disabled:cursor-not-allowed disabled:opacity-50;
 }
+
+.warning-btn { @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-carcare-yellow px-5 py-2.5 font-black text-carcare-black disabled:opacity-50; }
+.button-spinner { @apply mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent; }
+.toast-stack { @apply fixed right-3 top-3 z-[100] flex w-[min(24rem,calc(100vw-1.5rem))] flex-col gap-2; }
+.toast { @apply flex min-h-12 items-center gap-3 rounded-xl border bg-white px-4 py-3 text-sm font-bold shadow-lg; }
+.toast span { @apply flex-1; }
+.toast button { @apply min-h-0 shrink-0 rounded-md px-2 py-1 font-black; }
+.toast-success { @apply border-green-300; } .toast-error { @apply border-red-400; } .toast-warning { @apply border-carcare-yellow; } .toast-info { @apply border-neutral-300; }
+.dialog-backdrop { @apply fixed inset-0 z-[110] grid place-items-center bg-black/55 p-4; }
+.dialog-panel { @apply w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl; }
+.dialog-panel h2 { @apply mt-1 text-xl; } .dialog-panel > p:not(.eyebrow) { @apply mt-3 leading-6 text-neutral-600; }
+.dialog-actions { @apply mt-6 flex justify-end gap-2; } .eyebrow { @apply text-xs font-black uppercase tracking-widest text-neutral-500; }
+.quote-progress { @apply grid grid-cols-3 gap-2 md:grid-cols-6; }
+.quote-progress-step { @apply flex min-h-11 items-center justify-center rounded-lg border border-neutral-200 bg-white px-2 text-center text-xs font-black text-neutral-500; }
+.quote-progress-step.is-done { @apply border-neutral-800 bg-neutral-900 text-white; }
+.quote-progress-step.is-current { @apply border-carcare-yellow text-neutral-950 ring-2 ring-carcare-yellow/40; }
+.mobile-action-bar { @apply fixed inset-x-0 bottom-0 z-40 hidden grid-cols-3 gap-2 border-t border-neutral-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(0,0,0,.08)] backdrop-blur; }
+.back-to-top { @apply fixed bottom-20 right-4 z-30 hidden h-11 w-11 items-center justify-center rounded-full border border-neutral-300 bg-white font-black shadow-md; }
+.mobile-record-card { @apply hidden; }
 
 .table-wrap {
   @apply overflow-x-auto rounded-xl bg-white shadow-soft;
@@ -94,4 +121,23 @@ p {
   .table-wrap {
     @apply rounded-xl;
   }
+}
+
+@media (max-width: 767px) {
+  main { padding-bottom: 5.5rem; }
+  .mobile-action-bar { @apply grid; }
+  .back-to-top { @apply flex; }
+  .desktop-record-table { @apply hidden; }
+  .mobile-record-card { @apply block rounded-xl border border-neutral-200 bg-white p-4; }
+  .mobile-record-list { @apply grid gap-3; }
+  .form-input, .input { @apply text-base; }
+  .table-wrap { overflow: visible; background: transparent; box-shadow: none; }
+  .data-table { display: block; min-width: 0; }
+  .data-table thead { @apply sr-only; }
+  .data-table tbody { @apply grid gap-3; }
+  .data-table tbody > tr { @apply block overflow-hidden rounded-xl border border-neutral-200 bg-white; }
+  .data-table tbody > tr > td { @apply block border-b border-neutral-100 px-4 py-3; }
+  .data-table tbody > tr > td:last-child { @apply border-b-0; }
+  .data-table tbody > tr > td[colspan] { @apply bg-neutral-50; }
+  .data-table .data-table tbody > tr { @apply border-0; }
 }

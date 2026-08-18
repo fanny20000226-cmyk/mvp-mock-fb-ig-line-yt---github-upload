@@ -6,6 +6,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import type { Role, UserProfile } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type AppointmentStatus = "待確認" | "已到店" | "已取消" | "已完成";
 
@@ -101,6 +102,7 @@ function tagList(value?: string[] | null) {
 }
 
 export default function CalendarPage() {
+  const { confirm } = useUiFeedback();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [rows, setRows] = useState<AppointmentRow[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
@@ -280,7 +282,7 @@ export default function CalendarPage() {
         alert(`此時段已超過可承載數量，請調整時間。\n${detail}`);
         return { ok: false, forced: false, note: "" };
       }
-      const ok = window.confirm(`此時段已有 ${sameSlot.length} 筆預約，是否強制建立？\n${detail}`);
+      const ok = await confirm({ title: "預約時段衝突", message: `此時段已有 ${sameSlot.length} 筆預約，是否強制建立？\n${detail}`, confirmLabel: "強制建立", tone: "warning" });
       if (!ok) return { ok: false, forced: false, note: "" };
       return { ok: true, forced: true, note: `強制建立：同時段已有 ${sameSlot.length} 筆預約\n${detail}` };
     }
@@ -363,7 +365,7 @@ export default function CalendarPage() {
 
   async function deleteRow(row: AppointmentRow) {
     if (!canWrite) return alert("目前角色僅可檢視預約，不能刪除。");
-    const ok = window.confirm(`確定刪除預約 ${row.appointment_no}？`);
+    const ok = await confirm({ title: "刪除預約", message: `確定刪除預約 ${row.appointment_no}？`, confirmLabel: "確認刪除", tone: "warning" });
     if (!ok) return;
     const { error } = await supabase.from("appointments").delete().eq("id", row.id);
     if (error) return alert(error.message);

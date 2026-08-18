@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { listCars, listQuotations } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type CarRow = {
   id: string;
@@ -50,6 +51,7 @@ function quoteAmount(quote?: QuoteRow | null) {
 }
 
 export default function ConstructionOrderCreator({ onCreated }: { onCreated: () => void }) {
+  const { toast, confirm } = useUiFeedback();
   const [cars, setCars] = useState<CarRow[]>([]);
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [staffRows, setStaffRows] = useState<StaffRow[]>([]);
@@ -165,7 +167,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       if (selectedQuote && selectedQuote.status === "converted") throw new Error("此報價單已轉工單，不可重複轉換");
       if (selectedQuote && totalAmount === 0) {
         if (profileRole !== "admin") throw new Error("報價金額為 0，僅管理員可確認後轉工單。");
-        if (!window.confirm("警告：此報價單金額為 0，確認仍要轉工單？")) return;
+        if (!(await confirm({ title: "零元報價警告", message: "此報價單金額為 0，確認仍要轉工單？", confirmLabel: "確認建立", tone: "warning" }))) return;
       }
       const autoCreatedCar = Boolean(selectedQuote && !matchedQuoteCar);
       if (selectedQuote || form.quotation_id) await convertSelectedQuote();
@@ -174,9 +176,9 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       setForm(emptyForm);
       await loadOptions();
       onCreated();
-      alert(autoCreatedCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "施工單已建立，工作台與施工訂單列表會同步更新。");
+      toast(autoCreatedCar ? "尚未存在該車輛，系統已自動建立車輛資料" : "施工單已建立。", "success");
     } catch (error) {
-      alert(errorMessageZh(error, "建立施工單失敗。"));
+      toast(errorMessageZh(error, "建立施工單失敗。"), "error");
     } finally {
       setSaving(false);
     }
@@ -193,7 +195,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <select
+        <label><span className="field-label required">車輛</span><select
           className="form-input"
           value={selectedQuote ? matchedQuoteCar?.id || "" : form.car_id}
           onChange={(event) => setForm({ ...form, car_id: event.target.value })}
@@ -207,9 +209,9 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
               {car.customer_name || "未命名客戶"} / {car.plate_no || car.license_plate || "未填車牌"}
             </option>
           ))}
-        </select>
+        </select></label>
 
-        <select
+        <label><span className="field-label">來源報價單</span><select
           className="form-input"
           value={form.quotation_id}
           onChange={(event) => setForm({ ...form, quotation_id: event.target.value })}
@@ -220,9 +222,9 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
               {quote.quote_no} / {quote.customer_name || quote.plate_no || "未命名客戶"}
             </option>
           ))}
-        </select>
+        </select></label>
 
-        <select
+        <label><span className="field-label">負責技師</span><select
           className="form-input"
           value={form.responsible_staff_id}
           onChange={(event) => setForm({ ...form, responsible_staff_id: event.target.value })}
@@ -233,28 +235,28 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
               {staff.name} / {staff.employee_no}
             </option>
           ))}
-        </select>
+        </select></label>
 
-        <input
+        <label><span className="field-label required">施工總額</span><input
           className="form-input"
           value={form.total_amount}
-          onChange={(event) => setForm({ ...form, total_amount: event.target.value })}
+          onChange={(event) => setForm({ ...form, total_amount: event.target.value.replace(/\D/g, "") })}
           placeholder="施工總額"
           inputMode="numeric"
-        />
-        <input
+        /></label>
+        <label><span className="field-label">已收金額</span><input
           className="form-input"
           value={form.paid_amount}
-          onChange={(event) => setForm({ ...form, paid_amount: event.target.value })}
+          onChange={(event) => setForm({ ...form, paid_amount: event.target.value.replace(/\D/g, "") })}
           placeholder="已收金額"
           inputMode="numeric"
-        />
-        <textarea
-          className="form-input md:col-span-2"
+        /></label>
+        <label className="md:col-span-2"><span className="field-label">施工備註</span><textarea
+          className="form-input"
           value={form.service_note}
           onChange={(event) => setForm({ ...form, service_note: event.target.value })}
           placeholder="施工項目、注意事項、車況備註"
-        />
+        /></label>
       </div>
 
       {selectedQuote ? (
@@ -265,7 +267,7 @@ export default function ConstructionOrderCreator({ onCreated }: { onCreated: () 
       ) : null}
 
       <button type="button" onClick={createOrder} disabled={saving} className="primary-btn mt-4">
-        {saving ? "建立中..." : "建立施工單"}
+        {saving ? <><span className="button-spinner" />建立中...</> : "建立施工單"}
       </button>
     </section>
   );

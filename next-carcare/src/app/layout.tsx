@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { UiFeedbackProvider } from "@/components/UiFeedback";
 
 export const metadata: Metadata = {
   title: "CarCare System",
@@ -13,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <body>{children}</body>
+      <body><UiFeedbackProvider>{children}</UiFeedbackProvider></body>
     </html>
   );
 }

@@ -5,6 +5,7 @@ import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
 import { listServiceItems } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type ServiceRow = {
   id: string;
@@ -61,6 +62,7 @@ function buildDescription(description: string, imageUrl: string, sortOrder: stri
 }
 
 export default function ServicesPage() {
+  const { confirm } = useUiFeedback();
   const [rows, setRows] = useState<ServiceRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -172,7 +174,7 @@ export default function ServicesPage() {
   }
 
   async function softDelete(row: ServiceRow) {
-    const ok = window.confirm(`確定要刪除「${row.name}」嗎？\n系統會保留資料，只從菜單管理中隱藏。`);
+    const ok = await confirm({ title: "隱藏服務項目", message: `確定要隱藏「${row.name}」嗎？系統會保留資料，只從菜單管理中隱藏。`, confirmLabel: "確認隱藏", tone: "warning" });
     if (!ok) return;
     const meta = parseMeta(row.description);
     const { error } = await supabase

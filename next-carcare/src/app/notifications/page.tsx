@@ -5,6 +5,7 @@ import Link from "next/link";
 import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
 import { defaultPickupTemplates } from "@/lib/notifications";
+import { useUiFeedback } from "@/components/UiFeedback";
 import { roleLabels, type Role } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 
@@ -57,6 +58,7 @@ function downloadCsv(rows: NotifyLog[]) {
 }
 
 export default function NotificationsPage() {
+  const { confirm } = useUiFeedback();
   const [role, setRole] = useState<Role>("worker");
   const [shopId, setShopId] = useState<string | null>(null);
   const [rows, setRows] = useState<NotifyLog[]>([]);
@@ -120,7 +122,7 @@ export default function NotificationsPage() {
   }, [filters, rows]);
 
   async function retry(row: NotifyLog) {
-    const ok = window.confirm("重新發送會新增一筆 Mock 簡訊紀錄，確定繼續？");
+    const ok = await confirm({ title: "重新發送通知", message: "重新發送會新增一筆 Mock 簡訊紀錄，確定繼續？", confirmLabel: "重新發送" });
     if (!ok) return;
     const { error } = await supabase.from("notify_logs").insert({
       quotation_id: row.quotation_id,
