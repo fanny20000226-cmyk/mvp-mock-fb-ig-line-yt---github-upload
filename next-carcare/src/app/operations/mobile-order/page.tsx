@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
 import { ensureCustomerVehicleArchive } from "@/lib/customerArchive";
 import { supabase } from "@/lib/supabase";
+import { useUiFeedback } from "@/components/UiFeedback";
+import type { UserProfile } from "@/lib/permissions";
 
 type CarSearchRow = {
   id: string;
@@ -29,6 +31,9 @@ type QuickItem = {
 type SelectedItem = QuickItem & {
   price: number;
 };
+type WorkTemplate = { id: string; name: string; estimatedHours: number; items: SelectedItem[] };
+const templateKey = "carcare-work-templates-v1";
+const draftKey = "carcare-mobile-order-draft-v1";
 
 const carTypes = ["一般5人座轎車", "七人座2-3-2", "九人座商務車"];
 
@@ -93,6 +98,8 @@ function Card({ children, title, desc }: { children: ReactNode; title: string; d
 
 export default function MobileOrderPage() {
   const router = useRouter();
+  const { toast, confirm } = useUiFeedback();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [mode, setMode] = useState<"existing" | "new">("existing");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [results, setResults] = useState<CarSearchRow[]>([]);
@@ -106,6 +113,30 @@ export default function MobileOrderPage() {
   const [deposit, setDeposit] = useState(0);
   const [interiorOpen, setInteriorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<WorkTemplate[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("3");
+  const [lastDraftAt, setLastDraftAt] = useState("");
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    getCurrentProfile().then(setProfile);
+    try { setTemplates(JSON.parse(localStorage.getItem(templateKey) || "[]") as WorkTemplate[]); } catch { setTemplates([]); }
+    try {
+      const draft = JSON.parse(localStorage.getItem(draftKey) || "null") as Record<string, unknown> | null;
+      if (draft) { setCustomerName(String(draft.customerName || "")); setCustomerPhone(String(draft.customerPhone || "")); setPlateNo(String(draft.plateNo || "")); setBrand(String(draft.brand || "")); setCarModel(String(draft.carModel || carTypes[0])); setRemark(String(draft.remark || "")); setDeposit(Number(draft.deposit || 0)); setSelected((draft.selected || {}) as Record<string, SelectedItem>); setLastDraftAt(String(draft.savedAt || "")); }
+    } catch { /* ignore invalid local draft */ }
+    const sync = () => { setOnline(navigator.onLine); if (navigator.onLine) toast("網路已恢復，可繼續提交本機草稿。", "success"); else toast("目前離線，資料會暫存在本機。", "warning"); };
+    setOnline(navigator.onLine); window.addEventListener("online", sync); window.addEventListener("offline", sync); return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
+  }, [toast]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const savedAt = new Date().toISOString();
+      localStorage.setItem(draftKey, JSON.stringify({ customerName, customerPhone, plateNo, brand, carModel, remark, selected, deposit, savedAt })); setLastDraftAt(savedAt);
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [brand, carModel, customerName, customerPhone, deposit, plateNo, remark, selected]);
 
   const selectedItems = useMemo(() => Object.values(selected), [selected]);
   const baseSubtotal = selectedItems.filter((item) => item.group === "base").reduce((sum, item) => sum + item.price, 0);
@@ -117,6 +148,16 @@ export default function MobileOrderPage() {
   const seatSubtotal = selectedItems.filter((item) => item.group === "seat").reduce((sum, item) => sum + item.price, 0);
   const subtotal = selectedItems.reduce((sum, item) => sum + item.price, 0);
   const total = Math.max(0, subtotal - deposit);
+  const canManageTemplates = profile?.role === "admin" || profile?.role === "shop_manager";
+
+  function applyTemplate(template: WorkTemplate) { setSelected(Object.fromEntries(template.items.map((item) => [item.id, item]))); setEstimatedHours(String(template.estimatedHours)); toast(`已套用「${template.name}」，預估 ${template.estimatedHours} 小時。`, "success"); }
+  function saveTemplate() {
+    if (!canManageTemplates) return toast("只有店長可以维护施工方案模板。", "error");
+    if (!templateName.trim() || !selectedItems.length) return toast("請先輸入模板名稱並選擇施工項目。", "warning");
+    const next = [...templates.filter((item) => item.name !== templateName.trim()), { id: `tpl-${Date.now()}`, name: templateName.trim(), estimatedHours: Math.max(0.5, Number(estimatedHours || 0)), items: selectedItems }];
+    setTemplates(next); localStorage.setItem(templateKey, JSON.stringify(next)); setTemplateName(""); toast("施工模板已儲存在此裝置。", "success");
+  }
+  async function deleteTemplate(id: string) { if (!canManageTemplates || !(await confirm({ title: "刪除施工模板", message: "只會刪除此裝置上的模板，確定繼續？", confirmLabel: "確認刪除", tone: "warning" }))) return; const next = templates.filter((item) => item.id !== id); setTemplates(next); localStorage.setItem(templateKey, JSON.stringify(next)); }
 
   function toggleItem(item: QuickItem) {
     setSelected((current) => {
@@ -247,6 +288,7 @@ export default function MobileOrderPage() {
       if (itemError) console.warn("Mobile order quotation_items insert skipped:", itemError);
 
       router.push(`/operations/quotations?quote=${quotationId}`);
+      localStorage.removeItem(draftKey);
     } catch (error) {
       window.alert(`儲存失敗：${errorMessage(error) || "未知錯誤"}`);
     } finally {
@@ -290,7 +332,13 @@ export default function MobileOrderPage() {
           <p className="text-xs font-black text-carcare-yellow">PEIWAY Mobile</p>
           <h1 className="text-2xl font-black text-neutral-950">行動快速開單</h1>
           <p className="mt-1 text-sm text-neutral-500">手機端卡片式流程：客戶、車輛、施工項目、車內清潔、金額與儲存。</p>
+          <p className="mt-2 text-sm font-bold text-neutral-600">{online ? "● 已連線" : "○ 離線暫存"}・最後草稿：{lastDraftAt ? new Date(lastDraftAt).toLocaleTimeString("zh-TW") : "尚未儲存"}</p>
         </header>
+
+        <Card title="常用施工方案" desc="員工可一鍵套用；店長可维护此裝置上的模板。">
+          <div className="grid gap-2 sm:grid-cols-2">{templates.map((template) => <article key={template.id} className="rounded-xl border border-neutral-200 p-3"><button type="button" className="w-full text-left" onClick={() => applyTemplate(template)}><strong className="block text-base">{template.name}</strong><span className="text-sm text-neutral-600">{template.items.length} 項・預估 {template.estimatedHours} 小時</span></button>{canManageTemplates ? <button type="button" className="mt-2 text-sm font-bold text-red-700" onClick={() => deleteTemplate(template.id)}>刪除模板</button> : null}</article>)}</div>
+          {canManageTemplates ? <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_8rem_auto]"><label><span className="field-label">模板名稱</span><input className="form-input" value={templateName} onChange={(event) => setTemplateName(event.target.value)} /></label><label><span className="field-label">預估工時</span><input className="form-input" type="number" min="0.5" step="0.5" value={estimatedHours} onChange={(event) => setEstimatedHours(event.target.value)} /></label><button type="button" className="primary-btn self-end" onClick={saveTemplate}>儲存目前方案</button></div> : null}
+        </Card>
 
         <Card title="客戶資訊" desc="可選既有客戶，也可快速新增現場客戶。">
           <div className="grid grid-cols-2 gap-2 rounded-xl bg-neutral-100 p-1">

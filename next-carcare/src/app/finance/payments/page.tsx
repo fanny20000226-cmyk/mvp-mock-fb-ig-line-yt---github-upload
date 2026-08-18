@@ -5,6 +5,10 @@ import RequireAuth from "@/components/RequireAuth";
 import { getCurrentProfile } from "@/lib/auth";
 import { listPayments } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
+import { useUiFeedback } from "@/components/UiFeedback";
+
+type PaymentSplit = { id: string; method: string; amount: string };
+const paymentAuditKey = "carcare-payment-audit-v1";
 
 type PaymentRow = {
   id: string;
@@ -44,8 +48,12 @@ function notifyFinanceSheetSync(record: Record<string, unknown>, operation: "ins
 }
 
 export default function PaymentsPage() {
+  const { toast } = useUiFeedback();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [form, setForm] = useState({ pay_type: "現金", amount: "", remark: "" });
+  const [checkout, setCheckout] = useState({ total: "", deposit: "", discount: "" });
+  const [splits, setSplits] = useState<PaymentSplit[]>([{ id: "split-1", method: "現金", amount: "" }]);
+  const [savingPayment, setSavingPayment] = useState(false);
   const [expenseForm, setExpenseForm] = useState({
     store: "",
     applicant: "",
@@ -65,22 +73,24 @@ export default function PaymentsPage() {
   }, []);
 
   async function createPayment() {
+    if (savingPayment) return;
     const profile = await getCurrentProfile();
     if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
-    if (!form.amount) return alert("請輸入收款金額。");
-
-    const { data, error } = await supabase.from("payment").insert({
-      shop_id: profile.shop_id,
-      payment_no: `P${Date.now()}`,
-      pay_type: form.pay_type,
-      amount: Number(form.amount || 0),
-      operator_id: profile.id,
-      check_status: "pending",
-      remark: form.remark
-    }).select("*").single();
-    if (error) return alert(error.message);
-    if (data?.id) notifyFinanceSheetSync(data as Record<string, unknown>, "insert");
+    const total = Number(checkout.total || 0); const deposit = Number(checkout.deposit || 0); const discount = Number(checkout.discount || 0); const due = Math.max(0, total - deposit - discount);
+    const validSplits = splits.filter((item) => Number(item.amount || 0) > 0); const received = validSplits.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    if (!validSplits.length) return toast("請至少輸入一筆收款拆分。", "warning");
+    if (total > 0 && received > due) return toast(`收款合計不可超過待收金額 $${due.toLocaleString()}。`, "error");
+    setSavingPayment(true);
+    const batchId = `P${Date.now()}`;
+    const { data, error } = await supabase.from("payment").insert(validSplits.map((item, index) => ({ shop_id: profile.shop_id, payment_no: `${batchId}-${index + 1}`, pay_type: item.method, amount: Number(item.amount), operator_id: profile.id, check_status: "pending", remark: [`[拆分收款 ${index + 1}/${validSplits.length}]`, `原始總額：${total}`, `訂金：${deposit}`, `折扣：${discount}`, `本次收款：${received}`, form.remark].filter(Boolean).join("\n") }))).select("*");
+    setSavingPayment(false);
+    if (error) return toast(error.message, "error");
+    (data || []).forEach((row) => notifyFinanceSheetSync(row as Record<string, unknown>, "insert"));
+    const audit = { id: batchId, at: new Date().toISOString(), operator: profile.name, operatorId: profile.id, total, deposit, discount, due, received, splits: validSplits };
+    const previous = JSON.parse(localStorage.getItem(paymentAuditKey) || "[]") as unknown[]; localStorage.setItem(paymentAuditKey, JSON.stringify([audit, ...previous].slice(0, 200)));
     setForm({ pay_type: "現金", amount: "", remark: "" });
+    setCheckout({ total: "", deposit: "", discount: "" }); setSplits([{ id: `split-${Date.now()}`, method: "現金", amount: "" }]);
+    toast(`已登记 ${validSplits.length} 笔拆分收款，共 $${received.toLocaleString()}。`, "success");
     load();
   }
 
@@ -133,6 +143,8 @@ export default function PaymentsPage() {
   const incomeTotal = incomeRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
   const expenseTotal = expenseRows.reduce((sum, row) => sum + Math.abs(Number(row.amount || 0)), 0);
   const netTotal = incomeTotal - expenseTotal;
+  const checkoutDue = Math.max(0, Number(checkout.total || 0) - Number(checkout.deposit || 0) - Number(checkout.discount || 0));
+  const splitTotal = splits.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 
   function statusLabel(status: string) {
     const labels: Record<string, string> = {
@@ -171,17 +183,12 @@ export default function PaymentsPage() {
                 <p className="text-sm font-black text-carcare-yellow">財務管理</p>
                 <h1 className="text-2xl font-black">收款核銷</h1>
               </div>
-              <button onClick={createPayment} className="primary-btn">新增收款</button>
+              <button onClick={createPayment} disabled={savingPayment} className="primary-btn">{savingPayment ? <><span className="button-spinner" />登记中</> : "确认收款"}</button>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <select className="form-input" value={form.pay_type} onChange={(e) => setForm({ ...form, pay_type: e.target.value })}>
-                {payTypes.map((type) => (
-                  <option key={type}>{type}</option>
-                ))}
-              </select>
-              <input className="form-input" placeholder="金額" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-              <input className="form-input" placeholder="備註，例如：訂金、尾款、補款" value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} />
-            </div>
+            <div className="grid gap-3 md:grid-cols-3"><label><span className="field-label required">订单总额</span><input className="form-input" inputMode="numeric" value={checkout.total} onChange={(e) => setCheckout({ ...checkout, total: e.target.value.replace(/\D/g, "") })} /></label><label><span className="field-label">已付订金</span><input className="form-input" inputMode="numeric" value={checkout.deposit} onChange={(e) => setCheckout({ ...checkout, deposit: e.target.value.replace(/\D/g, "") })} /></label><label><span className="field-label">折扣</span><input className="form-input" inputMode="numeric" value={checkout.discount} onChange={(e) => setCheckout({ ...checkout, discount: e.target.value.replace(/\D/g, "") })} /></label></div>
+            <div className="my-4 grid grid-cols-3 gap-2 rounded-xl border border-neutral-200 p-3 text-center"><p><span className="field-label">待收金额</span><strong className="text-xl">${checkoutDue.toLocaleString()}</strong></p><p><span className="field-label">本次收款</span><strong className="text-xl">${splitTotal.toLocaleString()}</strong></p><p><span className="field-label">收款后余额</span><strong className="text-xl">${Math.max(0, checkoutDue - splitTotal).toLocaleString()}</strong></p></div>
+            <div className="space-y-2">{splits.map((item) => <div key={item.id} className="grid grid-cols-[1fr_1fr_auto] gap-2"><select className="form-input" aria-label="付款方式" value={item.method} onChange={(event) => setSplits((current) => current.map((row) => row.id === item.id ? { ...row, method: event.target.value } : row))}>{payTypes.map((type) => <option key={type}>{type}</option>)}</select><input className="form-input" aria-label="拆分金额" inputMode="numeric" placeholder="金额" value={item.amount} onChange={(event) => setSplits((current) => current.map((row) => row.id === item.id ? { ...row, amount: event.target.value.replace(/\D/g, "") } : row))} /><button type="button" className="secondary-btn" aria-label="移除此付款方式" onClick={() => setSplits((current) => current.filter((row) => row.id !== item.id))}>移除</button></div>)}</div>
+            <div className="mt-3 flex flex-wrap gap-2"><button type="button" className="secondary-btn" onClick={() => setSplits((current) => [...current, { id: `split-${Date.now()}`, method: "現金", amount: "" }])}>＋新增付款方式</button><input className="form-input flex-1" placeholder="备注，例如：订金、尾款、补款" value={form.remark} onChange={(e) => setForm({ ...form, remark: e.target.value })} /></div>
           </div>
 
           <div className="card">

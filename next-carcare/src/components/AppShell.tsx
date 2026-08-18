@@ -6,6 +6,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { signOut } from "@/lib/auth";
 import type { UserProfile } from "@/lib/permissions";
+import EfficiencyLayer from "./EfficiencyLayer";
 
 export default function AppShell({
   profile,
@@ -51,6 +52,7 @@ export default function AppShell({
             登出
           </button>
         </header>
+        <EfficiencyLayer profile={profile} />
         {children}
       </main>
     </div>

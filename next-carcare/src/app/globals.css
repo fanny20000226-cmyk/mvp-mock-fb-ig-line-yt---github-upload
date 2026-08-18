@@ -35,6 +35,9 @@ a {
   outline: none;
 }
 
+:focus-visible { outline: 3px solid #111111; outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { box-shadow: 0 0 0 3px rgba(245, 184, 0, .35); }
+
 button,
 a,
 input,
@@ -111,6 +114,34 @@ p {
 .status-success { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
 .status-danger { @apply border-red-300 bg-red-50 text-red-700; }
 .overdue-hint { @apply border-l-2 border-amber-400 pl-3; }
+.global-efficiency-bar { @apply sticky top-2 z-40 mb-5 flex items-center gap-2 rounded-xl border border-neutral-200 bg-white/95 p-2 backdrop-blur; }
+.global-search { @apply relative flex min-h-11 flex-1 items-center gap-2 rounded-lg border border-neutral-300 px-3 focus-within:border-neutral-700 focus-within:ring-2 focus-within:ring-neutral-200; }
+.global-search input { @apply min-h-0 flex-1 bg-transparent text-base font-bold; }
+.global-search kbd { @apply hidden rounded border border-neutral-300 bg-neutral-50 px-2 py-1 text-xs text-neutral-500 md:block; }
+.global-search-results { @apply absolute left-0 right-0 top-[calc(100%+0.5rem)] max-h-[70vh] overflow-y-auto rounded-xl border border-neutral-200 bg-white p-2 shadow-xl; }
+.global-search-results button { @apply grid w-full grid-cols-[5rem_1fr] items-center gap-x-2 rounded-lg px-3 py-2 text-left hover:bg-neutral-100 focus:bg-neutral-100; }
+.global-search-results button span { @apply row-span-2 text-xs font-black text-neutral-500; }
+.global-search-results button strong { @apply text-sm text-neutral-950; }
+.global-search-results button small { @apply text-sm text-neutral-600; }
+.global-search-results > p { @apply p-4 text-center text-sm text-neutral-500; }
+.icon-action { @apply relative inline-flex h-11 w-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-900 hover:border-neutral-600 focus:ring-2 focus:ring-neutral-300; }
+.icon-action i { @apply absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-600; }
+.mobile-command-fab { @apply fixed bottom-20 left-4 z-50 hidden h-12 w-12 items-center justify-center rounded-full bg-carcare-yellow text-carcare-black shadow-lg; }
+.command-backdrop { @apply fixed inset-0 z-[120] grid place-items-center bg-black/50 p-4; }
+.command-panel { @apply max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl; }
+.command-panel > header { @apply mb-4 flex items-center justify-between; }
+.command-grid { @apply grid grid-cols-2 gap-3; }
+.command-grid button { @apply min-h-16 rounded-xl border border-neutral-200 bg-white p-3 text-left font-black hover:border-neutral-700 focus:ring-2 focus:ring-neutral-300; }
+.notice-list { @apply space-y-2; }
+.notice-list article { @apply flex items-center gap-2 rounded-xl border border-neutral-200 p-2; }
+.notice-list article.is-read { @apply opacity-60; }
+.notice-list article > button:first-child { @apply flex min-h-11 flex-1 flex-col items-start justify-center rounded-lg px-2 text-left; }
+.notice-list article > button:last-child { @apply rounded-lg border border-neutral-300 px-3 text-sm font-bold; }
+.notice-list span { @apply text-sm text-neutral-600; }
+.empty-state { @apply p-8 text-center text-neutral-500; }
+.field-mode button, .field-mode label { min-height: 52px; }
+.field-big-button { @apply gap-2 text-base; }
+.field-camera-button { @apply flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-400 bg-white px-3 text-center text-base font-black; }
 
 .table-wrap {
   @apply overflow-x-auto rounded-xl bg-white shadow-soft;
@@ -151,6 +182,9 @@ p {
   .mobile-record-card { @apply block rounded-xl border border-neutral-200 bg-white p-4; }
   .mobile-record-list { @apply grid gap-3; }
   .form-input, .input { @apply text-base; }
+  .mobile-command-fab { @apply flex; }
+  .global-efficiency-bar { @apply top-1; }
+  .global-efficiency-bar > .icon-action:first-of-type { @apply hidden; }
   .table-wrap { overflow: visible; background: transparent; box-shadow: none; }
   .data-table { display: block; min-width: 0; }
   .data-table thead { @apply sr-only; }
