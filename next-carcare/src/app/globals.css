@@ -125,7 +125,7 @@ p {
 .global-search-results button small { @apply text-sm text-neutral-600; }
 .global-search-results > p { @apply p-4 text-center text-sm text-neutral-500; }
 .icon-action { @apply relative inline-flex h-11 w-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-neutral-900 hover:border-neutral-600 focus:ring-2 focus:ring-neutral-300; }
-.icon-action i { @apply absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-600; }
+.icon-action i { @apply absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-black not-italic text-white; }
 .mobile-command-fab { @apply fixed bottom-20 left-4 z-50 hidden h-12 w-12 items-center justify-center rounded-full bg-carcare-yellow text-carcare-black shadow-lg; }
 .command-backdrop { @apply fixed inset-0 z-[120] grid place-items-center bg-black/50 p-4; }
 .command-panel { @apply max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl; }
@@ -133,10 +133,24 @@ p {
 .command-grid { @apply grid grid-cols-2 gap-3; }
 .command-grid button { @apply min-h-16 rounded-xl border border-neutral-200 bg-white p-3 text-left font-black hover:border-neutral-700 focus:ring-2 focus:ring-neutral-300; }
 .notice-list { @apply space-y-2; }
-.notice-list article { @apply flex items-center gap-2 rounded-xl border border-neutral-200 p-2; }
-.notice-list article.is-read { @apply opacity-60; }
-.notice-list article > button:first-child { @apply flex min-h-11 flex-1 flex-col items-start justify-center rounded-lg px-2 text-left; }
-.notice-list article > button:last-child { @apply rounded-lg border border-neutral-300 px-3 text-sm font-bold; }
+.notice-summary { @apply mb-3 grid grid-cols-4 gap-1 rounded-xl bg-neutral-100 p-2 text-center text-[11px] font-bold text-neutral-600; }
+.notice-summary span { @apply flex flex-col items-center; }
+.notice-summary strong { @apply text-base font-black text-neutral-900; }
+.notice-list article { @apply rounded-xl border border-neutral-200 bg-white p-2; }
+.notice-list article.notice-completed { @apply bg-neutral-50; }
+.notice-list article.notice-needs_reapply { @apply border-red-300; }
+.notice-main { @apply flex min-h-11 w-full flex-col items-start justify-center rounded-lg px-2 py-1.5 text-left hover:bg-neutral-50; }
+.notice-main > small { @apply mt-1 text-xs font-bold text-neutral-500; }
+.notice-status { @apply mb-1 inline-flex rounded-full px-2 py-0.5 text-xs font-black; }
+.notice-status-pending { @apply bg-neutral-900 text-white; }
+.notice-status-completed { @apply bg-green-100 text-green-800; }
+.notice-status-snoozed { @apply bg-amber-100 text-amber-900; }
+.notice-status-needs_reapply { @apply bg-red-100 text-red-700; }
+.notice-actions { @apply mt-2 grid min-w-0 grid-cols-[0.8fr_1fr_1.45fr] gap-1.5; }
+.notice-actions button { @apply inline-flex min-h-11 min-w-0 items-center justify-center gap-1 rounded-lg border border-neutral-300 px-1.5 text-xs font-black hover:border-neutral-600 disabled:cursor-default disabled:opacity-45; }
+.notice-actions .notice-complete { @apply text-green-800; }
+.notice-actions .notice-snooze { @apply text-amber-900; }
+.notice-actions .notice-reapply { @apply text-red-700; }
 .notice-list span { @apply text-sm text-neutral-600; }
 .empty-state { @apply p-8 text-center text-neutral-500; }
 .field-mode button, .field-mode label { min-height: 52px; }
