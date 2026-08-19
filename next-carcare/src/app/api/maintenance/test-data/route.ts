@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasMaintenanceSession } from "@/lib/maintenanceAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import { sendSheetSyncToN8n } from "@/lib/n8nIntegration";
+import { sendSheetSyncToN8n, type SheetSyncKind } from "@/lib/n8nIntegration";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 
 const employeeNo = "TEST-MONITOR-001";
@@ -47,11 +47,44 @@ export async function POST(request: Request) {
       if (error) throw error; return NextResponse.json({ ok: true, message: "測試預約已建立。", data });
     }
     if (action === "sync") {
-      const [{ data: salary }, { data: appointment }] = await Promise.all([admin.from("salary_records").select("*").eq("is_test", true).limit(1).maybeSingle(), admin.from("appointments").select("*").eq("is_test", true).limit(1).maybeSingle()]);
-      const record = salary || appointment;
-      if (!record) throw new Error("請先建立測試薪資單或測試預約。");
-      const result = await sendSheetSyncToN8n({ sync_type: salary ? "salary" : "appointment", source_table: salary ? "salary_records" : "appointments", operation: "test", unique_key: record.id, record, store_id: shopId, store_name: shopName, is_test: true });
-      return NextResponse.json({ ok: result.ok, message: result.ok ? "測試同步已送出 Google。" : "測試同步送出失敗。", result }, { status: result.ok ? 200 : 502 });
+      const [employeeResult, attendanceResult, salaryResult, appointmentResult] = await Promise.all([
+        admin.from("staff_info").select("*").eq("is_test", true).limit(1).maybeSingle(),
+        admin.from("staff_attendance").select("*").eq("is_test", true).limit(1).maybeSingle(),
+        admin.from("salary_records").select("*").eq("is_test", true).limit(1).maybeSingle(),
+        admin.from("appointments").select("*").eq("is_test", true).limit(1).maybeSingle()
+      ]);
+      const lookupErrors = [employeeResult.error, attendanceResult.error, salaryResult.error, appointmentResult.error].filter(Boolean);
+      if (lookupErrors.length) throw lookupErrors[0];
+      const targets: Array<{ label: string; sync_type: SheetSyncKind; source_table: string; record: Record<string, unknown> | null }> = [
+        { label: "員工", sync_type: "employee", source_table: "staff_info", record: employeeResult.data },
+        { label: "出勤", sync_type: "attendance", source_table: "staff_attendance", record: attendanceResult.data },
+        { label: "薪資", sync_type: "salary", source_table: "salary_records", record: salaryResult.data },
+        { label: "預約", sync_type: "appointment", source_table: "appointments", record: appointmentResult.data }
+      ];
+      const missing = targets.filter((target) => !target.record).map((target) => target.label);
+      if (missing.length) throw new Error(`請先建立測試${missing.join("、測試")}資料。`);
+      const results = await Promise.all(targets.map(async (target) => ({
+        type: target.sync_type,
+        label: target.label,
+        result: await sendSheetSyncToN8n({
+          sync_type: target.sync_type,
+          source_table: target.source_table,
+          operation: "test",
+          unique_key: String(target.record!.id ?? target.record!.employee_no ?? ""),
+          record: target.record!,
+          store_id: shopId,
+          store_name: shopName,
+          is_test: true
+        })
+      })));
+      const failed = results.filter((item) => !item.result.ok);
+      return NextResponse.json({
+        ok: failed.length === 0,
+        message: failed.length === 0
+          ? "員工、出勤、薪資與預約測試資料皆已送出 Google。"
+          : `${failed.map((item) => item.label).join("、")}同步送出失敗。`,
+        results
+      }, { status: failed.length === 0 ? 200 : 502 });
     }
     if (action === "cleanup") {
       const tables = ["staff_attendance", "salary_records", "appointments", "staff_info"];
