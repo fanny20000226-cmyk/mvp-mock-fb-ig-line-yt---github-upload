@@ -245,7 +245,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "\\u5ba2\\u6236\\u4e3b\\u6a94",
+          "value": "客戶主檔",
           "mode": "name"
         },
         "columns": {
@@ -285,7 +285,7 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": "\\u4ea4\\u6613\\u8ca1\\u52d9\\u660e\\u7d30",
+          "value": "交易財務明細",
           "mode": "name"
         },
         "columns": {
@@ -320,7 +320,7 @@
         "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
-          "value": "={{ $('Validate And Normalize').first().json.target_sheet_id || $vars.GOOGLE_SALARY_SHEET_ID }}",
+          "value": "={{ $('Validate And Normalize').first().json.target_sheet_id || $vars.GOOGLE_SALARY_SHEET_ID || $vars.GOOGLE_REPORT_SHEET_ID }}",
           "mode": "id"
         },
         "sheetName": {
@@ -429,7 +429,7 @@
           "mappingMode": "autoMapInputData",
           "value": {},
           "matchingColumns": [
-            "????ID"
+            "系統員工ID"
           ],
           "schema": [],
           "attemptToConvertTypes": false,
@@ -469,7 +469,7 @@
           "mappingMode": "autoMapInputData",
           "value": {},
           "matchingColumns": [
-            "????ID"
+            "出勤紀錄ID"
           ],
           "schema": [],
           "attemptToConvertTypes": false,
