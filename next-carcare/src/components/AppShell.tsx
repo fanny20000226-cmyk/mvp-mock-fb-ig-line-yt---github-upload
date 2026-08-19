@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { signOut } from "@/lib/auth";
-import type { UserProfile } from "@/lib/permissions";
+import { roleLabels, type UserProfile } from "@/lib/permissions";
 import EfficiencyLayer from "./EfficiencyLayer";
 
 export default function AppShell({
@@ -17,6 +17,10 @@ export default function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
+  const rawName = String(profile.name || "").trim();
+  const displayName = !rawName || /^\?+$/.test(rawName) || rawName.includes("�")
+    ? String(profile.account || roleLabels[profile.role])
+    : rawName;
 
   async function logout() {
     await signOut();
@@ -27,7 +31,7 @@ export default function AppShell({
     <div className="min-h-screen bg-carcare-bg text-neutral-900">
       <Sidebar
         role={profile.role}
-        name={profile.name}
+        name={displayName}
         open={open}
         onClose={() => setOpen(false)}
       />

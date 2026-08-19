@@ -102,18 +102,28 @@ async function syncStatuses(): Promise<StatusResult[]> {
     const channelLogs = [...logs, ...callbacks].filter((row) => {
       const source = JSON.stringify(row).toLowerCase();
       return source.includes(channel.keyword);
-    });
+    }).sort((a, b) => String(b.created_at || b.callback_time || b.send_time || b.updated_at || "").localeCompare(String(a.created_at || a.callback_time || a.send_time || a.updated_at || "")));
+    const statusOf = (row: Record<string, unknown>) => String(row.status || row.dispatch_status || row.callback_status || row.send_status || "").toLowerCase();
     const failed = channelLogs.filter((row) => {
-      const status = String(row.status || row.dispatch_status || row.send_status || "").toLowerCase();
+      const status = statusOf(row);
       return status.includes("fail") || status.includes("error") || status.includes("failed");
     });
     const latest = channelLogs[0];
+    const latestStatus = latest ? statusOf(latest) : "";
+    const latestFailed = latestStatus.includes("fail") || latestStatus.includes("error");
+    const latestPending = latestStatus.includes("pending") || latestStatus.includes("queue");
     return {
       key: channel.key,
       label: `N8N ${channel.label}通道`,
-      ok: failed.length === 0,
-      detail: channelLogs.length ? "已找到同步紀錄。" : "尚無同步紀錄，請確認N8N是否已接收過此類資料。",
-      lastSync: String(latest?.created_at || latest?.send_time || latest?.updated_at || "") || null,
+      ok: Boolean(latest) && !latestFailed && !latestPending,
+      detail: !latest
+        ? "尚無同步紀錄，請確認 N8N 是否已接收過此類資料。"
+        : latestFailed
+          ? `最近一次同步失敗：${String(latest.error_message || latest.error_note || latest.error || "請至 N8N 查看詳細紀錄。")}`
+          : latestPending
+            ? "最近一次同步仍在等待處理。"
+            : "最近一次同步已完成。",
+      lastSync: String(latest?.created_at || latest?.callback_time || latest?.send_time || latest?.updated_at || "") || null,
       failedCount: failed.length
     };
   });
@@ -197,7 +207,8 @@ async function detectAnomalies(): Promise<Anomaly[]> {
   });
 
   salaries.forEach((salary) => {
-    const netPay = Number(salary.net_pay ?? salary.actual_pay ?? salary.final_salary ?? 0);
+    if (salary.is_test === true) return;
+    const netPay = Number(salary.net_salary ?? salary.net_pay ?? salary.actual_pay ?? salary.final_salary ?? 0);
     if (!netPay || netPay < 0 || netPay > 1000000) {
       anomalies.push({
         category: "薪資演算金額異常",
@@ -209,6 +220,7 @@ async function detectAnomalies(): Promise<Anomaly[]> {
   });
 
   appointments.forEach((appointment) => {
+    if (appointment.is_test === true) return;
     if (!appointment.customer_id) {
       anomalies.push({
         category: "預約關聯斷號",

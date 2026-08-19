@@ -250,17 +250,25 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
 
   const maxAttempts = Math.max(1, Math.min(6, Number(settings.max_retries || 3)));
   const retryDelay = Math.max(100, Math.min(10000, Number(settings.retry_delay_ms || 800)));
+  const requiresSheetAck = payload.event_type === "sheet_sync" || payload.event_type === "sheet_sync_test";
   let finalError = "Unknown N8N dispatch error";
+  let finalResponseBody: Record<string, unknown> = {};
+  let finalResponseStatus: number | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const response = await fetchWithTimeout(settings.webhook_url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(outbound) });
       const text = await response.text(); let responseBody: Record<string, unknown> = { text };
       try { responseBody = JSON.parse(text) as Record<string, unknown>; } catch { responseBody = { text }; }
-      if (response.ok) {
+      finalResponseBody = responseBody;
+      finalResponseStatus = response.status;
+      const sheetAcknowledged = responseBody.ok === true && String(responseBody.status || "").toLowerCase() === "synced";
+      if (response.ok && (!requiresSheetAck || sheetAcknowledged)) {
         await writeDispatchLog({ payload, dispatch_status: "success", response_status: response.status, response_body: responseBody, attempt_count: attempt });
         return { ok: true, status: response.status, event_no: payload.event_no, response: responseBody, attempts: attempt };
       }
-      finalError = `${response.status} ${response.statusText}`.trim();
+      finalError = response.ok
+        ? `N8N 未回傳 Google Sheets 完成確認：${String(responseBody.message || responseBody.status || text || "empty response")}`
+        : `${response.status} ${response.statusText}`.trim();
       if (attempt === maxAttempts || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
         await writeDispatchLog({ payload, dispatch_status: "failed", response_status: response.status, response_body: responseBody, error_message: finalError, attempt_count: attempt });
         return { ok: false, status: response.status, event_no: payload.event_no, response: responseBody, attempts: attempt };
@@ -274,6 +282,7 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
     }
     await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
   }
+  await writeDispatchLog({ payload, dispatch_status: "failed", response_status: finalResponseStatus, response_body: finalResponseBody, error_message: finalError, attempt_count: maxAttempts });
   return { ok: false, event_no: payload.event_no, error: finalError, attempts: maxAttempts };
 }
 

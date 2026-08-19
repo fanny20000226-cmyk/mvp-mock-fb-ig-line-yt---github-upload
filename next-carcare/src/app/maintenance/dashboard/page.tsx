@@ -270,10 +270,11 @@ export default function MaintenanceDashboardPage() {
   const [history, setHistory] = useState<MaintenanceRecord[]>([]);
   const [testRunning, setTestRunning] = useState("");
   const [testMessage, setTestMessage] = useState("");
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
 
   async function runTestAction(action: string) {
     if (testRunning) return;
-    if (action === "cleanup" && !window.confirm("只會刪除 is_test=true 的測試資料，確認清理？")) return;
+    if (action === "cleanup") setCleanupConfirmOpen(false);
     setTestRunning(action); setTestMessage("");
     const response = await fetch("/api/maintenance/test-data", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
     const result = (await response.json().catch(() => ({}))) as { message?: string };
@@ -414,7 +415,7 @@ export default function MaintenanceDashboardPage() {
           <h2 className="text-xl font-black">測試資料入口（僅監控平台可見）</h2>
           <p className="mt-1 text-sm text-neutral-600">所有資料皆標記 is_test=true；清理動作不會碰觸正式資料。</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {[["employee","建立測試員工"],["attendance","建立測試出勤"],["salary","建立測試薪資單"],["appointment","建立測試預約"],["sync","執行測試同步到 Google"],["cleanup","清理全部測試資料"]].map(([action, text]) => <button key={action} type="button" className={action === "cleanup" ? "secondary-btn justify-center text-red-600" : "primary-btn justify-center"} disabled={Boolean(testRunning)} onClick={() => runTestAction(action)}>{testRunning === action ? "執行中…" : text}</button>)}
+            {[["employee","建立測試員工"],["attendance","建立測試出勤"],["salary","建立測試薪資單"],["appointment","建立測試預約"],["sync","執行測試同步到 Google"],["cleanup","清理全部測試資料"]].map(([action, text]) => <button key={action} type="button" className={action === "cleanup" ? "secondary-btn justify-center text-red-600" : "primary-btn justify-center"} disabled={Boolean(testRunning)} onClick={() => action === "cleanup" ? setCleanupConfirmOpen(true) : runTestAction(action)}>{testRunning === action ? "執行中…" : text}</button>)}
           </div>
           {testMessage ? <p role="status" className="mt-3 rounded-xl bg-neutral-100 p-3 font-bold">{testMessage}</p> : null}
         </section>
@@ -651,6 +652,18 @@ export default function MaintenanceDashboardPage() {
           </>
         ) : null}
       </div>
+      {cleanupConfirmOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="cleanup-title">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="cleanup-title" className="text-xl font-black">確認清理測試資料</h2>
+            <p className="mt-3 text-sm text-neutral-600">只會刪除 is_test=true 的測試員工、出勤、薪資與預約資料，正式資料不受影響。</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" className="secondary-btn" onClick={() => setCleanupConfirmOpen(false)}>取消</button>
+              <button type="button" className="primary-btn" disabled={Boolean(testRunning)} onClick={() => runTestAction("cleanup")}>確認清理</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
