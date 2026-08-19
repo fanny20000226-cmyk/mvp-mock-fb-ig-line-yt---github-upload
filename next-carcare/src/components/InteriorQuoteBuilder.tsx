@@ -6,6 +6,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { useUiFeedback } from "@/components/UiFeedback";
 import { useUnsavedChanges } from "@/components/UiPatterns";
+import { CAR_IMAGE_BUCKET, quotationStagingPath } from "@/lib/carPhotoStorage";
 
 export type QuoteOption = {
   id: string;
@@ -151,19 +152,20 @@ export default function InteriorQuoteBuilder({
       const nextUrls: string[] = [];
 
       for (const file of Array.from(files).slice(0, 8)) {
-        const extension = file.name.split(".").pop() || "jpg";
-        const safePlate = plateNo.trim() || "no-plate";
-        const path = `${profile?.shop_id || "public"}/${safePlate}/${photoPhase}/${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2)}.${extension}`;
+        const path = quotationStagingPath({
+          shopId: profile?.shop_id || "public",
+          quoteNo,
+          phase: photoPhase,
+          fileName: `${Math.random().toString(36).slice(2)}-${file.name}`,
+        });
 
-        const { error } = await supabase.storage.from("car-images").upload(path, file, { upsert: true });
+        const { error } = await supabase.storage.from(CAR_IMAGE_BUCKET).upload(path, file, { upsert: true });
         if (error) {
           nextUrls.push(await fileToDataUrl(file));
           continue;
         }
 
-        const { data } = supabase.storage.from("car-images").getPublicUrl(path);
+        const { data } = supabase.storage.from(CAR_IMAGE_BUCKET).getPublicUrl(path);
         nextUrls.push(data.publicUrl);
       }
 

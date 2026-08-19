@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getCurrentProfile } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
+import { CAR_IMAGE_BUCKET, vehiclePhotoPath } from "@/lib/carPhotoStorage";
 
 type CarOption = {
   id: string;
@@ -23,9 +24,13 @@ export default function CarAlbumUploader({ cars }: { cars: CarOption[] }) {
     if (!carId) return alert("請先選擇要歸檔的車輛。");
 
     setUploading(true);
-    const safeName = file.name.replace(/[^\w.\-]+/g, "-");
-    const path = `${profile.shop_id}/album/${carId}/${Date.now()}-${safeName}`;
-    const { error } = await supabase.storage.from("car-images").upload(path, file, {
+    const path = vehiclePhotoPath({
+      shopId: profile.shop_id,
+      carId,
+      category: "album",
+      fileName: file.name,
+    });
+    const { error } = await supabase.storage.from(CAR_IMAGE_BUCKET).upload(path, file, {
       upsert: false
     });
     if (error) {
@@ -34,7 +39,7 @@ export default function CarAlbumUploader({ cars }: { cars: CarOption[] }) {
       return alert(errorMessageZh(error, "照片上傳失敗。"));
     }
 
-    const { data } = supabase.storage.from("car-images").getPublicUrl(path);
+    const { data } = supabase.storage.from(CAR_IMAGE_BUCKET).getPublicUrl(path);
     const publicUrl = data.publicUrl;
     const { error: insertError } = await supabase.from("image_annotations").insert({
       shop_id: profile.shop_id,
@@ -43,6 +48,7 @@ export default function CarAlbumUploader({ cars }: { cars: CarOption[] }) {
       annot_data: {
         type: "car_album",
         caption,
+        storage_path: path,
         uploaded_at: new Date().toISOString()
       },
       created_by: profile.id

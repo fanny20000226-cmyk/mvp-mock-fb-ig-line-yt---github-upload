@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendCustomerSheetSync } from "@/lib/n8nIntegration";
 import type { Role } from "@/lib/permissions";
+import { archiveQuotationPhotos } from "@/lib/photoArchiveServer";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -303,6 +304,17 @@ export async function POST(request: Request) {
     }
     if (lastUpdateError) throw lastUpdateError;
 
+    const photoArchive = await archiveQuotationPhotos({
+      admin,
+      quotationId: typedQuote.id,
+      shopId: quoteShopId,
+      carId,
+    }).catch((photoError) => ({
+      copied: 0,
+      skipped: 0,
+      errors: [photoError instanceof Error ? photoError.message : String(photoError)],
+    }));
+
     void notifyQuoteCustomerSync({
       quote: typedQuote,
       shopId: quoteShopId,
@@ -310,7 +322,7 @@ export async function POST(request: Request) {
       carId
     });
 
-    return NextResponse.json({ ok: true, carId, customerId });
+    return NextResponse.json({ ok: true, carId, customerId, photoArchive });
   } catch (error) {
     return NextResponse.json({ message: errorMessage(error) }, { status: 400 });
   }
