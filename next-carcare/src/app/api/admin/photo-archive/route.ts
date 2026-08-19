@@ -20,7 +20,6 @@ type CarRow = {
 type AnnotationRow = {
   id: string;
   shop_id: string | null;
-  car_id: string | null;
   image_url: string;
   annot_data: Record<string, unknown> | null;
 };
@@ -72,7 +71,7 @@ export async function POST(request: Request) {
 
     const [{ data: carData, error: carError }, { data: annotationData, error: annotationError }, { data: quoteData, error: quoteError }] = await Promise.all([
       admin.from("cars").select("id,shop_id,plate_no,license_plate").in("shop_id", shopIds),
-      admin.from("image_annotations").select("id,shop_id,car_id,image_url,annot_data").in("shop_id", shopIds),
+      admin.from("image_annotations").select("id,shop_id,image_url,annot_data").in("shop_id", shopIds),
       admin.from("quotations").select("id,shop_id,car_id,plate_no").in("shop_id", shopIds),
     ]);
     if (carError) throw carError;
@@ -115,7 +114,8 @@ export async function POST(request: Request) {
 
     for (const annotation of annotations) {
       const plate = normalizePlate(annotation.annot_data?.plate_no);
-      const car = (annotation.car_id && carsById.get(annotation.car_id)) ||
+      const annotationCarId = String(annotation.annot_data?.car_id || "");
+      const car = (annotationCarId && carsById.get(annotationCarId)) ||
         (annotation.shop_id && plate ? carsByShopPlate.get(`${annotation.shop_id}:${plate}`) : undefined);
       if (!car?.shop_id) {
         report.unmatched += 1;
@@ -143,10 +143,10 @@ export async function POST(request: Request) {
           const { error } = await admin
             .from("image_annotations")
             .update({
-              car_id: car.id,
               image_url: publicUrl,
               annot_data: {
                 ...(annotation.annot_data || {}),
+                car_id: car.id,
                 storage_path: destinationPath,
                 original_storage_path: sourcePath,
                 organized_at: new Date().toISOString(),

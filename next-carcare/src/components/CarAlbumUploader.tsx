@@ -43,10 +43,10 @@ export default function CarAlbumUploader({ cars }: { cars: CarOption[] }) {
     const publicUrl = data.publicUrl;
     const { error: insertError } = await supabase.from("image_annotations").insert({
       shop_id: profile.shop_id,
-      car_id: carId,
       image_url: publicUrl,
       annot_data: {
         type: "car_album",
+        car_id: carId,
         caption,
         storage_path: path,
         uploaded_at: new Date().toISOString()

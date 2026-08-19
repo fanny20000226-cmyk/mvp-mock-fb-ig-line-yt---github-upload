@@ -58,10 +58,10 @@ export default function AnnotationsPage() {
     }
     const { error } = await supabase.from("image_annotations").insert({
       shop_id: profile.shop_id,
-      car_id: carId || null,
       image_url: imageUrl,
       annot_data: {
         type: "annotated",
+        car_id: carId || null,
         plate_no: plateNo.trim(),
         storage_path: storagePath || null,
         boxes,
