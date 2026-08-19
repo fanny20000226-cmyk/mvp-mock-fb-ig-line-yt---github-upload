@@ -485,6 +485,7 @@ export default function CustomersPage() {
                                   title="施工前照片"
                                   photos={before}
                                   plateNo={car.plate_no || ""}
+                                  carId={car.id}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
@@ -492,6 +493,7 @@ export default function CustomersPage() {
                                   title="施工後照片"
                                   photos={after}
                                   plateNo={car.plate_no || ""}
+                                  carId={car.id}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
@@ -499,6 +501,7 @@ export default function CustomersPage() {
                                   title="標註圖片"
                                   photos={annotated}
                                   plateNo={car.plate_no || ""}
+                                  carId={car.id}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
@@ -511,6 +514,7 @@ export default function CustomersPage() {
                                       !String(photo.annot_data?.type || "").includes("annotated")
                                   )}
                                   plateNo={car.plate_no || ""}
+                                  carId={car.id}
                                   onPreview={setPreviewPhoto}
                                   onDelete={deletePhoto}
                                 />
@@ -617,12 +621,14 @@ function PhotoStrip({
   title,
   photos,
   plateNo,
+  carId,
   onPreview,
   onDelete
 }: {
   title: string;
   photos: AlbumPhoto[];
   plateNo: string;
+  carId: string;
   onPreview: (url: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -651,7 +657,7 @@ function PhotoStrip({
                 刪除
               </button>
               <Link
-                href={`/annotations?image=${encodeURIComponent(photo.image_url)}&plate=${encodeURIComponent(plateNo)}`}
+                href={`/annotations?image=${encodeURIComponent(photo.image_url)}&plate=${encodeURIComponent(plateNo)}&carId=${encodeURIComponent(carId)}`}
                 className="absolute bottom-1 left-1 rounded-full bg-carcare-yellow px-2 py-1 text-xs font-black text-carcare-black opacity-100 md:opacity-0 md:group-hover:opacity-100"
               >
                 標註

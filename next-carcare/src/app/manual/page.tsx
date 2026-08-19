@@ -10,7 +10,8 @@ const sections = [
     body: [
       "本系統整合門市日常營運、客戶車輛資料、報價施工單、財務收支、人資薪資、預約行事曆與 N8N / Google 試算表同步。",
       "門市人員可從同一個後台完成開單、拍照、轉施工單、收款、查詢客戶與追蹤預約，管理者則可查看財務、人資與系統同步狀態。",
-      "所有正式營運資料以 Supabase 為主資料庫，Google 試算表透過 N8N 做雲端報表備份與同步。"
+      "所有正式營運資料以 Supabase 為主資料庫，Google 試算表透過 N8N 做雲端報表備份與同步。",
+      "目前正式版已包含系統設定中心、資料庫 Audit Log、完整備份還原、RLS 與角色權限、多門市隔離、同步 Retry、BI 管理儀表板及線上 SOP。"
     ]
   },
   {
@@ -31,7 +32,7 @@ const sections = [
     body: [
       "進入「製作報價單」後，先填寫車主姓名、電話、車牌、品牌與車型。",
       "依現場狀況選擇地毯、座椅、加購與手動補充項目，金額會即時加總。",
-      "施工前與施工後照片分區上傳，圖片會綁定該車輛與單據，方便後續查詢與 PDF 匯出。",
+      "施工前與施工後照片分區上傳；報價儲存並建立車輛後，雲端檔案會自動歸入「門市 ID / vehicles / 車輛 ID / quotations / 報價單 ID」路徑。",
       "儲存報價後可在歷史報價列表查看，也可以轉成施工單，轉單後工作台與施工單管理會同步更新。",
       "PDF 匯出使用 PEIWAY 品牌格式，含客戶車輛資訊、施工方案、照片區與金額明細。"
     ]
@@ -52,13 +53,24 @@ const sections = [
     body: [
       "客戶資料頁可依姓名、電話、車牌查詢客戶與車輛。",
       "一位客戶可綁定多台車，一台車可對應多筆報價、施工紀錄與相簿照片。",
+      "每台車在 car-images 雲端空間都有獨立的車輛 ID 資料夾；相簿、標註、報價照片與歷史照片分開存放，車牌變更不會破壞歸檔。",
       "客戶標籤可用於分類，例如新客、高價客、老客、潛在客、寵物車、異味嚴重等。",
       "標籤會顯示在客戶詳細資料與預約資訊中，方便門市快速辨識特殊需求。"
     ]
   },
   {
+    id: "photo-archive",
+    title: "6. 施工照片雲端歸檔與查找",
+    body: [
+      "新上傳的車輛相簿與車況標註會直接依車輛 ID 歸檔；報價施工前後照先安全暫存，報價建立客戶與車輛後立即搬入該車資料夾。",
+      "標準路徑為：門市 ID / vehicles / 車輛 ID / 類別 / 單據 ID / 照片。資料夾第一層維持門市 UUID，符合既有 Supabase Storage Policy。",
+      "管理員可在「系統設定與治理中心 → 備份與還原」先掃描舊照片，再執行照片歸檔。系統只複製並更新正式資料連結，原始檔保留，不會自動刪除。",
+      "無法由 car_id 或車牌確認所屬車輛的照片會列為待人工確認並保留原位，避免誤歸檔。"
+    ]
+  },
+  {
     id: "appointments",
-    title: "6. 預約系統使用｜行事曆、新增預約、衝突提示",
+    title: "7. 預約系統使用｜行事曆、新增預約、衝突提示",
     body: [
       "預約管理提供清單與行事曆檢視，可查看不同日期與時段的預約狀態。",
       "新增預約時可選既有客戶或建立新客戶，填入車輛、日期、時段、服務項目與備註。",
@@ -68,7 +80,7 @@ const sections = [
   },
   {
     id: "hr",
-    title: "7. 人資薪資模組",
+    title: "8. 人資薪資模組",
     body: [
       "人資後台可建立員工主檔、設定員工編號與登入密碼、登錄出勤紀錄並建立薪資單。",
       "薪資計算包含本薪、職務津貼、伙食津貼、全勤獎金、加班費、交通津貼、激勵獎金、外派支援津貼、應休未休、帶人金、績效獎金、業績獎金。",
@@ -79,7 +91,7 @@ const sections = [
   },
   {
     id: "finance",
-    title: "8. 財務模組｜收支建立、毛利查看、財務報表",
+    title: "9. 財務模組｜收支建立、毛利查看、財務報表",
     body: [
       "財務頁可建立收款、訂金、尾款與支出紀錄，並關聯報價單或施工單。",
       "財務報表可依日期、門市、收款狀態與施工類型查詢。",
@@ -89,17 +101,29 @@ const sections = [
   },
   {
     id: "n8n",
-    title: "9. N8N + Google 試算表同步說明",
+    title: "10. N8N + Google 試算表同步說明",
     body: [
       "系統資料先寫入 Supabase，再由 N8N 同步至 Google 試算表。",
       "目前同步範圍包含客戶主檔、車輛檔案、報價施工工單、預約紀錄、交易財務明細、人事薪資與出勤紀錄。",
       "即時同步用 Webhook 觸發，定時同步保留每日 09:00 排程。",
-      "若 N8N 或 Google Sheets 暫時失敗，主系統仍會優先保存營運資料，失敗狀態會留在同步紀錄中供排查。"
+      "若 N8N 或 Google Sheets 暫時失敗，主系統仍會優先保存營運資料，失敗狀態會留在同步紀錄中供排查。",
+      "同步失敗會依設定自動 Retry；一般員工只看同步狀態，技術錯誤與執行紀錄集中在 Monitor 與管理後台。"
+    ]
+  },
+  {
+    id: "governance",
+    title: "11. 系統治理、稽核、備份與多門市",
+    body: [
+      "系統設定中心供管理員與店長維護公司、分店、營運、預約、薪資、PDF 與全域參數。",
+      "關鍵資料修改由資料庫 trigger 寫入 Audit Log，保留操作人、時間、修改前後內容並可匯出 CSV。",
+      "備份涵蓋 Supabase 資料表與 car-images Storage 照片；正式還原必須輸入確認文字並留下還原紀錄。",
+      "資料以 tenant_id 與 shop_id 隔離，RLS、Storage Policy 與 API 權限共同限制跨門市存取。",
+      "BI 儀表板提供營收、客單價、成交率、預約達成率、毛利、客源與門市排名等管理指標。"
     ]
   },
   {
     id: "maintenance",
-    title: "10. 日常維護 SOP｜常見問題排除",
+    title: "12. 日常維護 SOP｜常見問題排除",
     body: [
       "若頁面資料未更新，先重新整理頁面並確認目前 Vercel 部署是否為 Production Ready。",
       "若圖片上傳失敗，檢查 Supabase Storage bucket 是否存在且權限設定正確。",
@@ -109,14 +133,6 @@ const sections = [
     ]
   }
 ];
-
-function ScreenshotPlaceholder() {
-  return (
-    <div className="mt-4 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-5 text-center text-sm font-black text-neutral-500">
-      【此處插入對應截圖】
-    </div>
-  );
-}
 
 export default function ManualPage() {
   return (
@@ -128,6 +144,7 @@ export default function ManualPage() {
           <p className="mt-2 text-sm text-neutral-600">
             這份手冊整理門市日常作業、人資薪資、財務、N8N 同步與維護排查流程，方便新員工教育與正式交付驗收。
           </p>
+          <p className="mt-2 text-xs font-bold text-neutral-500">內容版本：2026-08-19｜依目前正式系統功能更新</p>
         </section>
 
         <section className="card">
@@ -153,7 +170,6 @@ export default function ManualPage() {
                 <p key={line}>{line}</p>
               ))}
             </div>
-            <ScreenshotPlaceholder />
           </section>
         ))}
       </div>

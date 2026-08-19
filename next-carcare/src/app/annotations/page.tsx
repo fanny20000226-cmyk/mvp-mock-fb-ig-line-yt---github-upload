@@ -6,10 +6,13 @@ import ImageAnnotator, { type AnnotationMark } from "@/components/ImageAnnotator
 import { supabase } from "@/lib/supabase";
 import { getCurrentProfile } from "@/lib/auth";
 import { errorMessageZh } from "@/lib/errorMessageZh";
+import { CAR_IMAGE_BUCKET, safeStorageSegment, vehiclePhotoPath } from "@/lib/carPhotoStorage";
 
 export default function AnnotationsPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [plateNo, setPlateNo] = useState("");
+  const [carId, setCarId] = useState("");
+  const [storagePath, setStoragePath] = useState("");
   const [boxes, setBoxes] = useState<AnnotationMark[]>([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -18,16 +21,20 @@ export default function AnnotationsPage() {
     const searchParams = new URLSearchParams(window.location.search);
     const image = searchParams.get("image");
     const plate = searchParams.get("plate");
+    const linkedCarId = searchParams.get("carId");
     if (image) setImageUrl(image);
     if (plate) setPlateNo(plate);
+    if (linkedCarId) setCarId(linkedCarId);
   }, []);
 
   async function uploadImage(file: File) {
     const profile = await getCurrentProfile();
     if (!profile?.shop_id) return alert("找不到門店資料，請先確認帳號綁定門店。");
     setUploading(true);
-    const path = `${profile.shop_id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("car-images").upload(path, file, {
+    const path = carId
+      ? vehiclePhotoPath({ shopId: profile.shop_id, carId, category: "annotations", fileName: file.name })
+      : `${safeStorageSegment(profile.shop_id)}/unmatched/annotations/${Date.now()}-${safeStorageSegment(file.name)}`;
+    const { error } = await supabase.storage.from(CAR_IMAGE_BUCKET).upload(path, file, {
       upsert: false
     });
     if (error) {
@@ -35,8 +42,9 @@ export default function AnnotationsPage() {
       console.error("annotation upload raw error", error);
       return alert(errorMessageZh(error, "圖片上傳失敗。"));
     }
-    const { data } = supabase.storage.from("car-images").getPublicUrl(path);
+    const { data } = supabase.storage.from(CAR_IMAGE_BUCKET).getPublicUrl(path);
     setImageUrl(data.publicUrl);
+    setStoragePath(path);
     setUploading(false);
   }
 
@@ -50,10 +58,12 @@ export default function AnnotationsPage() {
     }
     const { error } = await supabase.from("image_annotations").insert({
       shop_id: profile.shop_id,
+      car_id: carId || null,
       image_url: imageUrl,
       annot_data: {
         type: "annotated",
         plate_no: plateNo.trim(),
+        storage_path: storagePath || null,
         boxes,
         total_price: boxes.reduce((sum, box) => sum + box.price, 0)
       },
