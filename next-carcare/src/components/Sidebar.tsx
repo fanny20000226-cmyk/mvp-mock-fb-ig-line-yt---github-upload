@@ -136,6 +136,7 @@ const menuGroups = [
     icon: Shield,
     items: [
       { href: "/settings/enterprise", label: "企業設定與稽核", icon: DatabaseBackup },
+      { href: "/settings/catalogs", label: "企業基礎資料", icon: ListChecks },
       { href: "/bi", label: "老闆 BI 儀表板", icon: ChartNoAxesCombined },
       { href: "/permissions", label: "權限管理", icon: Shield }
     ]

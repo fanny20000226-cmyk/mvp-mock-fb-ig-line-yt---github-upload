@@ -7,6 +7,10 @@
     {
       "path": "/api/system-test/cron",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/admin/backup/cron",
+      "schedule": "0 18 * * *"
     }
   ]
 }
