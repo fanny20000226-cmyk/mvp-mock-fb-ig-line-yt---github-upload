@@ -25,7 +25,14 @@ export async function POST(request: Request) {
     }
     if (action === "attendance") {
       await ensureEmployee();
-      const { data, error } = await admin.from("staff_attendance").insert({ employee_no: employeeNo, work_date: new Date().toISOString().slice(0, 10), clock_in_at: "09:00", clock_out_at: "18:00", is_test: true }).select().single();
+      const workDate = new Date().toISOString().slice(0, 10);
+      const { data, error } = await admin.from("staff_attendance").insert({
+        employee_no: employeeNo,
+        work_date: workDate,
+        clock_in_at: new Date(`${workDate}T09:00:00+08:00`).toISOString(),
+        clock_out_at: new Date(`${workDate}T18:00:00+08:00`).toISOString(),
+        is_test: true
+      }).select().single();
       if (error) throw error; return NextResponse.json({ ok: true, message: "測試出勤已建立。", data });
     }
     if (action === "salary") {
@@ -35,7 +42,8 @@ export async function POST(request: Request) {
     }
     if (action === "appointment") {
       const stamp = Date.now();
-      const { data, error } = await admin.from("appointments").insert({ appointment_no: `TEST-A${stamp}`, customer_name: "Monitor 測試客戶", customer_phone: "0900000000", license_plate: "TEST-001", appoint_date: new Date().toISOString().slice(0, 10), appoint_time: "10:00", service_content: "Monitor 測試預約", shop_id: shopId, store_id: shopId, is_test: true }).select().single();
+      const { data: customer } = await admin.from("customers").select("id").limit(1).maybeSingle();
+      const { data, error } = await admin.from("appointments").insert({ appointment_no: `TEST-A${stamp}`, customer_id: customer?.id || null, customer_name: "Monitor 測試客戶", customer_phone: "0900000000", license_plate: "TEST-001", appoint_date: new Date().toISOString().slice(0, 10), appoint_time: "10:00", service_content: "Monitor 測試預約", shop_id: shopId, store_id: shopId, is_test: true }).select().single();
       if (error) throw error; return NextResponse.json({ ok: true, message: "測試預約已建立。", data });
     }
     if (action === "sync") {
