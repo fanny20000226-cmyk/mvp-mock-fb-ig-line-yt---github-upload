@@ -1,19 +1,30 @@
 "use client";
 
-import { Bell, Command, Search, X } from "lucide-react";
+import { Bell, CheckCircle2, Clock3, Command, RotateCcw, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { UserProfile } from "@/lib/permissions";
+import { useUiFeedback } from "@/components/UiFeedback";
 
 type SearchHit = { id: string; title: string; detail: string; href: string; kind: string };
-type LocalNotice = { id: string; title: string; detail: string; href: string; read: boolean; remindAt?: string };
+type NoticeStatus = "pending" | "completed" | "snoozed" | "needs_reapply";
+type LocalNotice = { id: string; title: string; detail: string; href: string; read: boolean; status?: NoticeStatus; remindAt?: string; updatedAt?: string };
 const noticeKey = "carcare-ui-notifications-v1";
 
 function readNotices(): LocalNotice[] { try { return JSON.parse(localStorage.getItem(noticeKey) || "[]") as LocalNotice[]; } catch { return []; } }
+function resolvedStatus(notice: LocalNotice): NoticeStatus {
+  if (notice.status === "snoozed" && notice.remindAt && new Date(notice.remindAt).getTime() <= Date.now()) return "pending";
+  if (notice.status) return notice.status;
+  if (notice.remindAt && new Date(notice.remindAt).getTime() > Date.now()) return "snoozed";
+  return notice.read ? "completed" : "pending";
+}
+const statusLabels: Record<NoticeStatus, string> = { pending: "待處理", completed: "已完成", snoozed: "稍後提醒", needs_reapply: "有誤，請重新申請" };
+const statusPriority: Record<NoticeStatus, number> = { needs_reapply: 0, pending: 1, snoozed: 2, completed: 3 };
 
 export default function EfficiencyLayer({ profile }: { profile: UserProfile }) {
   const router = useRouter();
+  const { toast } = useUiFeedback();
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -31,9 +42,29 @@ export default function EfficiencyLayer({ profile }: { profile: UserProfile }) {
         ...((paymentResult.data || []) as { id: string; payment_no: string; amount: number }[]).map((row) => ({ id: `pay-${row.id}`, title: "收款待核銷", detail: `${row.payment_no || "收款"}・$${Number(row.amount || 0).toLocaleString()}`, href: `/finance/payments?payment=${row.id}`, read: false })),
       ];
       const state = new Map(stored.map((item) => [item.id, item]));
-      const next = generated.map((item) => ({ ...item, ...state.get(item.id) })); setNotices(next); localStorage.setItem(noticeKey, JSON.stringify(next));
+      const next = generated.map((item) => {
+        const merged = { ...item, ...state.get(item.id) };
+        const status = resolvedStatus(merged);
+        return { ...merged, status, read: status !== "pending" && status !== "needs_reapply", remindAt: status === "snoozed" ? merged.remindAt : undefined };
+      });
+      setNotices(next); localStorage.setItem(noticeKey, JSON.stringify(next));
     }
     hydrateNotices();
+  }, []);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNotices((current) => {
+        let changed = false;
+        const next = current.map((item) => {
+          if (item.status !== "snoozed" || !item.remindAt || new Date(item.remindAt).getTime() > Date.now()) return item;
+          changed = true;
+          return { ...item, status: "pending" as const, read: false, remindAt: undefined, updatedAt: new Date().toISOString() };
+        });
+        if (changed) localStorage.setItem(noticeKey, JSON.stringify(next));
+        return changed ? next : current;
+      });
+    }, 30000);
+    return () => window.clearInterval(timer);
   }, []);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -68,7 +99,28 @@ export default function EfficiencyLayer({ profile }: { profile: UserProfile }) {
     ...(profile.role === "worker" ? [{ label: "施工現場模式", href: "/operations/field-mode" }] : []),
   ], [profile.role]);
   function saveNotices(next: LocalNotice[]) { setNotices(next); localStorage.setItem(noticeKey, JSON.stringify(next)); }
+  function setNoticeStatus(id: string, status: NoticeStatus) {
+    const now = new Date();
+    const remindAt = status === "snoozed" ? new Date(now.getTime() + 3600000).toISOString() : undefined;
+    saveNotices(notices.map((item) => item.id === id ? {
+      ...item,
+      status,
+      remindAt,
+      read: status !== "pending" && status !== "needs_reapply",
+      updatedAt: now.toISOString(),
+    } : item));
+    if (status === "completed") toast("通知已標記為完成。", "success");
+    if (status === "snoozed") toast("已設定 1 小時後再次提醒。", "warning");
+    if (status === "needs_reapply") toast("已標記有誤，請前往原單據重新申請。", "error", { label: "前往處理", onClick: () => go(notices.find((item) => item.id === id)?.href || "/dashboard") });
+  }
   function go(href: string) { setQuery(""); setHits([]); setPanel(""); router.push(href); }
+
+  const sortedNotices = useMemo(() => [...notices].sort((a, b) => statusPriority[resolvedStatus(a)] - statusPriority[resolvedStatus(b)]), [notices]);
+  const noticeCounts = useMemo(() => notices.reduce<Record<NoticeStatus, number>>((counts, notice) => {
+    counts[resolvedStatus(notice)] += 1;
+    return counts;
+  }, { pending: 0, completed: 0, snoozed: 0, needs_reapply: 0 }), [notices]);
+  const actionableCount = noticeCounts.pending + noticeCounts.needs_reapply;
 
   return <>
     <div className="global-efficiency-bar">
@@ -76,11 +128,30 @@ export default function EfficiencyLayer({ profile }: { profile: UserProfile }) {
         {query ? <div className="global-search-results">{searching ? <p>搜尋中…</p> : hits.map((hit) => <button key={hit.id} type="button" onClick={() => go(hit.href)}><span>{hit.kind}</span><strong>{hit.title}</strong><small>{hit.detail}</small></button>)}{!searching && !hits.length ? <p>找不到符合資料</p> : null}</div> : null}
       </div>
       <button type="button" className="icon-action" aria-label="快捷指令" onClick={() => setPanel("commands")}><Command /></button>
-      <button type="button" className="icon-action" aria-label="通知中心" onClick={() => setPanel("notices")}><Bell />{notices.some((item) => !item.read) ? <i /> : null}</button>
+      <button type="button" className="icon-action" aria-label={`通知中心${actionableCount ? `，${actionableCount} 筆待處理` : ""}`} onClick={() => setPanel("notices")}><Bell />{actionableCount ? <i>{actionableCount > 9 ? "9+" : actionableCount}</i> : null}</button>
     </div>
     <button type="button" className="mobile-command-fab" aria-label="開啟快捷指令" onClick={() => setPanel("commands")}><Command /></button>
     {panel ? <div className="command-backdrop" onMouseDown={() => setPanel("")}><section className="command-panel" role="dialog" aria-modal="true" aria-label={panel === "commands" ? "快捷指令" : "通知中心"} onMouseDown={(event) => event.stopPropagation()}><header><h2>{panel === "commands" ? "快捷指令" : "通知中心"}</h2><button type="button" className="icon-action" onClick={() => setPanel("")}><X /></button></header>
-      {panel === "commands" ? <div className="command-grid">{commands.map((item) => <button key={item.label} type="button" onClick={() => item.href ? go(item.href) : item.action?.()}>{item.label}</button>)}</div> : <div className="notice-list">{notices.map((notice) => <article key={notice.id} className={notice.read ? "is-read" : ""}><button type="button" onClick={() => { saveNotices(notices.map((item) => item.id === notice.id ? { ...item, read: true } : item)); go(notice.href); }}><strong>{notice.title}</strong><span>{notice.detail}</span></button><button type="button" onClick={() => saveNotices(notices.map((item) => item.id === notice.id ? { ...item, remindAt: new Date(Date.now() + 3600000).toISOString(), read: true } : item))}>稍後提醒</button></article>)}{!notices.length ? <p className="empty-state">目前沒有前端提醒。</p> : null}</div>}
+      {panel === "commands" ? <div className="command-grid">{commands.map((item) => <button key={item.label} type="button" onClick={() => item.href ? go(item.href) : item.action?.()}>{item.label}</button>)}</div> : <div className="notice-list">
+        <div className="notice-summary" aria-label="通知狀態統計">
+          <span><strong>{noticeCounts.pending}</strong>待處理</span><span><strong>{noticeCounts.snoozed}</strong>稍後提醒</span><span><strong>{noticeCounts.needs_reapply}</strong>需重辦</span><span><strong>{noticeCounts.completed}</strong>已完成</span>
+        </div>
+        {sortedNotices.map((notice) => {
+          const status = resolvedStatus(notice);
+          return <article key={notice.id} className={`notice-${status}`}>
+            <button className="notice-main" type="button" onClick={() => go(notice.href)}>
+              <span className={`notice-status notice-status-${status}`}>{statusLabels[status]}{status === "snoozed" && notice.remindAt ? ` · ${new Date(notice.remindAt).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}` : ""}</span>
+              <strong>{notice.title}</strong><span>{notice.detail}</span><small>點擊查看原單據</small>
+            </button>
+            <div className="notice-actions">
+              <button type="button" className="notice-complete" disabled={status === "completed"} onClick={() => setNoticeStatus(notice.id, "completed")}><CheckCircle2 size={16} />已完成</button>
+              <button type="button" className="notice-snooze" disabled={status === "snoozed"} onClick={() => setNoticeStatus(notice.id, "snoozed")}><Clock3 size={16} />稍後提醒</button>
+              <button type="button" className="notice-reapply" disabled={status === "needs_reapply"} onClick={() => setNoticeStatus(notice.id, "needs_reapply")}><RotateCcw size={16} />有誤，請重新申請</button>
+            </div>
+          </article>;
+        })}
+        {!notices.length ? <p className="empty-state">目前沒有前端提醒。</p> : null}
+      </div>}
     </section></div> : null}
   </>;
 }
