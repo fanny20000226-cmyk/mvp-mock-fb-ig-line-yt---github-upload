@@ -50,6 +50,8 @@ type N8nSettings = {
   webhook_url: string | null;
   callback_webhook_url: string | null;
   is_enabled: boolean;
+  max_retries?: number | null;
+  retry_delay_ms?: number | null;
 };
 
 export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment";
@@ -114,7 +116,7 @@ export async function getN8nSettings() {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("n8n_connection_settings")
-    .select("id, webhook_url, callback_webhook_url, is_enabled")
+    .select("id, webhook_url, callback_webhook_url, is_enabled, max_retries, retry_delay_ms")
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -159,6 +161,8 @@ async function writeDispatchLog(input: {
   response_status?: number | null;
   response_body?: Record<string, unknown> | null;
   error_message?: string | null;
+  attempt_count?: number;
+  error_stack?: string | null;
 }) {
   const admin = getSupabaseAdmin();
   await admin.from("n8n_event_dispatch_logs").insert({
@@ -174,8 +178,25 @@ async function writeDispatchLog(input: {
     response_status: input.response_status || null,
     response_body: input.response_body || {},
     error_message: input.error_message || null,
+    attempt_count: input.attempt_count || 1,
+    error_stack: input.error_stack || null,
     dispatched_at: new Date().toISOString()
   });
+  if (input.dispatch_status === "failed") {
+    const { data: shop } = input.payload.store_id
+      ? await admin.from("shops").select("tenant_id").eq("id", input.payload.store_id).maybeSingle()
+      : { data: null };
+    await admin.from("system_notifications").insert({
+      tenant_id: shop?.tenant_id || null,
+      shop_id: input.payload.store_id || null,
+      notification_type: "sync_failed",
+      severity: "error",
+      title: "N8N 同步失敗",
+      message: `事件 ${input.payload.event_no} 已重試 ${input.attempt_count || 1} 次：${input.error_message || "未知錯誤"}`,
+      reference_type: input.payload.event_type,
+      reference_id: input.payload.work_order_id || input.payload.quotation_id || input.payload.event_no
+    });
+  }
 }
 
 async function blockedByDailyDedup(payload: N8nEventPayload) {
@@ -227,32 +248,33 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
     sent_at: new Date().toISOString()
   };
 
-  try {
-    const response = await fetchWithTimeout(settings.webhook_url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(outbound)
-    });
-    const text = await response.text();
-    let responseBody: Record<string, unknown> = { text };
+  const maxAttempts = Math.max(1, Math.min(6, Number(settings.max_retries || 3)));
+  const retryDelay = Math.max(100, Math.min(10000, Number(settings.retry_delay_ms || 800)));
+  let finalError = "Unknown N8N dispatch error";
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      responseBody = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      responseBody = { text };
+      const response = await fetchWithTimeout(settings.webhook_url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(outbound) });
+      const text = await response.text(); let responseBody: Record<string, unknown> = { text };
+      try { responseBody = JSON.parse(text) as Record<string, unknown>; } catch { responseBody = { text }; }
+      if (response.ok) {
+        await writeDispatchLog({ payload, dispatch_status: "success", response_status: response.status, response_body: responseBody, attempt_count: attempt });
+        return { ok: true, status: response.status, event_no: payload.event_no, response: responseBody, attempts: attempt };
+      }
+      finalError = `${response.status} ${response.statusText}`.trim();
+      if (attempt === maxAttempts || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
+        await writeDispatchLog({ payload, dispatch_status: "failed", response_status: response.status, response_body: responseBody, error_message: finalError, attempt_count: attempt });
+        return { ok: false, status: response.status, event_no: payload.event_no, response: responseBody, attempts: attempt };
+      }
+    } catch (error) {
+      finalError = error instanceof Error ? error.message : finalError;
+      if (attempt === maxAttempts) {
+        await writeDispatchLog({ payload, dispatch_status: "failed", error_message: finalError, error_stack: error instanceof Error ? error.stack : null, attempt_count: attempt });
+        return { ok: false, event_no: payload.event_no, error: finalError, attempts: attempt };
+      }
     }
-    await writeDispatchLog({
-      payload,
-      dispatch_status: response.ok ? "success" : "failed",
-      response_status: response.status,
-      response_body: responseBody,
-      error_message: response.ok ? null : response.statusText
-    });
-    return { ok: response.ok, status: response.status, event_no: payload.event_no, response: responseBody };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown N8N dispatch error";
-    await writeDispatchLog({ payload, dispatch_status: "failed", error_message: message });
-    return { ok: false, event_no: payload.event_no, error: message };
+    await new Promise((resolve) => setTimeout(resolve, retryDelay * attempt));
   }
+  return { ok: false, event_no: payload.event_no, error: finalError, attempts: maxAttempts };
 }
 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {

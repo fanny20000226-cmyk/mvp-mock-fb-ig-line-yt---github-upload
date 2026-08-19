@@ -25,6 +25,8 @@ import {
   Sparkles,
   Users,
   Wallet,
+  DatabaseBackup,
+  ChartNoAxesCombined,
   X
 } from "lucide-react";
 import { Role, roleLabels, roleMenus } from "@/lib/permissions";
@@ -125,13 +127,18 @@ const menuGroups = [
     icon: BookOpen,
     items: [
       { href: "/manual", label: "系統操作手冊", icon: BookOpen },
+      { href: "/sop", label: "線上 SOP 中心", icon: BookOpen },
       { href: "/delivery-readiness", label: "交付驗收中心", icon: ListChecks }
     ]
   },
   {
     label: "系統設定",
     icon: Shield,
-    items: [{ href: "/permissions", label: "權限管理", icon: Shield }]
+    items: [
+      { href: "/settings/enterprise", label: "企業設定與稽核", icon: DatabaseBackup },
+      { href: "/bi", label: "老闆 BI 儀表板", icon: ChartNoAxesCombined },
+      { href: "/permissions", label: "權限管理", icon: Shield }
+    ]
   }
 ];
 

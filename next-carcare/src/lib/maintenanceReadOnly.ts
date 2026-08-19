@@ -223,21 +223,40 @@ async function detectAnomalies(): Promise<Anomaly[]> {
 }
 
 export async function readMaintenanceOverview() {
-  const [databaseStatus, counts, recentStats, channelStatuses, anomalies, monitorLogs] = await Promise.all([
+  const [databaseStatus, counts, recentStats, channelStatuses, anomalies, monitorLogs, auditLogs, backupJobs] = await Promise.all([
     tableConnectionStatus(),
     Promise.all(countTargets.map((target) => safeCount(target.table, target.label))),
     buildRecentStats(),
     syncStatuses(),
     detectAnomalies(),
-    safeRows<Record<string, unknown>>("system_monitor_log", 80)
+    safeRows<Record<string, unknown>>("system_monitor_log", 80),
+    safeRows<Record<string, unknown>>("audit_logs", 80),
+    safeRows<Record<string, unknown>>("backup_jobs", 30)
   ]);
+
+  const latestBackup = backupJobs[0];
+  const backupStatus: StatusResult = {
+    key: "backup",
+    label: "資料庫與照片備份",
+    ok: Boolean(latestBackup) && String(latestBackup?.status) === "completed",
+    detail: latestBackup ? `最近備份狀態：${String(latestBackup.status)}` : "尚無備份工作紀錄。",
+    lastSync: String(latestBackup?.completed_at || latestBackup?.created_at || "") || null,
+    failedCount: backupJobs.filter((row) => row.status === "failed").length
+  };
+
+  const governanceLogs: Record<string, unknown>[] = auditLogs.map((row) => ({
+    ...row,
+    event_type: `AUDIT ${String(row.action || "")}`,
+    message: `${String(row.table_name || "-")} / ${String(row.record_id || "-")} / ${JSON.stringify(row.changed_fields || [])}`
+  }) as Record<string, unknown>);
 
   return {
     generatedAt: new Date().toISOString(),
-    statuses: [databaseStatus, ...channelStatuses],
+    statuses: [databaseStatus, backupStatus, ...channelStatuses],
     counts,
     recentStats,
     anomalies,
-    monitorLogs
+    monitorLogs: [...governanceLogs, ...monitorLogs].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 120),
+    backupJobs
   };
 }

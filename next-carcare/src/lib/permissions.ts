@@ -49,6 +49,9 @@ export const roleMenus: Record<Role, string[]> = {
     "/settings/n8n-logs",
     "/settings/health",
     "/settings/system-test",
+    "/settings/enterprise",
+    "/bi",
+    "/sop",
     "/manual",
     "/delivery-readiness",
     "/hr/employees",
@@ -68,6 +71,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/finance/receipts",
     "/staff/login",
     "/staff/dashboard",
+    "/sop",
   ],
   hr: [
     "/dashboard",
@@ -77,6 +81,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/hr/payroll",
     "/staff/login",
     "/staff/dashboard",
+    "/sop",
   ],
   shop_manager: [
     "/dashboard",
@@ -99,6 +104,9 @@ export const roleMenus: Record<Role, string[]> = {
     "/notifications",
     "/settings/health",
     "/settings/system-test",
+    "/settings/enterprise",
+    "/bi",
+    "/sop",
     "/manual",
     "/delivery-readiness",
     "/hr/attendance",
@@ -129,6 +137,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/hr/attendance",
     "/staff/login",
     "/staff/dashboard",
+    "/sop",
   ],
   worker: [
     "/dashboard",
@@ -137,6 +146,7 @@ export const roleMenus: Record<Role, string[]> = {
     "/annotations",
     "/staff/login",
     "/staff/dashboard",
+    "/sop",
   ],
 };
 
