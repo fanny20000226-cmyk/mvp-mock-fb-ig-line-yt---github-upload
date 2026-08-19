@@ -6,6 +6,7 @@ import ConstructionOrderCreator from "@/components/ConstructionOrderCreator";
 import PeiwayWorkOrderPdf from "@/components/PeiwayWorkOrderPdf";
 import PhotoZipButton from "@/components/PhotoZipButton";
 import ReceiptExportButton from "@/components/ReceiptExportButton";
+import WorkOrderPhotoUploader, { type WorkOrderPhotoGroups } from "@/components/WorkOrderPhotoUploader";
 import { listConstructionOrders } from "@/lib/db";
 import { createMockSmsNotification, defaultPickupTemplates, photoPreviewLink, renderNotifyTemplate } from "@/lib/notifications";
 import { useUiFeedback } from "@/components/UiFeedback";
@@ -100,28 +101,16 @@ export default function ConstructionPage() {
 
   async function loadWorkOrderPhotos(row: OrderRow) {
     if (photoMap[row.id]) return photoMap[row.id];
-    const plateNo = row.cars?.plate_no || row.cars?.license_plate;
-    if (!plateNo) {
-      const empty = { before: [], after: [] };
-      setPhotoMap((current) => ({ ...current, [row.id]: empty }));
-      return empty;
-    }
-
-    const { data } = await supabase
-      .from("image_annotations")
-      .select("image_url, annot_data")
-      .contains("annot_data", { plate_no: plateNo })
-      .limit(80);
-
-    const photos = (data || []).reduce<WorkOrderPhotos>(
-      (result, item) => {
-        const type = String((item.annot_data as { type?: string } | null)?.type || "");
-        if (!item.image_url) return result;
-        if (type.includes("before") && result.before.length < 8) result.before.push(item.image_url);
-        if (type.includes("after") && result.after.length < 8) result.after.push(item.image_url);
-        return result;
-      },
-      { before: [], after: [] }
+    const { data: session } = await supabase.auth.getSession();
+    const response = await fetch(`/api/operations/work-order-photos?orderId=${encodeURIComponent(row.id)}`, {
+      headers: { Authorization: `Bearer ${session.session?.access_token || ""}` },
+      cache: "no-store",
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || "讀取施工照片失敗。");
+    const photos = ((body.photos || []) as { image_url: string; phase: "before" | "after" }[]).reduce<WorkOrderPhotos>(
+      (result, item) => { if (item.image_url) result[item.phase].push(item.image_url); return result; },
+      { before: [], after: [] },
     );
     setPhotoMap((current) => ({ ...current, [row.id]: photos }));
     return photos;
@@ -302,6 +291,11 @@ export default function ConstructionPage() {
                               <h3 className="font-black">施工備註</h3>
                               <p className="mt-2 whitespace-pre-wrap text-neutral-700">{row.remark || "目前尚未填寫施工備註。"}</p>
                             </div>
+
+                            <WorkOrderPhotoUploader
+                              orderId={row.id}
+                              onChanged={(photos: WorkOrderPhotoGroups) => setPhotoMap((current) => ({ ...current, [row.id]: photos }))}
+                            />
                           </div>
 
                           <div className="fixed left-[-9999px] top-0 w-[794px] bg-white">

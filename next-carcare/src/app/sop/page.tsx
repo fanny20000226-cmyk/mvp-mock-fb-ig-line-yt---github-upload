@@ -6,8 +6,8 @@ import RequireAuth from "@/components/RequireAuth";
 const docs = [
   { title: "正式系統架構與資料來源", tag: "架構", body: "Vercel 提供主系統與 Monitor 介面，Supabase Auth、Database、Storage 是正式資料來源，N8N 負責核准事件與增量資料同步到 Google Sheets。同步失敗不影響 Supabase 已完成的營運寫入。" },
   { title: "帳號、角色、RLS 與多門市隔離", tag: "資安", body: "users 綁定 tenant_id、shop_id、role 與 active。前端選單只負責引導，真正權限由 API 驗證、Supabase RLS 與 Storage Policy 執行。跨門市操作前須確認帳號所屬門市，不得共用 Service Role Key。" },
-  { title: "施工照片依車輛 ID 歸檔", tag: "照片", body: "標準路徑為「門市 ID / vehicles / 車輛 ID / 類別 / 單據 ID」。新相簿與標註直接歸檔；報價照片先放 staging，建立車輛後自動歸檔。舊照片由治理中心先掃描再整理，原檔保留，無法比對者不得刪除。" },
-  { title: "舊施工照片整理 SOP", tag: "照片", body: "進入系統設定與治理中心的備份與還原頁籤，先按「掃描待整理照片」核對車輛、照片、無法比對與錯誤數；確認後按「執行照片歸檔」。完成後抽查客戶車輛相簿、報價照片與 Storage 路徑。" },
+  { title: "施工照片依客戶與施工單歸檔", tag: "照片", body: "標準路徑為「門市 ID / customers / 客戶 ID / vehicles / 車輛 ID / work-orders / 施工單 ID / before 或 after」。施工頁與技師現場模式會直接上傳到對應資料夾，並在 image_annotations 留下完整關聯。" },
+  { title: "舊施工照片整理 SOP", tag: "照片", body: "進入系統設定與治理中心的備份與還原頁籤，先按「掃描待整理照片」核對客戶、施工單、照片、無法比對與錯誤數；確認後按「執行照片歸檔」。原檔保留，無法精確判定施工單者不得強制搬移。" },
   { title: "N8N → Google Sheets 同步與 Retry", tag: "同步", body: "系統送出既有 webhook payload；失敗依設定自動重試，最終失敗回寫 sync_status 並通知。員工頁僅顯示已同步、待同步或同步失敗；錯誤堆疊、Webhook 與憑證資訊只能在 Monitor 或管理後台查看。" },
   { title: "Audit Log 查詢與匯出", tag: "稽核", body: "報價、客戶、薪資、預約、收款、刪除單據及權限異動由資料庫 trigger 留存操作人、時間與修改前後內容。管理員可在治理中心搜尋並匯出 CSV；不得直接修改或刪除 Audit Log。" },
   { title: "資料庫與照片備份／還原", tag: "備份", body: "確認最近備份狀態為 completed 並記錄影響範圍；還原前由管理員核對工作編號與照片清單，輸入指定確認文字後執行。完成後驗證主要資料表、施工照片、登入權限與 N8N 增量同步。" },
