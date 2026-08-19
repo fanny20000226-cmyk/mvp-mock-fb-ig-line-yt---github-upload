@@ -28,6 +28,67 @@ export function vehicleFolderManifestPath(shopId: string, carId: string) {
   return `${safeStorageSegment(shopId)}/vehicles/${safeStorageSegment(carId)}/.vehicle.json`;
 }
 
+export function customerWorkOrderPhotoPath(input: {
+  shopId: string;
+  customerId: string;
+  carId: string;
+  workOrderId: string;
+  phase: "before" | "after";
+  fileName: string;
+}) {
+  return [
+    safeStorageSegment(input.shopId),
+    "customers",
+    safeStorageSegment(input.customerId),
+    "vehicles",
+    safeStorageSegment(input.carId),
+    "work-orders",
+    safeStorageSegment(input.workOrderId),
+    input.phase,
+    `${Date.now()}-${safeStorageSegment(input.fileName)}`,
+  ].join("/");
+}
+
+export function customerFolderManifestPath(shopId: string, customerId: string) {
+  return `${safeStorageSegment(shopId)}/customers/${safeStorageSegment(customerId)}/.customer.json`;
+}
+
+export function workOrderFolderManifestPath(input: {
+  shopId: string;
+  customerId: string;
+  carId: string;
+  workOrderId: string;
+}) {
+  return [
+    safeStorageSegment(input.shopId),
+    "customers",
+    safeStorageSegment(input.customerId),
+    "vehicles",
+    safeStorageSegment(input.carId),
+    "work-orders",
+    safeStorageSegment(input.workOrderId),
+    ".work-order.json",
+  ].join("/");
+}
+
+export function isCustomerWorkOrderPhotoPath(path: string, input: {
+  shopId: string;
+  customerId: string;
+  carId: string;
+  workOrderId: string;
+}) {
+  return path.startsWith([
+    safeStorageSegment(input.shopId),
+    "customers",
+    safeStorageSegment(input.customerId),
+    "vehicles",
+    safeStorageSegment(input.carId),
+    "work-orders",
+    safeStorageSegment(input.workOrderId),
+    "",
+  ].join("/"));
+}
+
 export function quotationStagingPath(input: {
   shopId: string;
   quoteNo: string;
