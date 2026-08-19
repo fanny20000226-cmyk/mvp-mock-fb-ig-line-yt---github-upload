@@ -52,9 +52,8 @@ type QuoteRow = {
 
 type AlbumPhoto = {
   id: string;
-  car_id: string | null;
   image_url: string;
-  annot_data: { type?: string; plate_no?: string; uploaded_at?: string; caption?: string } | null;
+  annot_data: { type?: string; plate_no?: string; car_id?: string; customer_id?: string; construction_order_id?: string; uploaded_at?: string; caption?: string } | null;
   created_at: string;
 };
 
@@ -113,7 +112,7 @@ export default function CustomersPage() {
       listQuotations(),
       supabase
         .from("image_annotations")
-        .select("id, car_id, image_url, annot_data, created_at")
+        .select("id, image_url, annot_data, created_at")
         .order("created_at", { ascending: false }),
       listCustomerTags(),
       supabase.from("customers").select("id, name, phone, sync_status, last_sync_at, sync_error")
@@ -218,7 +217,7 @@ export default function CustomersPage() {
     const plate = normalize(car.plate_no);
     return photos.filter((photo) => {
       const photoPlate = normalize(photo.annot_data?.plate_no);
-      return photo.car_id === car.id || (!!plate && photoPlate === plate);
+      return photo.annot_data?.car_id === car.id || (!!plate && photoPlate === plate);
     });
   }
 

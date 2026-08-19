@@ -3,18 +3,31 @@ import { apiError, requireServerProfile } from "@/lib/serverAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   CAR_IMAGE_BUCKET,
+  customerWorkOrderPhotoPath,
+  isCustomerWorkOrderPhotoPath,
   isVehiclePhotoPath,
   storagePathFromPublicUrl,
   vehicleFolderManifestPath,
   vehiclePhotoPath,
 } from "@/lib/carPhotoStorage";
-import { archiveQuotationPhotos } from "@/lib/photoArchiveServer";
+import { archiveQuotationPhotos, archiveWorkOrderPhotos } from "@/lib/photoArchiveServer";
 
 type CarRow = {
   id: string;
   shop_id: string | null;
+  customer_id?: string | null;
   plate_no: string | null;
   license_plate: string | null;
+};
+
+type WorkOrderRow = {
+  id: string;
+  shop_id?: string | null;
+  store_id?: string | null;
+  customer_id?: string | null;
+  car_id?: string | null;
+  quotation_id?: string | null;
+  order_no?: string | null;
 };
 
 type AnnotationRow = {
@@ -69,19 +82,27 @@ export async function POST(request: Request) {
     }
     if (!shopIds.length) throw new Error("帳號尚未綁定可管理的門市。");
 
-    const [{ data: carData, error: carError }, { data: annotationData, error: annotationError }, { data: quoteData, error: quoteError }] = await Promise.all([
-      admin.from("cars").select("id,shop_id,plate_no,license_plate").in("shop_id", shopIds),
+    const [{ data: carData, error: carError }, { data: annotationData, error: annotationError }, { data: quoteData, error: quoteError }, { data: orderData, error: orderError }] = await Promise.all([
+      admin.from("cars").select("*").in("shop_id", shopIds),
       admin.from("image_annotations").select("id,shop_id,image_url,annot_data").in("shop_id", shopIds),
       admin.from("quotations").select("id,shop_id,car_id,plate_no").in("shop_id", shopIds),
+      admin.from("construction_orders").select("*").in("shop_id", shopIds),
     ]);
     if (carError) throw carError;
     if (annotationError) throw annotationError;
     if (quoteError) throw quoteError;
+    if (orderError) throw orderError;
 
     const cars = (carData || []) as CarRow[];
     const annotations = (annotationData || []) as AnnotationRow[];
     const quotes = (quoteData || []) as QuoteRow[];
+    const workOrders = (orderData || []) as WorkOrderRow[];
     const carsById = new Map(cars.map((car) => [car.id, car]));
+    const workOrdersById = new Map(workOrders.map((order) => [order.id, order]));
+    const workOrdersByCarId = new Map<string, WorkOrderRow[]>();
+    for (const order of workOrders) {
+      if (order.car_id) workOrdersByCarId.set(order.car_id, [...(workOrdersByCarId.get(order.car_id) || []), order]);
+    }
     const carsByShopPlate = new Map<string, CarRow>();
     for (const car of cars) {
       const plate = normalizePlate(car.plate_no || car.license_plate);
@@ -92,8 +113,11 @@ export async function POST(request: Request) {
       dry_run: dryRun,
       cars: cars.length,
       folders_created: 0,
+      customer_folders_created: 0,
+      work_order_folders_created: 0,
       annotation_photos_copied: 0,
       quotation_photos_copied: 0,
+      work_order_photos_copied: 0,
       records_updated: 0,
       already_organized: 0,
       unmatched: 0,
@@ -126,11 +150,30 @@ export async function POST(request: Request) {
         report.unmatched += 1;
         continue;
       }
-      if (isVehiclePhotoPath(sourcePath, car.shop_id, car.id)) {
+      const metadataOrderId = String(annotation.annot_data?.construction_order_id || "");
+      const candidateOrders = workOrdersByCarId.get(car.id) || [];
+      const order = (metadataOrderId && workOrdersById.get(metadataOrderId)) || (candidateOrders.length === 1 ? candidateOrders[0] : undefined);
+      const customerId = order?.customer_id || car.customer_id || null;
+      const orderContext = order && customerId ? {
+        shopId: car.shop_id,
+        customerId,
+        carId: car.id,
+        workOrderId: order.id,
+      } : null;
+      if (orderContext && isCustomerWorkOrderPhotoPath(sourcePath, orderContext)) {
         report.already_organized += 1;
         continue;
       }
-      const destinationPath = vehiclePhotoPath({
+      if (!orderContext && isVehiclePhotoPath(sourcePath, car.shop_id, car.id)) {
+        report.already_organized += 1;
+        continue;
+      }
+      const phase = String(annotation.annot_data?.phase || annotation.annot_data?.type || "").includes("after") ? "after" : "before";
+      const destinationPath = orderContext ? customerWorkOrderPhotoPath({
+        ...orderContext,
+        phase,
+        fileName: fileNameFromPath(sourcePath),
+      }) : vehiclePhotoPath({
         shopId: car.shop_id,
         carId: car.id,
         category: "archive",
@@ -147,6 +190,11 @@ export async function POST(request: Request) {
               annot_data: {
                 ...(annotation.annot_data || {}),
                 car_id: car.id,
+                customer_id: customerId || annotation.annot_data?.customer_id || null,
+                construction_order_id: order?.id || annotation.annot_data?.construction_order_id || null,
+                order_no: order?.order_no || annotation.annot_data?.order_no || null,
+                phase: orderContext ? phase : annotation.annot_data?.phase || null,
+                type: orderContext ? `work_order_${phase}` : annotation.annot_data?.type || "car_archive",
                 storage_path: destinationPath,
                 original_storage_path: sourcePath,
                 organized_at: new Date().toISOString(),
@@ -180,6 +228,37 @@ export async function POST(request: Request) {
         if (!dryRun && result.copied > 0) report.records_updated += 1;
       } catch (error) {
         report.errors.push(`報價 ${quote.id}：${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    for (const order of workOrders) {
+      const car = order.car_id ? carsById.get(order.car_id) : undefined;
+      const shopId = order.shop_id || order.store_id || car?.shop_id || null;
+      const customerId = order.customer_id || car?.customer_id || null;
+      const carId = order.car_id || car?.id || null;
+      if (!shopId || !customerId || !carId) {
+        report.unmatched += 1;
+        continue;
+      }
+      report.customer_folders_created += 1;
+      report.work_order_folders_created += 1;
+      try {
+        const result = await archiveWorkOrderPhotos({
+          admin,
+          workOrderId: order.id,
+          orderNo: order.order_no || order.id,
+          quotationId: order.quotation_id,
+          shopId,
+          customerId,
+          carId,
+          dryRun,
+        });
+        report.work_order_photos_copied += result.copied;
+        report.already_organized += result.skipped;
+        report.records_updated += result.recordsUpdated;
+        report.errors.push(...result.errors.map((message) => `施工單 ${order.order_no || order.id}：${message}`));
+      } catch (error) {
+        report.errors.push(`施工單 ${order.order_no || order.id}：${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
