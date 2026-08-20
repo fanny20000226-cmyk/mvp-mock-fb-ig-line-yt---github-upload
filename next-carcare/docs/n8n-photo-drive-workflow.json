@@ -632,6 +632,70 @@
     },
     {
       "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"name = '\" + $json.drive_file_name + \"' and '\" + $json.phase_folder_id + \"' in parents and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "id": "search-existing-photo",
+      "name": "Search Existing Photo",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3780,
+        -180
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "photo-already-synced-condition",
+              "leftValue": "={{ Boolean($json.id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "photo-already-synced",
+      "name": "Photo Already Synced",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        -180
+      ]
+    },
+    {
+      "parameters": {
         "url": "={{ $json.image_url }}",
         "options": {
           "response": {
@@ -647,8 +711,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3780,
-        -180
+        4220,
+        -20
       ],
       "retryOnFail": true,
       "maxTries": 3,
@@ -678,8 +742,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        4000,
-        -180
+        4440,
+        -20
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -702,7 +766,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        4220,
+        4660,
         -180
       ]
     },
@@ -1010,6 +1074,35 @@
     },
     "Set Photo Phase Context": {
       "main": [
+        [
+          {
+            "node": "Search Existing Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Existing Photo": {
+      "main": [
+        [
+          {
+            "node": "Photo Already Synced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo Already Synced": {
+      "main": [
+        [
+          {
+            "node": "Respond Photo Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Download Supabase Photo",
