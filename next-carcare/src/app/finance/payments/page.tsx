@@ -73,6 +73,17 @@ export default function PaymentsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const amount = Number(searchParams.get("total") || 0);
+    const orderId = searchParams.get("order");
+    if (amount <= 0) return;
+    setCheckout((current) => ({ ...current, total: String(amount) }));
+    setSplits([{ id: `split-${Date.now()}`, method: "現金", amount: String(amount) }]);
+    setForm((current) => ({ ...current, remark: orderId ? `施工單尾款：${orderId}` : current.remark }));
+    toast(`已帶入待收尾款 $${amount.toLocaleString()}。`, "info");
+  }, [toast]);
+
   async function createPayment() {
     if (savingPayment) return;
     const profile = await getCurrentProfile();

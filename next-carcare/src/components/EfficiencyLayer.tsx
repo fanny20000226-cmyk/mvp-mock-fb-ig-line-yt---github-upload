@@ -33,13 +33,18 @@ export default function EfficiencyLayer({ profile }: { profile: UserProfile }) {
   useEffect(() => {
     async function hydrateNotices() {
       const stored = readNotices();
-      const [syncResult, paymentResult] = await Promise.all([
+      const [syncResult, paymentResult, balanceResult] = await Promise.all([
         supabase.from("quotations").select("id,quote_no").eq("sync_status", "failed").limit(20),
         supabase.from("payment").select("id,payment_no,amount").eq("check_status", "pending").limit(20),
+        supabase.from("construction_orders").select("id,order_no,total_amount,paid_amount,status").in("status", ["finished", "ready_pickup", "picked_up"]).limit(50),
       ]);
+      const unpaidOrders = ((balanceResult.data || []) as { id: string; order_no: string; total_amount: number | null; paid_amount: number | null }[])
+        .map((row) => ({ ...row, balance: Math.max(0, Number(row.total_amount || 0) - Number(row.paid_amount || 0)) }))
+        .filter((row) => row.balance > 0);
       const generated: LocalNotice[] = [
         ...((syncResult.data || []) as { id: string; quote_no: string }[]).map((row) => ({ id: `sync-${row.id}`, title: "同步失敗", detail: row.quote_no, href: `/operations/quotations?quote=${row.id}`, read: false })),
         ...((paymentResult.data || []) as { id: string; payment_no: string; amount: number }[]).map((row) => ({ id: `pay-${row.id}`, title: "收款待核銷", detail: `${row.payment_no || "收款"}・$${Number(row.amount || 0).toLocaleString()}`, href: `/finance/payments?payment=${row.id}`, read: false })),
+        ...unpaidOrders.map((row) => ({ id: `balance-${row.id}`, title: "尾款未結清", detail: `${row.order_no || "施工單"}・尚欠 $${row.balance.toLocaleString()}`, href: `/finance/payments?order=${row.id}&total=${row.balance}`, read: false })),
       ];
       const state = new Map(stored.map((item) => [item.id, item]));
       const next = generated.map((item) => {
@@ -79,15 +84,19 @@ export default function EfficiencyLayer({ profile }: { profile: UserProfile }) {
     const keyword = text.trim(); if (keyword.length < 2) { setHits([]); return; }
     setSearching(true);
     const safe = keyword.replace(/[,%()]/g, " ");
-    const [cars, quotes, orders] = await Promise.all([
+    const [customers, cars, quotes, orders, appointments] = await Promise.all([
+      supabase.from("customers").select("id,name,phone").or(`name.ilike.%${safe}%,phone.ilike.%${safe}%`).limit(6),
       supabase.from("cars").select("id,customer_name,customer_phone,plate_no").or(`customer_name.ilike.%${safe}%,customer_phone.ilike.%${safe}%,plate_no.ilike.%${safe}%`).limit(6),
       supabase.from("quotations").select("id,quote_no,customer_name,customer_phone,plate_no").or(`quote_no.ilike.%${safe}%,customer_name.ilike.%${safe}%,customer_phone.ilike.%${safe}%,plate_no.ilike.%${safe}%`).limit(6),
       supabase.from("construction_orders").select("id,order_no,status").ilike("order_no", `%${safe}%`).limit(6),
+      supabase.from("appointments").select("id,appointment_no,customer_name,license_plate,appoint_date,appoint_time").or(`appointment_no.ilike.%${safe}%,customer_name.ilike.%${safe}%,license_plate.ilike.%${safe}%`).limit(6),
     ]);
     setHits([
-      ...((cars.data || []) as Record<string, string | null>[]).map((row) => ({ id: `car-${row.id}`, kind: "客戶／車輛", title: row.customer_name || row.plate_no || "未命名車輛", detail: [row.phone, row.customer_phone, row.plate_no].filter(Boolean).join("・"), href: `/operations/customers?car=${row.id}` })),
+      ...((customers.data || []) as Record<string, string | null>[]).map((row) => ({ id: `customer-${row.id}`, kind: "客戶", title: row.name || "未命名客戶", detail: row.phone || "未填電話", href: `/operations/customers?customer=${row.id}` })),
+      ...((cars.data || []) as Record<string, string | null>[]).map((row) => ({ id: `car-${row.id}`, kind: "客戶／車輛", title: row.customer_name || row.plate_no || "未命名車輛", detail: [row.customer_phone, row.plate_no].filter(Boolean).join("・"), href: `/operations/customers?car=${row.id}` })),
       ...((quotes.data || []) as Record<string, string | null>[]).map((row) => ({ id: `quote-${row.id}`, kind: "報價單", title: row.quote_no || "報價單", detail: [row.customer_name, row.plate_no].filter(Boolean).join("・"), href: `/operations/quotations?quote=${row.id}` })),
       ...((orders.data || []) as Record<string, string | null>[]).map((row) => ({ id: `order-${row.id}`, kind: "施工單", title: row.order_no || "施工單", detail: row.status || "", href: `/operations/orders?order=${row.id}` })),
+      ...((appointments.data || []) as Record<string, string | null>[]).map((row) => ({ id: `appointment-${row.id}`, kind: "預約", title: row.appointment_no || row.customer_name || "預約", detail: [row.license_plate, row.appoint_date, row.appoint_time].filter(Boolean).join("・"), href: `/operations/calendar?appointment=${row.id}` })),
     ]);
     setSearching(false);
   }, []);
