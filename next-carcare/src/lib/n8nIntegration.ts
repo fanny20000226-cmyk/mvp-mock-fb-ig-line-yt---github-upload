@@ -274,12 +274,17 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
   const maxAttempts = Math.max(1, Math.min(6, Number(settings.max_retries || 3)));
   const retryDelay = Math.max(100, Math.min(10000, Number(settings.retry_delay_ms || 800)));
   const requiresSyncAck = ["sheet_sync", "sheet_sync_test", "photo_sync"].includes(payload.event_type);
+  const requestTimeoutMs = payload.event_type === "photo_sync" ? 30000 : 5000;
   let finalError = "Unknown N8N dispatch error";
   let finalResponseBody: Record<string, unknown> = {};
   let finalResponseStatus: number | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await fetchWithTimeout(webhookUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(outbound) });
+      const response = await fetchWithTimeout(
+        webhookUrl,
+        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(outbound) },
+        requestTimeoutMs,
+      );
       const text = await response.text(); let responseBody: Record<string, unknown> = { text };
       try { responseBody = JSON.parse(text) as Record<string, unknown>; } catch { responseBody = { text }; }
       finalResponseBody = responseBody;
