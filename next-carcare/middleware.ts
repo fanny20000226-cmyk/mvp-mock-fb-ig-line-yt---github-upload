@@ -27,6 +27,12 @@ export const config = {
     "/finance/:path*",
     "/hr/:path*",
     "/bonus/:path*",
-    "/permissions/:path*"
+    "/permissions/:path*",
+    "/settings/:path*",
+    "/bi/:path*",
+    "/sop/:path*",
+    "/manual/:path*",
+    "/delivery-readiness/:path*",
+    "/notifications/:path*"
   ]
 };

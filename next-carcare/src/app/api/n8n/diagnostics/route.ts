@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { getN8nSettings } from "@/lib/n8nIntegration";
+import { apiError, requireServerProfile } from "@/lib/serverAuth";
 
 async function safeSelect(table: string, columns: string, orderColumn: string) {
   const admin = getSupabaseAdmin();
@@ -17,8 +18,9 @@ async function safeSelect(table: string, columns: string, orderColumn: string) {
   return { ok: true, rows: data || [], message: "" };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await requireServerProfile(request, ["admin"]);
     const settings = await getN8nSettings();
     const dispatchLogs = await safeSelect(
       "n8n_event_dispatch_logs",
@@ -37,7 +39,7 @@ export async function GET() {
       callbackLogs
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load N8N diagnostics";
-    return NextResponse.json({ message }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ message: parsed.message }, { status: parsed.status });
   }
 }

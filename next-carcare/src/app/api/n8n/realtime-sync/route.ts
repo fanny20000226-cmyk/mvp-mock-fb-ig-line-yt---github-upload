@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { sendSheetSyncToN8n, type SheetSyncKind } from "@/lib/n8nIntegration";
+import { sendSheetSyncToN8n, type SheetSyncKind, updateSourceSyncStatus } from "@/lib/n8nIntegration";
+import { apiError, requireScopedShopId, requireServerProfile } from "@/lib/serverAuth";
 
 function normalizeKind(value: unknown): SheetSyncKind | null {
   return value === "customer" || value === "finance" || value === "appointment" ? value : null;
@@ -7,6 +8,7 @@ function normalizeKind(value: unknown): SheetSyncKind | null {
 
 export async function POST(request: Request) {
   try {
+    const { profile } = await requireServerProfile(request);
     const body = await request.json();
     const syncType = normalizeKind(body.sync_type);
     const record = body.record && typeof body.record === "object" ? body.record : null;
@@ -20,21 +22,28 @@ export async function POST(request: Request) {
       );
     }
 
+    const shopId = await requireScopedShopId(profile, body.store_id);
     const result = await sendSheetSyncToN8n({
       sync_type: syncType,
       source_table: String(body.source_table || (syncType === "customer" ? "customers" : syncType === "appointment" ? "appointments" : "payment")),
       operation: body.operation === "update" || body.operation === "insert" || body.operation === "test" ? body.operation : "upsert",
       unique_key: uniqueKey,
       record: record as Record<string, unknown>,
-      store_id: typeof body.store_id === "string" ? body.store_id : null,
+      store_id: shopId,
       store_name: typeof body.store_name === "string" ? body.store_name : null,
       plate: typeof body.plate === "string" ? body.plate : null,
       model: typeof body.model === "string" ? body.model : null
     });
+    await updateSourceSyncStatus({
+      source_table: String(body.source_table || (syncType === "customer" ? "customers" : syncType === "appointment" ? "appointments" : "payment")),
+      unique_key: uniqueKey,
+      ok: Boolean(result.ok),
+      error: result.ok ? null : "N8N 即時同步失敗",
+    });
 
     return NextResponse.json(result, { status: result.ok ? 200 : 202 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Realtime N8N sync failed";
-    return NextResponse.json({ ok: false, message }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ ok: false, message: parsed.message }, { status: parsed.status });
   }
 }

@@ -8,6 +8,12 @@ const driveCredential = {
   },
 };
 
+const headerAuthCredential = {
+  httpHeaderAuth: {
+    name: "Header Auth account",
+  },
+};
+
 const retrySettings = {
   retryOnFail: true,
   maxTries: 3,
@@ -102,7 +108,6 @@ const clean = (value, fallback = '') => {
   const text = String(value || fallback).trim().replace(/[\\/<>:*?|"'#%{}~&]/g, '_').replace(/\s+/g, ' ');
   return text.slice(0, 120) || fallback;
 };
-const suppliedKey = String(params.security_key || payload.security_key || '').trim();
 const shopName = clean(params.shop_name || payload.store_name || payload.shop_name, '未分類');
 const supportedBranches = ['三重', '桃園', '新竹', '台南'];
 const branchName = supportedBranches.find((name) => shopName.includes(name)) || '未分類';
@@ -119,8 +124,8 @@ const customerName = clean(params.customer_name, '未命名客戶');
 const vehicleName = clean(params.plate || params.model, '未填車牌');
 
 return [{ json: {
-  ok: suppliedKey === 'peiway-realtime-sync-2026' && Boolean(params.image_url),
-  error: suppliedKey !== 'peiway-realtime-sync-2026' ? 'invalid security key' : (!params.image_url ? 'missing image_url' : ''),
+  ok: Boolean(params.image_url),
+  error: !params.image_url ? 'missing image_url' : '',
   event_no: payload.event_no || '',
   annotation_id: params.annotation_id || '',
   image_url: params.image_url || '',
@@ -148,13 +153,14 @@ const workflow = {
   name: "PEIWAY 施工照片同步到 Google Drive",
   nodes: [
     {
-      parameters: { httpMethod: "POST", path: "peiway-photo-drive", responseMode: "responseNode", options: {} },
+      parameters: { httpMethod: "POST", path: "peiway-photo-drive", authentication: "headerAuth", responseMode: "responseNode", options: {} },
       id: "photo-webhook",
       name: "Photo Webhook",
       type: "n8n-nodes-base.webhook",
       typeVersion: 2,
       position: [-1400, 0],
       webhookId: "peiway-photo-drive",
+      credentials: headerAuthCredential,
     },
     codeNode("normalize-photo", "Normalize Photo", normalizeCode, [-1180, 0]),
     ifNode("photo-security-valid", "Photo Security Is Valid", "={{ $json.ok }}", [-960, 0]),
@@ -292,4 +298,3 @@ const workflow = {
 
 await writeFile(outputPath, `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
 console.log(`Photo workflow written to ${outputPath}`);
-

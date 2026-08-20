@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { recordN8nCallback } from "@/lib/n8nIntegration";
+import { apiError, requireN8nWebhookSecret } from "@/lib/serverAuth";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
+    requireN8nWebhookSecret(request, body);
     if (!body.event_no) {
       return NextResponse.json({ message: "event_no is required" }, { status: 400 });
     }
@@ -14,7 +16,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true, data });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to save N8N callback";
-    return NextResponse.json({ ok: false, message }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ ok: false, message: parsed.message }, { status: parsed.status });
   }
 }

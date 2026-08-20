@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "peiway-photo-drive",
+        "authentication": "headerAuth",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -16,11 +17,16 @@
         -1400,
         0
       ],
-      "webhookId": "peiway-photo-drive"
+      "webhookId": "peiway-photo-drive",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const incoming = $input.first().json || {};\nconst payload = incoming.body || incoming;\nconst params = payload.content_params || {};\nconst clean = (value, fallback = '') => {\n  const text = String(value || fallback).trim().replace(/[\\\\/<>:*?|\"'#%{}~&]/g, '_').replace(/\\s+/g, ' ');\n  return text.slice(0, 120) || fallback;\n};\nconst suppliedKey = String(params.security_key || payload.security_key || '').trim();\nconst shopName = clean(params.shop_name || payload.store_name || payload.shop_name, '未分類');\nconst supportedBranches = ['三重', '桃園', '新竹', '台南'];\nconst branchName = supportedBranches.find((name) => shopName.includes(name)) || '未分類';\nconst customerId = clean(params.customer_id, 'unknown-customer');\nconst carId = clean(params.car_id, 'unknown-car');\nconst orderId = clean(params.construction_order_id || payload.work_order_id, 'unknown-order');\nconst phase = String(params.phase || 'before') === 'after' ? 'after' : 'before';\nconst phaseName = phase === 'after' ? '施工後' : '施工前';\nconst uploadedAt = String(params.uploaded_at || new Date().toISOString());\nconst stamp = uploadedAt.replace(/[^0-9]/g, '').slice(0, 14) || Date.now().toString();\nconst originalFileName = clean(params.file_name, 'photo.jpg');\nconst annotationId = clean(params.annotation_id, stamp);\nconst customerName = clean(params.customer_name, '未命名客戶');\nconst vehicleName = clean(params.plate || params.model, '未填車牌');\n\nreturn [{ json: {\n  ok: suppliedKey === 'peiway-realtime-sync-2026' && Boolean(params.image_url),\n  error: suppliedKey !== 'peiway-realtime-sync-2026' ? 'invalid security key' : (!params.image_url ? 'missing image_url' : ''),\n  event_no: payload.event_no || '',\n  annotation_id: params.annotation_id || '',\n  image_url: params.image_url || '',\n  storage_path: params.storage_path || '',\n  content_type: params.content_type || 'image/jpeg',\n  uploaded_at: uploadedAt,\n  shop_id: params.shop_id || payload.store_id || '',\n  shop_name: shopName,\n  branch_folder_name: clean(branchName, '未分類'),\n  customer_id: params.customer_id || '',\n  customer_folder_name: clean(customerName + '__' + vehicleName + '__' + customerId.slice(0, 8) + '__' + carId.slice(0, 8)),\n  car_id: params.car_id || '',\n  vehicle_folder_name: clean(customerName + '__' + vehicleName),\n  construction_order_id: params.construction_order_id || payload.work_order_id || '',\n  order_no: params.order_no || params.construction_order_id || payload.work_order_id || '',\n  order_folder_name: clean((params.order_no || orderId) + '__' + orderId),\n  phase,\n  phase_folder_name: clean(phaseName),\n  drive_file_name: clean(stamp + '__' + annotationId.slice(0, 12) + '__' + originalFileName, stamp + '__' + annotationId.slice(0, 12) + '__photo.jpg'),\n  google_drive_root_folder_id: params.google_drive_root_folder_id || '1r3-xJbC5OHkgo2ZbSY_NHCzWEEzRqmGJ'\n}}];"
+        "jsCode": "const incoming = $input.first().json || {};\nconst payload = incoming.body || incoming;\nconst params = payload.content_params || {};\nconst clean = (value, fallback = '') => {\n  const text = String(value || fallback).trim().replace(/[\\\\/<>:*?|\"'#%{}~&]/g, '_').replace(/\\s+/g, ' ');\n  return text.slice(0, 120) || fallback;\n};\nconst shopName = clean(params.shop_name || payload.store_name || payload.shop_name, '未分類');\nconst supportedBranches = ['三重', '桃園', '新竹', '台南'];\nconst branchName = supportedBranches.find((name) => shopName.includes(name)) || '未分類';\nconst customerId = clean(params.customer_id, 'unknown-customer');\nconst carId = clean(params.car_id, 'unknown-car');\nconst orderId = clean(params.construction_order_id || payload.work_order_id, 'unknown-order');\nconst phase = String(params.phase || 'before') === 'after' ? 'after' : 'before';\nconst phaseName = phase === 'after' ? '施工後' : '施工前';\nconst uploadedAt = String(params.uploaded_at || new Date().toISOString());\nconst stamp = uploadedAt.replace(/[^0-9]/g, '').slice(0, 14) || Date.now().toString();\nconst originalFileName = clean(params.file_name, 'photo.jpg');\nconst annotationId = clean(params.annotation_id, stamp);\nconst customerName = clean(params.customer_name, '未命名客戶');\nconst vehicleName = clean(params.plate || params.model, '未填車牌');\n\nreturn [{ json: {\n  ok: Boolean(params.image_url),\n  error: !params.image_url ? 'missing image_url' : '',\n  event_no: payload.event_no || '',\n  annotation_id: params.annotation_id || '',\n  image_url: params.image_url || '',\n  storage_path: params.storage_path || '',\n  content_type: params.content_type || 'image/jpeg',\n  uploaded_at: uploadedAt,\n  shop_id: params.shop_id || payload.store_id || '',\n  shop_name: shopName,\n  branch_folder_name: clean(branchName, '未分類'),\n  customer_id: params.customer_id || '',\n  customer_folder_name: clean(customerName + '__' + vehicleName + '__' + customerId.slice(0, 8) + '__' + carId.slice(0, 8)),\n  car_id: params.car_id || '',\n  vehicle_folder_name: clean(customerName + '__' + vehicleName),\n  construction_order_id: params.construction_order_id || payload.work_order_id || '',\n  order_no: params.order_no || params.construction_order_id || payload.work_order_id || '',\n  order_folder_name: clean((params.order_no || orderId) + '__' + orderId),\n  phase,\n  phase_folder_name: clean(phaseName),\n  drive_file_name: clean(stamp + '__' + annotationId.slice(0, 12) + '__' + originalFileName, stamp + '__' + annotationId.slice(0, 12) + '__photo.jpg'),\n  google_drive_root_folder_id: params.google_drive_root_folder_id || '1r3-xJbC5OHkgo2ZbSY_NHCzWEEzRqmGJ'\n}}];"
       },
       "id": "normalize-photo",
       "name": "Normalize Photo",
@@ -983,4 +989,3 @@
   },
   "tags": []
 }
-

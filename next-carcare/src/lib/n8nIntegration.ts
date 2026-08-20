@@ -55,6 +55,15 @@ type N8nSettings = {
   retry_delay_ms?: number | null;
 };
 
+const syncStatusTables = new Set([
+  "quotations",
+  "customers",
+  "payment",
+  "transaction_record",
+  "salary_records",
+  "appointments",
+]);
+
 export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment";
 
 export type SheetSyncInput = {
@@ -119,7 +128,9 @@ function todayKey() {
 }
 
 function n8nSecurityKey() {
-  return "peiway-realtime-sync-2026";
+  const secret = process.env.N8N_WEBHOOK_SECRET?.trim();
+  if (!secret) throw new Error("Missing N8N_WEBHOOK_SECRET");
+  return secret;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 5000) {
@@ -268,6 +279,7 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
   const outbound = {
     ...payload,
     callback_webhook_url: settings.callback_webhook_url,
+    callback_security_key: n8nSecurityKey(),
     sent_at: new Date().toISOString()
   };
 
@@ -282,7 +294,14 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
     try {
       const response = await fetchWithTimeout(
         webhookUrl,
-        { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(outbound) },
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-peiway-webhook-secret": n8nSecurityKey(),
+          },
+          body: JSON.stringify(outbound),
+        },
         requestTimeoutMs,
       );
       const text = await response.text(); let responseBody: Record<string, unknown> = { text };
@@ -514,7 +533,41 @@ export async function recordN8nCallback(input: N8nCallbackPayload) {
     .single();
 
   if (error) throw error;
+
+  const raw = input.raw_payload || {};
+  const params = raw.content_params && typeof raw.content_params === "object"
+    ? raw.content_params as Record<string, unknown>
+    : {};
+  const sourceTable = String(raw.source_table || params.source_table || "");
+  const uniqueKey = String(raw.unique_key || params.unique_key || "");
+  if (sourceTable && uniqueKey) {
+    await updateSourceSyncStatus({
+      source_table: sourceTable,
+      unique_key: uniqueKey,
+      ok: sendStatus === "success" || sendStatus === "synced",
+      error: errorNote || null,
+    });
+  }
   return data;
+}
+
+export async function updateSourceSyncStatus(input: {
+  source_table: string;
+  unique_key: string;
+  ok: boolean;
+  error?: string | null;
+}) {
+  if (!syncStatusTables.has(input.source_table) || !input.unique_key) return;
+  const admin = getSupabaseAdmin();
+  const { error } = await admin
+    .from(input.source_table)
+    .update({
+      sync_status: input.ok ? "synced" : "failed",
+      last_sync_at: input.ok ? new Date().toISOString() : null,
+      sync_error: input.ok ? null : input.error || "N8N 同步失敗",
+    })
+    .eq("id", input.unique_key);
+  if (error) console.error("sync status update raw error", error);
 }
 
 export async function testN8nConnection(input?: { receiver?: string; message?: string }) {

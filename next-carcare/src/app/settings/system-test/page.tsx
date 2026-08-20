@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import { supabase } from "@/lib/supabase";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 type TestStep = {
   key: string;
@@ -63,7 +64,7 @@ export default function SystemTestPage() {
   async function loadReports() {
     setLoading(true);
     setMessage("");
-    const response = await fetch("/api/system-test/reports", { cache: "no-store" });
+    const response = await authenticatedFetch("/api/system-test/reports", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) {
       setMessage(`讀取測試報告失敗：${data.message || "請確認 supabase-step16-system-tests.sql 已執行"}`);
