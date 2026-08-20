@@ -11,6 +11,7 @@ import { sendPhotoDriveSyncToN8n } from "@/lib/n8nIntegration";
 
 type JsonRow = Record<string, unknown>;
 type Phase = "before" | "after";
+const PHOTO_BRANCHES = ["三重", "桃園", "新竹", "台南"] as const;
 
 function value(row: JsonRow | null | undefined, key: string) {
   return String(row?.[key] || "").trim();
@@ -131,6 +132,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const orderId = String(form.get("orderId") || "").trim();
     const phase = String(form.get("phase") || "before") as Phase;
+    const requestedBranch = String(form.get("branchName") || "").trim();
     const file = form.get("file");
     if (!orderId) throw new HttpError(400, "缺少施工單 ID。");
     if (phase !== "before" && phase !== "after") throw new HttpError(400, "施工照片分類不正確。");
@@ -139,6 +141,9 @@ export async function POST(request: Request) {
     if (file.size > 4 * 1024 * 1024) throw new HttpError(400, "單張照片不可超過 4MB，請重新拍攝或縮小圖片後再試。");
 
     const context = await loadOrderContext(request, orderId);
+    const branchName = PHOTO_BRANCHES.find((branch) => branch === requestedBranch)
+      || PHOTO_BRANCHES.find((branch) => context.shopName.includes(branch));
+    if (!branchName) throw new HttpError(400, "請先選擇照片要歸檔的門市。");
     if (!context.customerId) throw new HttpError(400, "施工單尚未綁定客戶，請先補齊客戶資料。");
     if (!context.carId) throw new HttpError(400, "施工單尚未綁定車輛，請先補齊車輛資料。");
 
@@ -169,6 +174,7 @@ export async function POST(request: Request) {
       storage_path: path,
       uploaded_at: uploadedAt,
       drive_sync_status: "pending",
+      branch_name: branchName,
     };
     const { data: annotation, error: insertError } = await context.admin
       .from("image_annotations")
@@ -215,7 +221,7 @@ export async function POST(request: Request) {
       phase,
       uploaded_at: uploadedAt,
       shop_id: context.shopId,
-      shop_name: context.shopName,
+      shop_name: branchName,
       customer_id: context.customerId,
       customer_name: context.customerName,
       car_id: context.carId,
@@ -268,3 +274,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: result.message }, { status: result.status });
   }
 }
+
