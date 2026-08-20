@@ -7,6 +7,8 @@ import { supabase } from "@/lib/supabase";
 
 export type WorkOrderPhotoGroups = { before: string[]; after: string[] };
 type PhotoRow = { id: string; image_url: string; phase: "before" | "after"; created_at?: string | null };
+const PHOTO_BRANCHES = ["三重", "桃園", "新竹", "台南"] as const;
+const PHOTO_BRANCH_STORAGE_KEY = "carcare-photo-branch";
 
 async function authorizationHeader() {
   const { data } = await supabase.auth.getSession();
@@ -51,12 +53,20 @@ export default function WorkOrderPhotoUploader({
   const { toast } = useUiFeedback();
   const [photos, setPhotos] = useState<PhotoRow[]>([]);
   const [phase, setPhase] = useState<"before" | "after">("before");
+  const [branchName, setBranchName] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 });
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
+  const uploadLock = useRef(false);
   const onChangedRef = useRef(onChanged);
 
   useEffect(() => { onChangedRef.current = onChanged; }, [onChanged]);
+  useEffect(() => {
+    const saved = window.localStorage.getItem(PHOTO_BRANCH_STORAGE_KEY) || "";
+    if (PHOTO_BRANCHES.some((branch) => branch === saved)) setBranchName(saved);
+  }, []);
 
   const load = useCallback(async () => {
     const response = await fetch(`/api/operations/work-order-photos?orderId=${encodeURIComponent(orderId)}`, {
@@ -80,33 +90,66 @@ export default function WorkOrderPhotoUploader({
   }, [load, toast]);
 
   async function upload(files: FileList | null) {
-    if (!files?.length || uploading) return;
+    if (!files?.length || uploadLock.current) return;
+    if (!branchName) {
+      toast("請先選擇照片要歸檔的門市。", "warning");
+      if (cameraInput.current) cameraInput.current.value = "";
+      if (galleryInput.current) galleryInput.current.value = "";
+      return;
+    }
+    const selectedFiles = Array.from(files);
+    uploadLock.current = true;
     setUploading(true);
+    setUploadProgress({ completed: 0, total: selectedFiles.length });
     let succeeded = 0;
+    const failures: string[] = [];
     try {
       const authorization = await authorizationHeader();
-      for (const file of Array.from(files)) {
-        const uploadFile = await preparePhoto(file);
-        const form = new FormData();
-        form.set("orderId", orderId);
-        form.set("phase", phase);
-        form.set("file", uploadFile);
-        const response = await fetch("/api/operations/work-order-photos", {
-          method: "POST",
-          headers: { Authorization: authorization },
-          body: form,
-        });
-        const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.message || `${file.name} 上傳失敗。`);
-        succeeded += 1;
-      }
+      let nextIndex = 0;
+      const worker = async () => {
+        while (nextIndex < selectedFiles.length) {
+          const file = selectedFiles[nextIndex];
+          nextIndex += 1;
+          try {
+            const uploadFile = await preparePhoto(file);
+            const form = new FormData();
+            form.set("orderId", orderId);
+            form.set("phase", phase);
+            form.set("branchName", branchName);
+            form.set("file", uploadFile);
+            const response = await fetch("/api/operations/work-order-photos", {
+              method: "POST",
+              headers: { Authorization: authorization },
+              body: form,
+            });
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(body.message || `${file.name} 上傳失敗。`);
+            succeeded += 1;
+          } catch (error) {
+            failures.push(`${file.name}：${error instanceof Error ? error.message : "上傳失敗"}`);
+          } finally {
+            setUploadProgress((current) => ({ ...current, completed: current.completed + 1 }));
+          }
+        }
+      };
+      const concurrency = Math.min(3, selectedFiles.length);
+      await Promise.all(Array.from({ length: concurrency }, () => worker()));
       await load();
-      toast(`${succeeded} 張${phase === "before" ? "施工前" : "施工後"}照片已上傳並完成雲端分類。`, "success");
+      if (failures.length === 0) {
+        toast(`${succeeded} 張${phase === "before" ? "施工前" : "施工後"}照片已上傳並完成雲端分類。`, "success");
+      } else if (succeeded > 0) {
+        toast(`已完成 ${succeeded} 張，另有 ${failures.length} 張失敗：${failures.slice(0, 2).join("；")}`, "warning");
+      } else {
+        toast(`全部照片上傳失敗：${failures.slice(0, 2).join("；")}`, "error");
+      }
     } catch (error) {
       toast(error instanceof Error ? error.message : "施工照片上傳失敗。", "error");
     } finally {
+      uploadLock.current = false;
       setUploading(false);
-      if (fileInput.current) fileInput.current.value = "";
+      setUploadProgress({ completed: 0, total: 0 });
+      if (cameraInput.current) cameraInput.current.value = "";
+      if (galleryInput.current) galleryInput.current.value = "";
     }
   }
 
@@ -117,17 +160,43 @@ export default function WorkOrderPhotoUploader({
         <h3 className="font-black">施工照片</h3>
         {!compact ? <p className="mt-1 text-sm text-neutral-500">照片會依客戶、車輛、施工單與施工前後自動存入雲端獨立資料夾。</p> : null}
       </div>
-      <div className="flex min-h-11 rounded-xl border border-neutral-300 bg-white p-1" role="group" aria-label="照片階段">
-        <button type="button" className={`min-h-10 rounded-lg px-4 font-bold ${phase === "before" ? "bg-neutral-950 text-white" : "text-neutral-700"}`} onClick={() => setPhase("before")}>施工前</button>
-        <button type="button" className={`min-h-10 rounded-lg px-4 font-bold ${phase === "after" ? "bg-neutral-950 text-white" : "text-neutral-700"}`} onClick={() => setPhase("after")}>施工後</button>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="grid gap-1 text-xs font-black text-neutral-600">
+          照片歸檔門市
+          <select
+            value={branchName}
+            onChange={(event) => {
+              const nextBranch = event.target.value;
+              setBranchName(nextBranch);
+              if (nextBranch) window.localStorage.setItem(PHOTO_BRANCH_STORAGE_KEY, nextBranch);
+            }}
+            className="min-h-11 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-black text-neutral-900"
+            aria-label="照片歸檔門市"
+          >
+            <option value="">請選門市</option>
+            {PHOTO_BRANCHES.map((branch) => <option key={branch} value={branch}>{branch}</option>)}
+          </select>
+        </label>
+        <div className="flex min-h-11 rounded-xl border border-neutral-300 bg-white p-1" role="group" aria-label="照片階段">
+          <button type="button" className={`min-h-10 rounded-lg px-4 font-bold ${phase === "before" ? "bg-neutral-950 text-white" : "text-neutral-700"}`} onClick={() => setPhase("before")}>施工前</button>
+          <button type="button" className={`min-h-10 rounded-lg px-4 font-bold ${phase === "after" ? "bg-neutral-950 text-white" : "text-neutral-700"}`} onClick={() => setPhase("after")}>施工後</button>
+        </div>
       </div>
     </div>
 
-    <label className={`${compact ? "field-camera-button w-full" : "primary-btn mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2"} ${uploading ? "pointer-events-none opacity-60" : ""}`}>
-      {uploading ? <LoaderCircle className="animate-spin" /> : compact ? <Camera /> : <ImagePlus />}
-      {uploading ? "正在上傳並歸檔…" : `拍攝／選擇${phase === "before" ? "施工前" : "施工後"}照片`}
-      <input ref={fileInput} type="file" accept="image/*" capture="environment" multiple className="hidden" disabled={uploading} onChange={(event) => upload(event.target.files)} />
-    </label>
+    <div className={`${compact ? "grid grid-cols-2 gap-2" : "mt-3 flex flex-wrap gap-2"}`}>
+      <label className={`${compact ? "field-camera-button w-full" : "primary-btn inline-flex min-h-11 cursor-pointer items-center gap-2"} ${uploading ? "pointer-events-none opacity-60" : ""}`}>
+        {uploading ? <LoaderCircle className="animate-spin" /> : <Camera />}
+        {uploading ? `${uploadProgress.completed}/${uploadProgress.total} 張處理中` : "拍照"}
+        <input ref={cameraInput} type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading} onChange={(event) => upload(event.target.files)} />
+      </label>
+      <label className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-neutral-400 bg-white px-3 text-center text-sm font-black text-neutral-900 ${uploading ? "pointer-events-none opacity-60" : ""}`}>
+        {uploading ? <LoaderCircle className="animate-spin" /> : <ImagePlus />}
+        {uploading ? "請稍候" : "從相簿多選"}
+        <input ref={galleryInput} type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(event) => upload(event.target.files)} />
+      </label>
+    </div>
+    {!uploading ? <p className="mt-2 text-xs font-medium text-neutral-500">可一次選取多張照片，系統同時處理最多 3 張並分別同步到雲端。</p> : null}
 
     {loading ? <p className="text-sm text-neutral-500">讀取雲端照片中…</p> : null}
     {!loading && photos.length === 0 ? <p className="rounded-xl border border-dashed border-neutral-300 p-3 text-sm text-neutral-500">這張施工單尚未上傳施工照片。</p> : null}
@@ -142,3 +211,4 @@ export default function WorkOrderPhotoUploader({
     </div> : null)}
   </section>;
 }
+
