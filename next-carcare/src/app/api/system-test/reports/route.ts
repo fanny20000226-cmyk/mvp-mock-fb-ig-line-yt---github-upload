@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { apiError, requireServerProfile } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,13 @@ async function readFallbackReports(admin: ReturnType<typeof getSupabaseAdmin>) {
   return (data || []).map((row) => fallbackRun(row as DispatchLogRow));
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  try {
+    await requireServerProfile(request, ["admin", "shop_manager"]);
+  } catch (error) {
+    const parsed = apiError(error);
+    return NextResponse.json({ rows: [], message: parsed.message }, { status: parsed.status });
+  }
   const admin = getSupabaseAdmin();
 
   try {

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { sendSheetSyncToN8n, type SheetSyncInput, type SheetSyncKind } from "@/lib/n8nIntegration";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { apiError, requireScopedShopId, requireServerProfile } from "@/lib/serverAuth";
+import type { UserProfile } from "@/lib/permissions";
 
 type InsertResult = {
   table: string;
@@ -12,22 +14,29 @@ type SampleResult = {
   sync: SheetSyncInput;
 };
 
-const FALLBACK_TEST_STORE_ID = "00000000-0000-0000-0000-000000000001";
-
 function nowIso() {
   return new Date().toISOString();
 }
 
-async function resolveTestShopId() {
+async function resolveTestShopId(profile: UserProfile & { tenant_id: string | null }) {
+  if (profile.shop_id) {
+    const shopId = await requireScopedShopId(profile, profile.shop_id, { required: true });
+    if (!shopId) throw new Error("找不到可用的測試門市。");
+    return shopId;
+  }
+  if (!profile.tenant_id) throw new Error("帳號缺少租戶資料。");
   const admin = getSupabaseAdmin();
   const { data } = await admin
     .from("shops")
     .select("id")
+    .eq("tenant_id", profile.tenant_id)
+    .eq("active", true)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  return String(data?.id || FALLBACK_TEST_STORE_ID);
+  if (!data?.id) throw new Error("找不到可用的測試門市。");
+  return String(data.id);
 }
 
 async function insertFirstWorking(table: string, attempts: Record<string, unknown>[]): Promise<InsertResult> {
@@ -51,9 +60,8 @@ async function cleanup(table: string, id: unknown) {
   return { ok: !error, message: error?.message || "" };
 }
 
-async function createCustomerSample(): Promise<SampleResult> {
+async function createCustomerSample(shopId: string): Promise<SampleResult> {
   const stamp = Date.now();
-  const shopId = await resolveTestShopId();
   const plate = `SYNC-${String(stamp).slice(-6)}`;
   const sample = {
     name: `N8N即時同步測試客戶${String(stamp).slice(-4)}`,
@@ -93,9 +101,8 @@ async function createCustomerSample(): Promise<SampleResult> {
   };
 }
 
-async function createFinanceSample(): Promise<SampleResult> {
+async function createFinanceSample(shopId: string): Promise<SampleResult> {
   const stamp = Date.now();
-  const shopId = await resolveTestShopId();
   const sample = {
     store_id: shopId,
     quotation_id: null,
@@ -140,10 +147,12 @@ async function createFinanceSample(): Promise<SampleResult> {
 export async function POST(request: Request) {
   let inserted: InsertResult | null = null;
   try {
+    const { profile } = await requireServerProfile(request, ["admin"]);
+    const shopId = await resolveTestShopId(profile);
     const body = await request.json();
     const type: SheetSyncKind = body.type === "finance" ? "finance" : "customer";
     const shouldCleanup = body.cleanup === true;
-    const sample = type === "finance" ? await createFinanceSample() : await createCustomerSample();
+    const sample = type === "finance" ? await createFinanceSample(shopId) : await createCustomerSample(shopId);
     inserted = sample.inserted;
     const n8n = await sendSheetSyncToN8n(sample.sync);
     const cleanupResult = shouldCleanup ? await cleanup(inserted.table, inserted.data.id) : null;
@@ -162,7 +171,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const cleanupResult = inserted ? await cleanup(inserted.table, inserted.data.id) : null;
-    const message = error instanceof Error ? error.message : "Realtime sync test failed";
-    return NextResponse.json({ ok: false, message, cleanup: cleanupResult }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ ok: false, message: parsed.message, cleanup: cleanupResult }, { status: parsed.status });
   }
 }

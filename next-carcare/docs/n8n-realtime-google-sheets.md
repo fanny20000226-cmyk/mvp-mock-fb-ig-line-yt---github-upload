@@ -26,10 +26,18 @@ Set these in N8N Variables:
 ```text
 GOOGLE_REPORT_SHEET_ID=your_report_google_sheet_id
 GOOGLE_SALARY_SHEET_ID=1b8bM9hQxrFR-wbCc9PQMHJFBpvK4amqIp0AYp5rI-O0
-PEIWAY_REALTIME_SYNC_KEY=your_shared_secret
 ```
 
-`PEIWAY_REALTIME_SYNC_KEY` must be the same value as the Vercel environment variable below.
+## Required N8N Webhook Authentication
+
+Create one `Header Auth` credential in N8N and attach it to the realtime, batch, and photo Webhook nodes:
+
+```text
+Header name: x-peiway-webhook-secret
+Header value: same value as Vercel N8N_WEBHOOK_SECRET
+```
+
+Payload code nodes validate business fields only. The Webhook node rejects requests without the correct header before the workflow executes.
 
 ## Required Vercel Environment Variables
 
@@ -74,8 +82,7 @@ The system sends this shape:
     "unique_key": "salary-record-id",
     "sheet_name": "員工薪資明細表（雲端建檔）",
     "target_sheet_id": "1b8bM9hQxrFR-wbCc9PQMHJFBpvK4amqIp0AYp5rI-O0",
-    "record": {},
-    "security_key": "same-as-N8N_WEBHOOK_SECRET"
+    "record": {}
   }
 }
 ```
@@ -100,7 +107,7 @@ Use the realtime sync test buttons for customer and finance. Salary sync is trig
 
 ## Troubleshooting
 
-- If the N8N test says `invalid security key`, make sure `PEIWAY_REALTIME_SYNC_KEY` and `N8N_WEBHOOK_SECRET` are identical.
+- If N8N returns `Unauthorized`, verify the Webhook node uses the Header Auth credential and Vercel `N8N_WEBHOOK_SECRET` matches its value.
 - If Google Sheets nodes fail, reselect the Google Sheets credential in the N8N Google Sheets nodes.
 - If salary records save in the system but do not appear in Google Sheets, check that `GOOGLE_SALARY_SHEET_ID` points to `1b8bM9hQxrFR-wbCc9PQMHJFBpvK4amqIp0AYp5rI-O0`.
 - If the website saves data but Google Sheets does not update, check N8N executions first. The website intentionally does not block business saving when sync fails.

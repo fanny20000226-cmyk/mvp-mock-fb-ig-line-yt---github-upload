@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "peiway-realtime-sheets",
+        "authentication": "headerAuth",
         "responseMode": "responseNode",
         "options": {}
       },
@@ -16,11 +17,16 @@
         -720,
         0
       ],
-      "webhookId": "peiway-realtime-sheets"
+      "webhookId": "peiway-realtime-sheets",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Header Auth account"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const payload = $input.first().json || {};\nconst params = payload.content_params || {};\nconst expectedKey = $vars.PEIWAY_REALTIME_SYNC_KEY || '';\nconst suppliedKey = params.security_key || payload.security_key || '';\nconst record = params.record || payload.record || {};\nconst syncType = params.sync_type || payload.sync_type || '';\nconst uniqueKey = params.unique_key || record.id || payload.id || '';\nconst isValid = Boolean(expectedKey) && suppliedKey === expectedKey;\nreturn [{ json: {\n  ok: isValid,\n  sync_type: syncType,\n  unique_key: uniqueKey,\n  source_event_type: payload.event_type || '',\n  source_table: params.source_table || payload.source_table || '',\n  operation: params.operation || payload.operation || 'upsert',\n  sheet_name: params.sheet_name || payload.sheet_name || '',\n  target_sheet_id: params.target_sheet_id || payload.target_sheet_id || '',\n  received_at: new Date().toISOString(),\n  row: record,\n  error: isValid ? '' : 'invalid security key'\n}}];"
+        "jsCode": "const payload = $input.first().json || {};\nconst params = payload.content_params || {};\nconst record = params.record || payload.record || {};\nconst syncType = params.sync_type || payload.sync_type || '';\nconst uniqueKey = params.unique_key || record.id || payload.id || '';\nconst isValid = Boolean(syncType && uniqueKey);\nreturn [{ json: {\n  ok: isValid,\n  sync_type: syncType,\n  unique_key: uniqueKey,\n  source_event_type: payload.event_type || '',\n  source_table: params.source_table || payload.source_table || '',\n  operation: params.operation || payload.operation || 'upsert',\n  sheet_name: params.sheet_name || payload.sheet_name || '',\n  target_sheet_id: params.target_sheet_id || payload.target_sheet_id || '',\n  received_at: new Date().toISOString(),\n  row: record,\n  error: isValid ? '' : 'missing sync_type or unique_key'\n}}];"
       },
       "id": "code-normalize-payload",
       "name": "Validate And Normalize",

@@ -7,6 +7,7 @@ import type { Role, UserProfile } from "@/lib/permissions";
 import { supabase } from "@/lib/supabase";
 import SyncStatusBadge, { type SyncState } from "@/components/SyncStatusBadge";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 type AppointmentStatus = "待確認" | "已到店" | "已取消" | "已完成";
 
@@ -210,7 +211,7 @@ export default function CalendarPage() {
   }
 
   function syncAppointment(record: AppointmentRow | Record<string, unknown>, operation: "insert" | "update") {
-    fetch("/api/appointments/sync", {
+    authenticatedFetch("/api/appointments/sync", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

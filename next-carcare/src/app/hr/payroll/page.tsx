@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import SyncStatusBadge from "@/components/SyncStatusBadge";
 import { SearchSelect } from "@/components/UiPatterns";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 type ShopRow = { id: string; name: string };
 type AttendanceRow = {
@@ -207,7 +208,7 @@ export default function PayrollPage() {
     if (error) return alert(errorMessageZh(error, "薪資單建檔失敗。"));
     try {
       const shopName = shops.find((shop) => shop.id === data.shop_id)?.name || "";
-      void fetch("/api/hr/employee-sync", {
+      void authenticatedFetch("/api/hr/employee-sync", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -223,6 +224,8 @@ export default function PayrollPage() {
           shop_name: shopName,
           operation: "insert"
         })
+      }).catch(() => {
+        // N8N 同步失敗不阻擋員工建檔。
       });
     } catch {
       // N8N 同步失敗不阻擋員工建檔。
@@ -299,7 +302,7 @@ export default function PayrollPage() {
     if (error) return alert(error.message);
 
     try {
-      const response = await fetch("/api/hr/salary-sync", {
+      const response = await authenticatedFetch("/api/hr/salary-sync", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -341,7 +344,7 @@ export default function PayrollPage() {
     try {
       const staff = staffRows.find((row) => row.employee_no === data.employee_no);
       const shopName = shops.find((shop) => shop.id === staff?.shop_id)?.name || "";
-      void fetch("/api/hr/attendance-sync", {
+      void authenticatedFetch("/api/hr/attendance-sync", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -355,6 +358,8 @@ export default function PayrollPage() {
           shop_name: shopName,
           operation: "insert"
         })
+      }).catch(() => {
+        // N8N 同步失敗不阻擋出勤登記。
       });
     } catch {
       // N8N 同步失敗不阻擋出勤登記。

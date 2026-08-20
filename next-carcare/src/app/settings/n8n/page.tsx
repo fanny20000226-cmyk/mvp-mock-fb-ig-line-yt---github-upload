@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 type N8nSettings = {
   webhook_url: string;
@@ -72,7 +73,7 @@ export default function N8nSettingsPage() {
     setLoading(true);
     setResult("");
     const defaultCallback = getDefaultCallback();
-    const response = await fetch("/api/n8n/diagnostics", { cache: "no-store" });
+    const response = await authenticatedFetch("/api/n8n/diagnostics", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) {
       setResult(data.message || "讀取 Telegram 聯動狀態失敗。");
@@ -99,7 +100,7 @@ export default function N8nSettingsPage() {
       ...settings,
       callback_webhook_url: callbackUrl
     };
-    const response = await fetch("/api/n8n/settings", {
+    const response = await authenticatedFetch("/api/n8n/settings", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload)
@@ -128,7 +129,7 @@ export default function N8nSettingsPage() {
       return;
     }
 
-    const response = await fetch("/api/n8n/test", {
+    const response = await authenticatedFetch("/api/n8n/test", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -157,7 +158,7 @@ export default function N8nSettingsPage() {
   }, []);
 
   return (
-    <RequireAuth>
+    <RequireAuth allow={["admin"]}>
       <section className="space-y-5">
         <div className="card">
           <p className="text-sm font-black text-carcare-yellow">Telegram Bridge</p>

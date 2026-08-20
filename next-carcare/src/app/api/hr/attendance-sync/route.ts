@@ -1,8 +1,10 @@
 ﻿import { NextResponse } from "next/server";
 import { sendAttendanceSheetSync } from "@/lib/n8nIntegration";
+import { apiError, requireScopedShopId, requireServerProfile } from "@/lib/serverAuth";
 
 export async function POST(request: Request) {
   try {
+    const { profile } = await requireServerProfile(request, ["admin", "hr"]);
     const body = (await request.json()) as {
       record?: Record<string, unknown>;
       unique_key?: string;
@@ -15,17 +17,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "Missing attendance sync record." }, { status: 400 });
     }
 
+    const shopId = await requireScopedShopId(profile, body.shop_id);
     const result = await sendAttendanceSheetSync({
       operation: body.operation || "upsert",
       unique_key: body.unique_key,
       record: body.record,
-      shop_id: body.shop_id || null,
+      shop_id: shopId,
       shop_name: body.shop_name || null
     });
 
     return NextResponse.json(result, { status: result.ok ? 200 : 502 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Attendance N8N sync failed";
-    return NextResponse.json({ ok: false, message }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ ok: false, message: parsed.message }, { status: parsed.status });
   }
 }
