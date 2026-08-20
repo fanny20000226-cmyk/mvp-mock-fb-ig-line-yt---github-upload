@@ -209,7 +209,7 @@ const workflow = {
     ifNode("photo-already-synced", "Photo Already Synced", "={{ Boolean($json.id) }}", [4000, -180]),
     {
       parameters: {
-        url: "={{ $json.image_url }}",
+        url: "={{ $('Set Photo Phase Context').first().json.image_url }}",
         options: { response: { response: { responseFormat: "file", outputPropertyName: "data" } } },
       },
       id: "download-supabase-photo",
