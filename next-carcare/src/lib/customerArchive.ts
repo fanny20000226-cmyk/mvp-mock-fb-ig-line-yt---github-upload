@@ -1,5 +1,6 @@
 import type { UserProfile } from "./permissions";
 import { supabase } from "./supabase";
+import { authenticatedFetch } from "./authenticatedFetch";
 
 type ArchiveInput = {
   customer_name: string;
@@ -16,7 +17,7 @@ function clean(value?: string | null) {
 }
 
 function notifyCustomerSheetSync(input: ArchiveInput & { customer_id: string; car_id: string; shop_id: string }) {
-  fetch("/api/n8n/realtime-sync", {
+  authenticatedFetch("/api/n8n/realtime-sync", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

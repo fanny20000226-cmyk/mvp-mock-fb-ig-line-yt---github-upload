@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 export type SyncState = "synced" | "pending" | "failed";
 
@@ -29,7 +30,7 @@ export default function SyncStatusBadge({ table, row, syncType, isAdmin, onChang
     setRunning(true);
     try {
       const endpoint = syncType === "salary" ? "/api/hr/salary-sync" : syncType === "appointment" ? "/api/appointments/sync" : "/api/n8n/realtime-sync";
-      const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sync_type: syncType, source_table: table, unique_key: row.id, record: row, operation: "upsert" }) });
+      const response = await authenticatedFetch(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sync_type: syncType, source_table: table, unique_key: row.id, record: row, operation: "upsert" }) });
       const result = (await response.json().catch(() => ({}))) as { message?: string };
       const next = response.ok ? "synced" : "failed";
       await supabase.from(table).update({ sync_status: next, last_sync_at: response.ok ? new Date().toISOString() : row.last_sync_at || null, sync_error: response.ok ? null : result.message || "N8N 同步失敗" }).eq("id", row.id);

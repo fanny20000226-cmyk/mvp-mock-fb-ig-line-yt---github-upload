@@ -6,6 +6,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { listPayments } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import { useUiFeedback } from "@/components/UiFeedback";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 type PaymentSplit = { id: string; method: string; amount: string };
 const paymentAuditKey = "carcare-payment-audit-v1";
@@ -24,7 +25,7 @@ const payTypes = ["現金", "匯款", "刷卡", "訂金", "對公轉帳", "掛�
 const expenseTypes = ["藥水耗材", "耗材物料", "設備維修", "雜項開支", "人工支出", "房租水電"];
 
 function notifyFinanceSheetSync(record: Record<string, unknown>, operation: "insert" | "update") {
-  fetch("/api/n8n/realtime-sync", {
+  authenticatedFetch("/api/n8n/realtime-sync", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

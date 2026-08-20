@@ -7,7 +7,8 @@ export type N8nEventType =
   | "connection_test"
   | "system_test"
   | "sheet_sync"
-  | "sheet_sync_test";
+  | "sheet_sync_test"
+  | "photo_sync";
 
 export type N8nEventPayload = {
   event_no: string;
@@ -54,6 +55,15 @@ type N8nSettings = {
   retry_delay_ms?: number | null;
 };
 
+const syncStatusTables = new Set([
+  "quotations",
+  "customers",
+  "payment",
+  "transaction_record",
+  "salary_records",
+  "appointments",
+]);
+
 export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment";
 
 export type SheetSyncInput = {
@@ -87,6 +97,26 @@ export type CustomerSheetSyncInput = {
   extra?: Record<string, unknown>;
 };
 
+export type PhotoDriveSyncInput = {
+  annotation_id: string;
+  image_url: string;
+  storage_path: string;
+  file_name: string;
+  content_type: string;
+  phase: "before" | "after";
+  uploaded_at: string;
+  shop_id: string;
+  shop_name?: string | null;
+  customer_id: string;
+  customer_name?: string | null;
+  car_id: string;
+  plate?: string | null;
+  model?: string | null;
+  construction_order_id: string;
+  order_no?: string | null;
+  quotation_id?: string | null;
+};
+
 function eventNo(prefix = "N8N") {
   const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
   const random = Math.random().toString(36).slice(2, 7).toUpperCase();
@@ -98,7 +128,9 @@ function todayKey() {
 }
 
 function n8nSecurityKey() {
-  return "peiway-realtime-sync-2026";
+  const secret = process.env.N8N_WEBHOOK_SECRET?.trim();
+  if (!secret) throw new Error("Missing N8N_WEBHOOK_SECRET");
+  return secret;
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 5000) {
@@ -217,14 +249,16 @@ async function blockedByDailyDedup(payload: N8nEventPayload) {
   return false;
 }
 
-export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & { event_no?: string }) {
+export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & { event_no?: string; webhook_url_override?: string }) {
+  const { webhook_url_override: webhookUrlOverride, ...eventInput } = input;
   const settings = await getN8nSettings();
   const payload: N8nEventPayload = {
-    ...input,
-    event_no: input.event_no || eventNo(input.event_type.toUpperCase())
+    ...eventInput,
+    event_no: eventInput.event_no || eventNo(eventInput.event_type.toUpperCase())
   };
+  const webhookUrl = webhookUrlOverride || settings?.webhook_url || "";
 
-  if (!settings?.is_enabled || !settings.webhook_url) {
+  if (!settings?.is_enabled || !webhookUrl) {
     await writeDispatchLog({
       payload,
       dispatch_status: "skipped",
@@ -245,29 +279,42 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
   const outbound = {
     ...payload,
     callback_webhook_url: settings.callback_webhook_url,
+    callback_security_key: n8nSecurityKey(),
     sent_at: new Date().toISOString()
   };
 
   const maxAttempts = Math.max(1, Math.min(6, Number(settings.max_retries || 3)));
   const retryDelay = Math.max(100, Math.min(10000, Number(settings.retry_delay_ms || 800)));
-  const requiresSheetAck = payload.event_type === "sheet_sync" || payload.event_type === "sheet_sync_test";
+  const requiresSyncAck = ["sheet_sync", "sheet_sync_test", "photo_sync"].includes(payload.event_type);
+  const requestTimeoutMs = payload.event_type === "photo_sync" ? 30000 : 5000;
   let finalError = "Unknown N8N dispatch error";
   let finalResponseBody: Record<string, unknown> = {};
   let finalResponseStatus: number | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      const response = await fetchWithTimeout(settings.webhook_url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(outbound) });
+      const response = await fetchWithTimeout(
+        webhookUrl,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-peiway-webhook-secret": n8nSecurityKey(),
+          },
+          body: JSON.stringify(outbound),
+        },
+        requestTimeoutMs,
+      );
       const text = await response.text(); let responseBody: Record<string, unknown> = { text };
       try { responseBody = JSON.parse(text) as Record<string, unknown>; } catch { responseBody = { text }; }
       finalResponseBody = responseBody;
       finalResponseStatus = response.status;
-      const sheetAcknowledged = responseBody.ok === true && String(responseBody.status || "").toLowerCase() === "synced";
-      if (response.ok && (!requiresSheetAck || sheetAcknowledged)) {
+      const syncAcknowledged = responseBody.ok === true && String(responseBody.status || "").toLowerCase() === "synced";
+      if (response.ok && (!requiresSyncAck || syncAcknowledged)) {
         await writeDispatchLog({ payload, dispatch_status: "success", response_status: response.status, response_body: responseBody, attempt_count: attempt });
         return { ok: true, status: response.status, event_no: payload.event_no, response: responseBody, attempts: attempt };
       }
       finalError = response.ok
-        ? `N8N 未回傳 Google Sheets 完成確認：${String(responseBody.message || responseBody.status || text || "empty response")}`
+        ? `N8N 未回傳同步完成確認：${String(responseBody.message || responseBody.status || text || "empty response")}`
         : `${response.status} ${response.statusText}`.trim();
       if (attempt === maxAttempts || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
         await writeDispatchLog({ payload, dispatch_status: "failed", response_status: response.status, response_body: responseBody, error_message: finalError, attempt_count: attempt });
@@ -284,6 +331,60 @@ export async function sendEventToN8n(input: Omit<N8nEventPayload, "event_no"> & 
   }
   await writeDispatchLog({ payload, dispatch_status: "failed", response_status: finalResponseStatus, response_body: finalResponseBody, error_message: finalError, attempt_count: maxAttempts });
   return { ok: false, event_no: payload.event_no, error: finalError, attempts: maxAttempts };
+}
+
+export async function sendPhotoDriveSyncToN8n(input: PhotoDriveSyncInput) {
+  const settings = await getN8nSettings();
+  let photoWebhookUrl = process.env.N8N_PHOTO_WEBHOOK_URL || "";
+  if (!photoWebhookUrl && settings?.webhook_url) {
+    try {
+      const parsed = new URL(settings.webhook_url);
+      const webhookPrefix = parsed.pathname.includes("/webhook-test/") ? "webhook-test" : "webhook";
+      parsed.pathname = `/${webhookPrefix}/peiway-photo-drive`;
+      parsed.search = "";
+      parsed.hash = "";
+      photoWebhookUrl = parsed.toString();
+    } catch (error) {
+      console.error("derive N8N photo webhook raw error", error);
+    }
+  }
+  return sendEventToN8n({
+    event_type: "photo_sync",
+    channel: "google_drive",
+    store_id: input.shop_id,
+    store_name: input.shop_name || null,
+    work_order_id: input.construction_order_id,
+    quotation_id: input.quotation_id || null,
+    plate: input.plate || null,
+    model: input.model || null,
+    receiver: "Google Drive 系統客戶照片",
+    message_template: "PEIWAY work-order photo archive",
+    webhook_url_override: photoWebhookUrl || undefined,
+    content_params: {
+      sync_type: "photo",
+      operation: "upload",
+      annotation_id: input.annotation_id,
+      image_url: input.image_url,
+      storage_path: input.storage_path,
+      file_name: input.file_name,
+      content_type: input.content_type,
+      phase: input.phase,
+      phase_name: input.phase === "after" ? "施工後" : "施工前",
+      uploaded_at: input.uploaded_at,
+      shop_id: input.shop_id,
+      shop_name: input.shop_name || "未設定門店",
+      customer_id: input.customer_id,
+      customer_name: input.customer_name || "未命名客戶",
+      car_id: input.car_id,
+      plate: input.plate || "未填車牌",
+      model: input.model || "",
+      construction_order_id: input.construction_order_id,
+      order_no: input.order_no || input.construction_order_id,
+      quotation_id: input.quotation_id || null,
+      google_drive_root_folder_id: process.env.GOOGLE_DRIVE_PHOTO_ROOT_FOLDER_ID || "1r3-xJbC5OHkgo2ZbSY_NHCzWEEzRqmGJ",
+      security_key: n8nSecurityKey()
+    }
+  });
 }
 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {
@@ -432,7 +533,41 @@ export async function recordN8nCallback(input: N8nCallbackPayload) {
     .single();
 
   if (error) throw error;
+
+  const raw = input.raw_payload || {};
+  const params = raw.content_params && typeof raw.content_params === "object"
+    ? raw.content_params as Record<string, unknown>
+    : {};
+  const sourceTable = String(raw.source_table || params.source_table || "");
+  const uniqueKey = String(raw.unique_key || params.unique_key || "");
+  if (sourceTable && uniqueKey) {
+    await updateSourceSyncStatus({
+      source_table: sourceTable,
+      unique_key: uniqueKey,
+      ok: sendStatus === "success" || sendStatus === "synced",
+      error: errorNote || null,
+    });
+  }
   return data;
+}
+
+export async function updateSourceSyncStatus(input: {
+  source_table: string;
+  unique_key: string;
+  ok: boolean;
+  error?: string | null;
+}) {
+  if (!syncStatusTables.has(input.source_table) || !input.unique_key) return;
+  const admin = getSupabaseAdmin();
+  const { error } = await admin
+    .from(input.source_table)
+    .update({
+      sync_status: input.ok ? "synced" : "failed",
+      last_sync_at: input.ok ? new Date().toISOString() : null,
+      sync_error: input.ok ? null : input.error || "N8N 同步失敗",
+    })
+    .eq("id", input.unique_key);
+  if (error) console.error("sync status update raw error", error);
 }
 
 export async function testN8nConnection(input?: { receiver?: string; message?: string }) {

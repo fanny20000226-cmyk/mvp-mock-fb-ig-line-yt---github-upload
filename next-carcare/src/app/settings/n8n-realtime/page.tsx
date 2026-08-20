@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
+import { authenticatedFetch } from "@/lib/authenticatedFetch";
 
 type TestResult = {
   ok?: boolean;
@@ -46,7 +47,7 @@ export default function N8nRealtimeTestPage() {
   async function runTest(type: "customer" | "finance") {
     setLoadingType(type);
     try {
-      const response = await fetch("/api/n8n/realtime-test", {
+      const response = await authenticatedFetch("/api/n8n/realtime-test", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ type })
@@ -65,7 +66,7 @@ export default function N8nRealtimeTestPage() {
   }
 
   return (
-    <RequireAuth>
+    <RequireAuth allow={["admin"]}>
       <section className="space-y-5">
         <div className="card">
           <p className="text-sm font-black text-carcare-yellow">N8N Realtime Sync</p>

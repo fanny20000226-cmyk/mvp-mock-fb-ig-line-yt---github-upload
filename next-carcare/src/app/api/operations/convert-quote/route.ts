@@ -315,6 +315,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "這張報價單已經轉為工單。" }, { status: 409 });
     }
 
+    const existingOrder = await admin
+      .from("construction_orders")
+      .select("id")
+      .eq("quotation_id", typedQuote.id)
+      .limit(1)
+      .maybeSingle();
+    if (existingOrder.error) throw existingOrder.error;
+    if (existingOrder.data?.id) {
+      return NextResponse.json({ message: "此報價單已轉工單，不可重複轉換" }, { status: 409 });
+    }
+
     const customerId = await ensureCustomer(admin, quoteShopId, typedQuote);
     const carId = await ensureCar(admin, quoteShopId, typedQuote, customerId);
     const totalAmount = Number(body.totalAmount || typedQuote.final_amount || typedQuote.total_amount || 0);
@@ -341,15 +352,6 @@ export async function POST(request: Request) {
         shop_id: quoteShopId,
         car_id: carId,
         quotation_id: typedQuote.id,
-        order_no: orderNo,
-        status: "pending",
-        total_amount: totalAmount,
-        paid_amount: paidAmount,
-        remark,
-      },
-      {
-        shop_id: quoteShopId,
-        car_id: carId,
         order_no: orderNo,
         status: "pending",
         total_amount: totalAmount,
@@ -400,7 +402,11 @@ export async function POST(request: Request) {
       lastQuoteUpdateError = error;
     }
 
-    if (!quoteUpdated) throw lastQuoteUpdateError || new Error("施工單已建立，但報價單狀態回寫失敗。");
+    if (!quoteUpdated) {
+      const rollback = await admin.from("construction_orders").delete().eq("id", createdOrder.id);
+      if (rollback.error) console.error("convert quote rollback raw error", rollback.error);
+      throw lastQuoteUpdateError || new Error("施工單建立失敗，系統已取消本次轉換，請重新操作。");
+    }
 
     void notifyQuoteCustomerSync({
       quote: typedQuote,
@@ -413,6 +419,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, orderId: createdOrder.id, orderNo, carId, customerId });
   } catch (error) {
+    const raw = error as { code?: string };
+    if (raw?.code === "23505") {
+      return NextResponse.json({ message: "此報價單已轉工單，不可重複轉換" }, { status: 409 });
+    }
     return NextResponse.json({ message: errorMessage(error) }, { status: 400 });
   }
 }

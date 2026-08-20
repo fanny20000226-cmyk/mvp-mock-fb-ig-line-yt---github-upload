@@ -1,0 +1,991 @@
+{
+  "name": "PEIWAY 施工照片同步到 Google Drive",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "peiway-photo-drive",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "photo-webhook",
+      "name": "Photo Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1400,
+        0
+      ],
+      "webhookId": "peiway-photo-drive",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const incoming = $input.first().json || {};\nconst payload = incoming.body || incoming;\nconst params = payload.content_params || {};\nconst clean = (value, fallback = '') => {\n  const text = String(value || fallback).trim().replace(/[\\\\/<>:*?|\"'#%{}~&]/g, '_').replace(/\\s+/g, ' ');\n  return text.slice(0, 120) || fallback;\n};\nconst shopName = clean(params.shop_name || payload.store_name || payload.shop_name, '未分類');\nconst supportedBranches = ['三重', '桃園', '新竹', '台南'];\nconst branchName = supportedBranches.find((name) => shopName.includes(name)) || '未分類';\nconst customerId = clean(params.customer_id, 'unknown-customer');\nconst carId = clean(params.car_id, 'unknown-car');\nconst orderId = clean(params.construction_order_id || payload.work_order_id, 'unknown-order');\nconst phase = String(params.phase || 'before') === 'after' ? 'after' : 'before';\nconst phaseName = phase === 'after' ? '施工後' : '施工前';\nconst uploadedAt = String(params.uploaded_at || new Date().toISOString());\nconst stamp = uploadedAt.replace(/[^0-9]/g, '').slice(0, 14) || Date.now().toString();\nconst originalFileName = clean(params.file_name, 'photo.jpg');\nconst annotationId = clean(params.annotation_id, stamp);\nconst customerName = clean(params.customer_name, '未命名客戶');\nconst vehicleName = clean(params.plate || params.model, '未填車牌');\n\nreturn [{ json: {\n  ok: Boolean(params.image_url),\n  error: !params.image_url ? 'missing image_url' : '',\n  event_no: payload.event_no || '',\n  annotation_id: params.annotation_id || '',\n  image_url: params.image_url || '',\n  storage_path: params.storage_path || '',\n  content_type: params.content_type || 'image/jpeg',\n  uploaded_at: uploadedAt,\n  shop_id: params.shop_id || payload.store_id || '',\n  shop_name: shopName,\n  branch_folder_name: clean(branchName, '未分類'),\n  customer_id: params.customer_id || '',\n  customer_folder_name: clean(customerName + '__' + vehicleName + '__' + customerId.slice(0, 8) + '__' + carId.slice(0, 8)),\n  car_id: params.car_id || '',\n  vehicle_folder_name: clean(customerName + '__' + vehicleName),\n  construction_order_id: params.construction_order_id || payload.work_order_id || '',\n  order_no: params.order_no || params.construction_order_id || payload.work_order_id || '',\n  order_folder_name: clean((params.order_no || orderId) + '__' + orderId),\n  phase,\n  phase_folder_name: clean(phaseName),\n  drive_file_name: clean(stamp + '__' + annotationId.slice(0, 12) + '__' + originalFileName, stamp + '__' + annotationId.slice(0, 12) + '__photo.jpg'),\n  google_drive_root_folder_id: params.google_drive_root_folder_id || '1r3-xJbC5OHkgo2ZbSY_NHCzWEEzRqmGJ'\n}}];"
+      },
+      "id": "normalize-photo",
+      "name": "Normalize Photo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "photo-security-valid-condition",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "photo-security-valid",
+      "name": "Photo Security Is Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"name = '\" + $json.branch_folder_name + \"' and '\" + $json.google_drive_root_folder_id + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "id": "search-branch",
+      "name": "Search Branch",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -720,
+        -180
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "branch-exists-condition",
+              "leftValue": "={{ Boolean($json.id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "branch-exists",
+      "name": "Branch Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "={{ $('Normalize Photo').first().json.branch_folder_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Normalize Photo').first().json.google_drive_root_folder_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "create-branch",
+      "name": "Create Branch",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -280,
+        -20
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Normalize Photo').first().json; return [{ json: { ...base, branch_folder_id: $json.id } }];"
+      },
+      "id": "set-branch",
+      "name": "Set Branch Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"name = '\" + $json.customer_folder_name + \"' and '\" + $json.branch_folder_id + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "id": "search-customer",
+      "name": "Search Customer",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        180,
+        -180
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "customer-exists-condition",
+              "leftValue": "={{ Boolean($json.id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "customer-exists",
+      "name": "Customer Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "={{ $('Set Branch Context').first().json.customer_folder_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Set Branch Context').first().json.branch_folder_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "create-customer",
+      "name": "Create Customer",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        620,
+        -20
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Set Branch Context').first().json; return [{ json: { ...base, customer_folder_id: $json.id, customer_vehicle_folder_id: $json.id, vehicle_folder_id: $json.id } }];"
+      },
+      "id": "set-customer",
+      "name": "Set Customer Vehicle Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"name = '\" + $json.order_folder_name + \"' and '\" + $json.vehicle_folder_id + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "id": "search-order",
+      "name": "Search Work Order",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1980,
+        -180
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "order-exists-condition",
+              "leftValue": "={{ Boolean($json.id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "order-exists",
+      "name": "Work Order Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "={{ $('Set Customer Vehicle Context').first().json.order_folder_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Set Customer Vehicle Context').first().json.vehicle_folder_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "create-order",
+      "name": "Create Work Order",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2420,
+        -20
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Set Customer Vehicle Context').first().json; return [{ json: { ...base, work_order_folder_id: $json.id } }];"
+      },
+      "id": "set-order",
+      "name": "Set Work Order Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"name = '\" + $json.phase_folder_name + \"' and '\" + $json.work_order_folder_id + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "id": "search-phase",
+      "name": "Search Photo Phase",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2880,
+        -180
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "phase-exists-condition",
+              "leftValue": "={{ Boolean($json.id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "phase-exists",
+      "name": "Photo Phase Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "={{ $('Set Work Order Context').first().json.phase_folder_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Set Work Order Context').first().json.work_order_folder_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "create-phase",
+      "name": "Create Photo Phase",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3320,
+        -20
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Set Work Order Context').first().json; return [{ json: { ...base, phase_folder_id: $json.id } }];"
+      },
+      "id": "set-phase",
+      "name": "Set Photo Phase Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3560,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "search",
+        "searchMethod": "query",
+        "queryString": "={{ \"name = '\" + $json.drive_file_name + \"' and '\" + $json.phase_folder_id + \"' in parents and trashed = false\" }}",
+        "returnAll": false,
+        "limit": 1,
+        "filter": {},
+        "options": {}
+      },
+      "id": "search-existing-photo",
+      "name": "Search Existing Photo",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3780,
+        -180
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "photo-already-synced-condition",
+              "leftValue": "={{ Boolean($json.id) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "photo-already-synced",
+      "name": "Photo Already Synced",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Set Photo Phase Context').first().json.image_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "download-supabase-photo",
+      "name": "Download Supabase Photo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4220,
+        -20
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "upload",
+        "inputDataFieldName": "data",
+        "name": "={{ $('Set Photo Phase Context').first().json.drive_file_name }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Set Photo Phase Context').first().json.phase_folder_id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "upload-drive-photo",
+      "name": "Upload Photo To Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4440,
+        -20
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "cajZJafxP1SsZT4B",
+          "name": "Google Drive account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, status: 'synced', sync_type: 'photo', event_no: $('Normalize Photo').first().json.event_no, annotation_id: $('Normalize Photo').first().json.annotation_id, file_id: $json.id || '', folder_id: $('Set Photo Phase Context').first().json.phase_folder_id, web_url: $json.webViewLink || ($json.id ? 'https://drive.google.com/file/d/' + $json.id + '/view' : ''), execution_id: $execution.id } }}",
+        "options": {}
+      },
+      "id": "respond-photo-success",
+      "name": "Respond Photo Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        4660,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 401,
+        "responseBody": "={{ { ok: false, status: 'rejected', error: $json.error || 'invalid photo sync payload', execution_id: $execution.id } }}",
+        "options": {}
+      },
+      "id": "respond-photo-invalid",
+      "name": "Respond Photo Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        180
+      ]
+    }
+  ],
+  "connections": {
+    "Photo Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Photo": {
+      "main": [
+        [
+          {
+            "node": "Photo Security Is Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo Security Is Valid": {
+      "main": [
+        [
+          {
+            "node": "Search Branch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Photo Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Branch": {
+      "main": [
+        [
+          {
+            "node": "Branch Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Branch Exists": {
+      "main": [
+        [
+          {
+            "node": "Set Branch Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Branch": {
+      "main": [
+        [
+          {
+            "node": "Set Branch Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Branch Context": {
+      "main": [
+        [
+          {
+            "node": "Search Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Customer": {
+      "main": [
+        [
+          {
+            "node": "Customer Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Exists": {
+      "main": [
+        [
+          {
+            "node": "Set Customer Vehicle Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Customer": {
+      "main": [
+        [
+          {
+            "node": "Set Customer Vehicle Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Customer Vehicle Context": {
+      "main": [
+        [
+          {
+            "node": "Search Work Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Work Order": {
+      "main": [
+        [
+          {
+            "node": "Work Order Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Work Order Exists": {
+      "main": [
+        [
+          {
+            "node": "Set Work Order Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Work Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Work Order": {
+      "main": [
+        [
+          {
+            "node": "Set Work Order Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Work Order Context": {
+      "main": [
+        [
+          {
+            "node": "Search Photo Phase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Photo Phase": {
+      "main": [
+        [
+          {
+            "node": "Photo Phase Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo Phase Exists": {
+      "main": [
+        [
+          {
+            "node": "Set Photo Phase Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Photo Phase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Photo Phase": {
+      "main": [
+        [
+          {
+            "node": "Set Photo Phase Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Photo Phase Context": {
+      "main": [
+        [
+          {
+            "node": "Search Existing Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Existing Photo": {
+      "main": [
+        [
+          {
+            "node": "Photo Already Synced",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Photo Already Synced": {
+      "main": [
+        [
+          {
+            "node": "Respond Photo Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download Supabase Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Supabase Photo": {
+      "main": [
+        [
+          {
+            "node": "Upload Photo To Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Photo To Drive": {
+      "main": [
+        [
+          {
+            "node": "Respond Photo Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei"
+  },
+  "active": false,
+  "versionId": "peiway-photo-drive-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}

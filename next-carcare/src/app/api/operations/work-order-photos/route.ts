@@ -7,12 +7,22 @@ import {
   customerWorkOrderPhotoPath,
   workOrderFolderManifestPath,
 } from "@/lib/carPhotoStorage";
+import { sendPhotoDriveSyncToN8n } from "@/lib/n8nIntegration";
 
 type JsonRow = Record<string, unknown>;
 type Phase = "before" | "after";
+const PHOTO_BRANCHES = ["三重", "桃園", "新竹", "台南"] as const;
 
 function value(row: JsonRow | null | undefined, key: string) {
   return String(row?.[key] || "").trim();
+}
+
+function firstValue(row: JsonRow | null | undefined, keys: string[]) {
+  for (const key of keys) {
+    const current = value(row, key);
+    if (current) return current;
+  }
+  return "";
 }
 
 async function loadOrderContext(request: Request, orderId: string) {
@@ -28,6 +38,8 @@ async function loadOrderContext(request: Request, orderId: string) {
   const quotationId = value(orderRow, "quotation_id");
   let car: JsonRow | null = null;
   let quote: JsonRow | null = null;
+  let customer: JsonRow | null = null;
+  let shop: JsonRow | null = null;
 
   if (quotationId) {
     const result = await admin.from("quotations").select("*").eq("id", quotationId).maybeSingle();
@@ -42,13 +54,20 @@ async function loadOrderContext(request: Request, orderId: string) {
     customerId ||= value(car, "customer_id");
     shopId ||= value(car, "shop_id") || value(car, "store_id");
   }
+  if (customerId) {
+    const result = await admin.from("customers").select("*").eq("id", customerId).maybeSingle();
+    customer = (result.data as JsonRow | null) || null;
+  }
+  if (shopId) {
+    const result = await admin.from("shops").select("*").eq("id", shopId).maybeSingle();
+    shop = (result.data as JsonRow | null) || null;
+  }
 
   if (!shopId) throw new HttpError(400, "施工單尚未綁定門市，請通知管理員補齊資料。");
   if (profile.role !== "admin" && profile.shop_id !== shopId) {
     throw new HttpError(403, "沒有權限讀取其他門市的施工照片。");
   }
   if (profile.role === "admin" && profile.tenant_id) {
-    const { data: shop } = await admin.from("shops").select("tenant_id").eq("id", shopId).maybeSingle();
     if (shop?.tenant_id && String(shop.tenant_id) !== profile.tenant_id) {
       throw new HttpError(403, "沒有權限讀取其他公司的施工照片。");
     }
@@ -64,6 +83,10 @@ async function loadOrderContext(request: Request, orderId: string) {
     shopId,
     carId,
     customerId,
+    shopName: firstValue(shop, ["name", "shop_name", "store_name"]),
+    customerName: firstValue(customer, ["name", "customer_name", "full_name"]),
+    plate: firstValue(car, ["license_plate", "plate_no", "plate", "car_no"]) || firstValue(orderRow, ["license_plate", "plate_no", "plate"]),
+    model: firstValue(car, ["model", "car_model", "vehicle_model"]),
   };
 }
 
@@ -109,6 +132,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const orderId = String(form.get("orderId") || "").trim();
     const phase = String(form.get("phase") || "before") as Phase;
+    const requestedBranch = String(form.get("branchName") || "").trim();
     const file = form.get("file");
     if (!orderId) throw new HttpError(400, "缺少施工單 ID。");
     if (phase !== "before" && phase !== "after") throw new HttpError(400, "施工照片分類不正確。");
@@ -117,6 +141,9 @@ export async function POST(request: Request) {
     if (file.size > 4 * 1024 * 1024) throw new HttpError(400, "單張照片不可超過 4MB，請重新拍攝或縮小圖片後再試。");
 
     const context = await loadOrderContext(request, orderId);
+    const branchName = PHOTO_BRANCHES.find((branch) => branch === requestedBranch)
+      || PHOTO_BRANCHES.find((branch) => context.shopName.includes(branch));
+    if (!branchName) throw new HttpError(400, "請先選擇照片要歸檔的門市。");
     if (!context.customerId) throw new HttpError(400, "施工單尚未綁定客戶，請先補齊客戶資料。");
     if (!context.carId) throw new HttpError(400, "施工單尚未綁定車輛，請先補齊車輛資料。");
 
@@ -136,22 +163,25 @@ export async function POST(request: Request) {
 
     const publicUrl = context.admin.storage.from(CAR_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
     const uploadedAt = new Date().toISOString();
+    const annotationMetadata: JsonRow = {
+      type: `work_order_${phase}`,
+      phase,
+      customer_id: context.customerId,
+      car_id: context.carId,
+      construction_order_id: orderId,
+      order_no: context.orderNo,
+      quotation_id: context.quotationId || null,
+      storage_path: path,
+      uploaded_at: uploadedAt,
+      drive_sync_status: "pending",
+      branch_name: branchName,
+    };
     const { data: annotation, error: insertError } = await context.admin
       .from("image_annotations")
       .insert({
         shop_id: context.shopId,
         image_url: publicUrl,
-        annot_data: {
-          type: `work_order_${phase}`,
-          phase,
-          customer_id: context.customerId,
-          car_id: context.carId,
-          construction_order_id: orderId,
-          order_no: context.orderNo,
-          quotation_id: context.quotationId || null,
-          storage_path: path,
-          uploaded_at: uploadedAt,
-        },
+        annot_data: annotationMetadata,
         created_by: context.profile.id,
       })
       .select("id")
@@ -182,12 +212,61 @@ export async function POST(request: Request) {
       }),
     ]).catch((manifestError) => console.error("work order photo manifest raw error", manifestError));
 
+    const driveSync = await sendPhotoDriveSyncToN8n({
+      annotation_id: annotation.id,
+      image_url: publicUrl,
+      storage_path: path,
+      file_name: file.name || "photo.jpg",
+      content_type: file.type,
+      phase,
+      uploaded_at: uploadedAt,
+      shop_id: context.shopId,
+      shop_name: branchName,
+      customer_id: context.customerId,
+      customer_name: context.customerName,
+      car_id: context.carId,
+      plate: context.plate,
+      model: context.model,
+      construction_order_id: orderId,
+      order_no: context.orderNo,
+      quotation_id: context.quotationId,
+    }).catch((syncError) => {
+      console.error("work order photo Google Drive dispatch raw error", syncError);
+      return { ok: false, error: syncError instanceof Error ? syncError.message : String(syncError) };
+    });
+
+    const driveResponse = "response" in driveSync && driveSync.response && typeof driveSync.response === "object"
+      ? driveSync.response as JsonRow
+      : {};
+    const driveSyncStatus = driveSync.ok && !("skipped" in driveSync && driveSync.skipped) ? "synced" : "failed";
+    await context.admin
+      .from("image_annotations")
+      .update({
+        annot_data: {
+          ...annotationMetadata,
+          drive_sync_status: driveSyncStatus,
+          drive_event_no: "event_no" in driveSync ? driveSync.event_no : null,
+          drive_file_id: value(driveResponse, "file_id") || null,
+          drive_folder_id: value(driveResponse, "folder_id") || null,
+          drive_web_url: value(driveResponse, "web_url") || null,
+          drive_synced_at: driveSyncStatus === "synced" ? new Date().toISOString() : null,
+          drive_sync_error: driveSyncStatus === "failed" && "error" in driveSync ? String(driveSync.error || "N8N 同步未完成") : null,
+        },
+      })
+      .eq("id", annotation.id)
+      .then(({ error }) => {
+        if (error) console.error("work order photo drive metadata raw error", error);
+      });
+
     return NextResponse.json({
       id: annotation.id,
       image_url: publicUrl,
       phase,
       storage_path: path,
-      message: "施工照片已上傳，並依客戶與施工單完成雲端歸檔。",
+      drive_sync_status: driveSyncStatus,
+      message: driveSyncStatus === "synced"
+        ? "施工照片已上傳，並依門店、客戶與施工單完成 Google Drive 歸檔。"
+        : "施工照片已保存至系統雲端；Google Drive 暫待重新同步，不影響現場作業。",
     });
   } catch (error) {
     const result = apiError(error);

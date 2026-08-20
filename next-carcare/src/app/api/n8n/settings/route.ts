@@ -1,20 +1,23 @@
 import { NextResponse } from "next/server";
 import { getN8nSettings, upsertN8nSettings } from "@/lib/n8nIntegration";
+import { apiError, requireServerProfile } from "@/lib/serverAuth";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await requireServerProfile(request, ["admin"]);
     const settings = await getN8nSettings();
     return NextResponse.json(
       settings || { webhook_url: "", callback_webhook_url: "", is_enabled: false }
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load N8N settings";
-    return NextResponse.json({ message }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ message: parsed.message }, { status: parsed.status });
   }
 }
 
 export async function POST(request: Request) {
   try {
+    await requireServerProfile(request, ["admin"]);
     const body = (await request.json()) as {
       webhook_url?: string;
       callback_webhook_url?: string;
@@ -27,7 +30,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to save N8N settings";
-    return NextResponse.json({ message }, { status: 500 });
+    const parsed = apiError(error);
+    return NextResponse.json({ message: parsed.message }, { status: parsed.status });
   }
 }

@@ -10,8 +10,6 @@ type BootstrapBody = {
   setupKey?: string;
 };
 
-const emergencyAdminEmail = "admin@example.com";
-
 type AdminClient = ReturnType<typeof getSupabaseAdmin>;
 type AuthUser = Awaited<
   ReturnType<AdminClient["auth"]["admin"]["listUsers"]>
@@ -83,14 +81,6 @@ function findAuthUserByEmail(authUsers: AuthUser[], email: string) {
   );
 }
 
-function hasEmergencyRepairMarker(authUser: AuthUser | null) {
-  const metadata = authUser?.user_metadata as
-    | { bootstrap_admin_repaired_at?: string }
-    | undefined;
-
-  return Boolean(metadata?.bootstrap_admin_repaired_at);
-}
-
 export async function GET() {
   try {
     const admin = getSupabaseAdmin();
@@ -124,9 +114,16 @@ export async function POST(request: Request) {
     const password = body.password ?? "";
     const name = body.name?.trim() || "Admin";
     const account = body.account?.trim() || "admin";
-    const requiredSetupKey = process.env.ADMIN_BOOTSTRAP_KEY;
+    const requiredSetupKey = process.env.ADMIN_BOOTSTRAP_KEY?.trim();
 
-    if (requiredSetupKey && body.setupKey !== requiredSetupKey) {
+    if (!requiredSetupKey) {
+      return NextResponse.json(
+        { ok: false, message: "ADMIN_BOOTSTRAP_KEY 尚未設定，管理員初始化已停用。" },
+        { status: 503 }
+      );
+    }
+
+    if (body.setupKey !== requiredSetupKey) {
       return NextResponse.json(
         { ok: false, message: "Invalid setup key." },
         { status: 403 }
@@ -150,12 +147,7 @@ export async function POST(request: Request) {
     const admin = getSupabaseAdmin();
     const state = await getUsableAdminState(admin);
     const existingAuthUser = findAuthUserByEmail(state.authUsers, email);
-    const canRunEmergencyRepair =
-      email === emergencyAdminEmail &&
-      Boolean(existingAuthUser) &&
-      !hasEmergencyRepairMarker(existingAuthUser);
-
-    if (state.usableAdminCount > 0 && !canRunEmergencyRepair) {
+    if (state.usableAdminCount > 0) {
       return NextResponse.json(
         { ok: false, message: "A usable admin login already exists." },
         { status: 409 }
@@ -167,9 +159,6 @@ export async function POST(request: Request) {
       name,
       account,
       role: "admin",
-      ...(canRunEmergencyRepair
-        ? { bootstrap_admin_repaired_at: new Date().toISOString() }
-        : {})
     };
 
     if (authUser) {
