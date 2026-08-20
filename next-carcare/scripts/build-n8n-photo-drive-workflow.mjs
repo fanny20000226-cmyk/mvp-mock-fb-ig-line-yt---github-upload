@@ -200,6 +200,13 @@ const workflow = {
     ifNode("phase-exists", "Photo Phase Exists", "={{ Boolean($json.id) }}", [3100, -180]),
     driveFolderNode("create-phase", "Create Photo Phase", "={{ $('Set Work Order Context').first().json.phase_folder_name }}", "={{ $('Set Work Order Context').first().json.work_order_folder_id }}", [3320, -20]),
     codeNode("set-phase", "Set Photo Phase Context", "const base = $('Set Work Order Context').first().json; return [{ json: { ...base, phase_folder_id: $json.id } }];", [3560, -180]),
+    driveSearchNode(
+      "search-existing-photo",
+      "Search Existing Photo",
+      `={{ "name = '" + $json.drive_file_name + "' and '" + $json.phase_folder_id + "' in parents and trashed = false" }}`,
+      [3780, -180],
+    ),
+    ifNode("photo-already-synced", "Photo Already Synced", "={{ Boolean($json.id) }}", [4000, -180]),
     {
       parameters: {
         url: "={{ $json.image_url }}",
@@ -209,7 +216,7 @@ const workflow = {
       name: "Download Supabase Photo",
       type: "n8n-nodes-base.httpRequest",
       typeVersion: 4.2,
-      position: [3780, -180],
+      position: [4220, -20],
       ...retrySettings,
     },
     {
@@ -226,7 +233,7 @@ const workflow = {
       name: "Upload Photo To Drive",
       type: "n8n-nodes-base.googleDrive",
       typeVersion: 3,
-      position: [4000, -180],
+      position: [4440, -20],
       credentials: driveCredential,
       ...retrySettings,
     },
@@ -240,7 +247,7 @@ const workflow = {
       name: "Respond Photo Success",
       type: "n8n-nodes-base.respondToWebhook",
       typeVersion: 1,
-      position: [4220, -180],
+      position: [4660, -180],
     },
     {
       parameters: {
@@ -279,7 +286,9 @@ const workflow = {
     "Search Photo Phase": { main: [[connect("Photo Phase Exists")]] },
     "Photo Phase Exists": { main: [[connect("Set Photo Phase Context")], [connect("Create Photo Phase")]] },
     "Create Photo Phase": { main: [[connect("Set Photo Phase Context")]] },
-    "Set Photo Phase Context": { main: [[connect("Download Supabase Photo")]] },
+    "Set Photo Phase Context": { main: [[connect("Search Existing Photo")]] },
+    "Search Existing Photo": { main: [[connect("Photo Already Synced")]] },
+    "Photo Already Synced": { main: [[connect("Respond Photo Success")], [connect("Download Supabase Photo")]] },
     "Download Supabase Photo": { main: [[connect("Upload Photo To Drive")]] },
     "Upload Photo To Drive": { main: [[connect("Respond Photo Success")]] },
   },
