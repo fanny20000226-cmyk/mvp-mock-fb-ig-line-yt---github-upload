@@ -105,35 +105,31 @@ export default function WorkOrderPhotoUploader({
     const failures: string[] = [];
     try {
       const authorization = await authorizationHeader();
-      let nextIndex = 0;
-      const worker = async () => {
-        while (nextIndex < selectedFiles.length) {
-          const file = selectedFiles[nextIndex];
-          nextIndex += 1;
-          try {
-            const uploadFile = await preparePhoto(file);
-            const form = new FormData();
-            form.set("orderId", orderId);
-            form.set("phase", phase);
-            form.set("branchName", branchName);
-            form.set("file", uploadFile);
-            const response = await fetch("/api/operations/work-order-photos", {
-              method: "POST",
-              headers: { Authorization: authorization },
-              body: form,
-            });
-            const body = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(body.message || `${file.name} 上傳失敗。`);
-            succeeded += 1;
-          } catch (error) {
-            failures.push(`${file.name}：${error instanceof Error ? error.message : "上傳失敗"}`);
-          } finally {
-            setUploadProgress((current) => ({ ...current, completed: current.completed + 1 }));
-          }
+      // Google Drive folder lookup/create is not atomic. Keep one multi-select action,
+      // but archive each photo in order so simultaneous requests cannot create duplicate
+      // customer, work-order, or phase folders.
+      for (const file of selectedFiles) {
+        try {
+          const uploadFile = await preparePhoto(file);
+          const form = new FormData();
+          form.set("orderId", orderId);
+          form.set("phase", phase);
+          form.set("branchName", branchName);
+          form.set("file", uploadFile);
+          const response = await fetch("/api/operations/work-order-photos", {
+            method: "POST",
+            headers: { Authorization: authorization },
+            body: form,
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.message || `${file.name} 上傳失敗。`);
+          succeeded += 1;
+        } catch (error) {
+          failures.push(`${file.name}：${error instanceof Error ? error.message : "上傳失敗"}`);
+        } finally {
+          setUploadProgress((current) => ({ ...current, completed: current.completed + 1 }));
         }
-      };
-      const concurrency = Math.min(3, selectedFiles.length);
-      await Promise.all(Array.from({ length: concurrency }, () => worker()));
+      }
       await load();
       if (failures.length === 0) {
         toast(`${succeeded} 張${phase === "before" ? "施工前" : "施工後"}照片已上傳並完成雲端分類。`, "success");
@@ -196,7 +192,7 @@ export default function WorkOrderPhotoUploader({
         <input ref={galleryInput} type="file" accept="image/*" multiple className="hidden" disabled={uploading} onChange={(event) => upload(event.target.files)} />
       </label>
     </div>
-    {!uploading ? <p className="mt-2 text-xs font-medium text-neutral-500">可一次選取多張照片，系統同時處理最多 3 張並分別同步到雲端。</p> : null}
+    {!uploading ? <p className="mt-2 text-xs font-medium text-neutral-500">可一次選取多張照片，系統會依序完成上傳與雲端分類，避免照片分散到重複資料夾。</p> : null}
 
     {loading ? <p className="text-sm text-neutral-500">讀取雲端照片中…</p> : null}
     {!loading && photos.length === 0 ? <p className="rounded-xl border border-dashed border-neutral-300 p-3 text-sm text-neutral-500">這張施工單尚未上傳施工照片。</p> : null}
