@@ -105,7 +105,7 @@ const clean = (value, fallback = '') => {
 const suppliedKey = String(params.security_key || payload.security_key || '').trim();
 const shopName = clean(params.shop_name || payload.store_name || payload.shop_name, '未分類');
 const supportedBranches = ['三重', '桃園', '新竹', '台南'];
-const branchName = supportedBranches.find((name) => shopName.includes(name)) || shopName;
+const branchName = supportedBranches.find((name) => shopName.includes(name)) || '未分類';
 const customerId = clean(params.customer_id, 'unknown-customer');
 const carId = clean(params.car_id, 'unknown-car');
 const orderId = clean(params.construction_order_id || payload.work_order_id, 'unknown-order');
@@ -114,6 +114,9 @@ const phaseName = phase === 'after' ? '施工後' : '施工前';
 const uploadedAt = String(params.uploaded_at || new Date().toISOString());
 const stamp = uploadedAt.replace(/[^0-9]/g, '').slice(0, 14) || Date.now().toString();
 const originalFileName = clean(params.file_name, 'photo.jpg');
+const annotationId = clean(params.annotation_id, stamp);
+const customerName = clean(params.customer_name, '未命名客戶');
+const vehicleName = clean(params.plate || params.model, '未填車牌');
 
 return [{ json: {
   ok: suppliedKey === 'peiway-realtime-sync-2026' && Boolean(params.image_url),
@@ -128,15 +131,15 @@ return [{ json: {
   shop_name: shopName,
   branch_folder_name: clean(branchName, '未分類'),
   customer_id: params.customer_id || '',
-  customer_folder_name: clean((params.customer_name || '未命名客戶') + '__' + customerId),
+  customer_folder_name: clean(customerName + '__' + vehicleName + '__' + customerId.slice(0, 8) + '__' + carId.slice(0, 8)),
   car_id: params.car_id || '',
-  vehicle_folder_name: clean((params.plate || params.model || '未填車牌') + '__' + carId),
+  vehicle_folder_name: clean(customerName + '__' + vehicleName),
   construction_order_id: params.construction_order_id || payload.work_order_id || '',
   order_no: params.order_no || params.construction_order_id || payload.work_order_id || '',
   order_folder_name: clean((params.order_no || orderId) + '__' + orderId),
   phase,
-  phase_folder_name: clean(phaseName + '__' + orderId),
-  drive_file_name: clean(stamp + '__' + originalFileName, stamp + '__photo.jpg'),
+  phase_folder_name: clean(phaseName),
+  drive_file_name: clean(stamp + '__' + annotationId.slice(0, 12) + '__' + originalFileName, stamp + '__' + annotationId.slice(0, 12) + '__photo.jpg'),
   google_drive_root_folder_id: params.google_drive_root_folder_id || '1r3-xJbC5OHkgo2ZbSY_NHCzWEEzRqmGJ'
 }}];`;
 
@@ -172,16 +175,7 @@ const workflow = {
     ),
     ifNode("customer-exists", "Customer Exists", "={{ Boolean($json.id) }}", [400, -180]),
     driveFolderNode("create-customer", "Create Customer", "={{ $('Set Branch Context').first().json.customer_folder_name }}", "={{ $('Set Branch Context').first().json.branch_folder_id }}", [620, -20]),
-    codeNode("set-customer", "Set Customer Context", "const base = $('Set Branch Context').first().json; return [{ json: { ...base, customer_folder_id: $json.id } }];", [860, -180]),
-    driveSearchNode(
-      "search-vehicle",
-      "Search Vehicle",
-      `={{ "name = '" + $json.vehicle_folder_name + "' and '" + $json.customer_folder_id + "' in parents and mimeType = '${folderMime}' and trashed = false" }}`,
-      [1080, -180],
-    ),
-    ifNode("vehicle-exists", "Vehicle Exists", "={{ Boolean($json.id) }}", [1300, -180]),
-    driveFolderNode("create-vehicle", "Create Vehicle", "={{ $('Set Customer Context').first().json.vehicle_folder_name }}", "={{ $('Set Customer Context').first().json.customer_folder_id }}", [1520, -20]),
-    codeNode("set-vehicle", "Set Vehicle Context", "const base = $('Set Customer Context').first().json; return [{ json: { ...base, vehicle_folder_id: $json.id } }];", [1760, -180]),
+    codeNode("set-customer", "Set Customer Vehicle Context", "const base = $('Set Branch Context').first().json; return [{ json: { ...base, customer_folder_id: $json.id, customer_vehicle_folder_id: $json.id, vehicle_folder_id: $json.id } }];", [860, -180]),
     driveSearchNode(
       "search-order",
       "Search Work Order",
@@ -189,8 +183,8 @@ const workflow = {
       [1980, -180],
     ),
     ifNode("order-exists", "Work Order Exists", "={{ Boolean($json.id) }}", [2200, -180]),
-    driveFolderNode("create-order", "Create Work Order", "={{ $('Set Vehicle Context').first().json.order_folder_name }}", "={{ $('Set Vehicle Context').first().json.vehicle_folder_id }}", [2420, -20]),
-    codeNode("set-order", "Set Work Order Context", "const base = $('Set Vehicle Context').first().json; return [{ json: { ...base, work_order_folder_id: $json.id } }];", [2660, -180]),
+    driveFolderNode("create-order", "Create Work Order", "={{ $('Set Customer Vehicle Context').first().json.order_folder_name }}", "={{ $('Set Customer Vehicle Context').first().json.vehicle_folder_id }}", [2420, -20]),
+    codeNode("set-order", "Set Work Order Context", "const base = $('Set Customer Vehicle Context').first().json; return [{ json: { ...base, work_order_folder_id: $json.id } }];", [2660, -180]),
     driveSearchNode(
       "search-phase",
       "Search Photo Phase",
@@ -272,13 +266,9 @@ const workflow = {
     "Create Branch": { main: [[connect("Set Branch Context")]] },
     "Set Branch Context": { main: [[connect("Search Customer")]] },
     "Search Customer": { main: [[connect("Customer Exists")]] },
-    "Customer Exists": { main: [[connect("Set Customer Context")], [connect("Create Customer")]] },
-    "Create Customer": { main: [[connect("Set Customer Context")]] },
-    "Set Customer Context": { main: [[connect("Search Vehicle")]] },
-    "Search Vehicle": { main: [[connect("Vehicle Exists")]] },
-    "Vehicle Exists": { main: [[connect("Set Vehicle Context")], [connect("Create Vehicle")]] },
-    "Create Vehicle": { main: [[connect("Set Vehicle Context")]] },
-    "Set Vehicle Context": { main: [[connect("Search Work Order")]] },
+    "Customer Exists": { main: [[connect("Set Customer Vehicle Context")], [connect("Create Customer")]] },
+    "Create Customer": { main: [[connect("Set Customer Vehicle Context")]] },
+    "Set Customer Vehicle Context": { main: [[connect("Search Work Order")]] },
     "Search Work Order": { main: [[connect("Work Order Exists")]] },
     "Work Order Exists": { main: [[connect("Set Work Order Context")], [connect("Create Work Order")]] },
     "Create Work Order": { main: [[connect("Set Work Order Context")]] },
@@ -302,3 +292,4 @@ const workflow = {
 
 await writeFile(outputPath, `${JSON.stringify(workflow, null, 2)}\n`, "utf8");
 console.log(`Photo workflow written to ${outputPath}`);
+
