@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import RequireAuth from "@/components/RequireAuth";
 import StatCard from "@/components/StatCard";
+import { useUiFeedback } from "@/components/UiFeedback";
 import { supabase } from "@/lib/supabase";
 import { getCurrentProfile } from "@/lib/auth";
+import type { UserProfile } from "@/lib/permissions";
 
 type OrderRow = {
   id: string;
@@ -23,6 +25,9 @@ type QuoteTodo = {
   quote_no: string;
   status: string;
 };
+
+type TodoState = "done" | "snoozed" | "error";
+type TodoStateRow = { todo_id: string; state: TodoState; snoozed_until: string | null };
 
 const quickLinks = [
   { href: "/operations/paste-reservation", title: "貼上填單", desc: "複製客戶預約資料後貼上，自動整理成預約單。" },
@@ -52,6 +57,8 @@ function todayString() {
 }
 
 export default function DashboardPage() {
+  const { toast } = useUiFeedback();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRole] = useState("");
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [orderCount, setOrderCount] = useState(0);
@@ -60,12 +67,13 @@ export default function DashboardPage() {
   const [quoteCount, setQuoteCount] = useState(0);
   const [chartRows, setChartRows] = useState<{ date: string; amount: number }[]>([]);
   const [quoteTodos, setQuoteTodos] = useState<QuoteTodo[]>([]);
-  const [doneTodos, setDoneTodos] = useState<string[]>([]);
+  const [todoStates, setTodoStates] = useState<Record<string, TodoStateRow>>({});
 
   useEffect(() => {
     async function load() {
       const today = todayString();
       const profile = await getCurrentProfile();
+      setProfile(profile);
       setRole(profile?.role || "");
 
       const [
@@ -109,7 +117,19 @@ export default function DashboardPage() {
       setAttendance((attendanceRows?.length || 0) + (staffAttendanceRows?.length || 0));
       setQuoteCount(quoteResult.count || 0);
       setQuoteTodos((pendingQuotes || []) as QuoteTodo[]);
-      setDoneTodos(JSON.parse(window.localStorage.getItem("carcare-dashboard-done-todos") || "[]") as string[]);
+      const localDone = JSON.parse(window.localStorage.getItem("carcare-dashboard-done-todos") || "[]") as string[];
+      if (profile?.id) {
+        const { data: stateRows, error: stateError } = await supabase
+          .from("user_todo_states")
+          .select("todo_id, state, snoozed_until")
+          .eq("user_id", profile.id);
+        if (!stateError) {
+          const cloudStates = Object.fromEntries(((stateRows || []) as TodoStateRow[]).map((row) => [row.todo_id, row]));
+          setTodoStates({ ...Object.fromEntries(localDone.map((id) => [id, { todo_id: id, state: "done" as const, snoozed_until: null }])), ...cloudStates });
+        } else {
+          setTodoStates(Object.fromEntries(localDone.map((id) => [id, { todo_id: id, state: "done" as const, snoozed_until: null }])));
+        }
+      }
 
       const grouped = new Map<string, number>();
       (payments || []).forEach((row) => {
@@ -162,8 +182,14 @@ export default function DashboardPage() {
           urgent: false,
           overdue: String(order.created_at || "").slice(0, 10) < today,
         })),
-    ].filter((todo) => !doneTodos.includes(todo.id)).filter((todo) => role === "technician" ? todo.id.startsWith("order-") || todo.id.startsWith("pickup-") : role === "frontdesk" ? todo.id.startsWith("quote-") || todo.id.startsWith("order-") : true);
-  }, [doneTodos, orders, quoteTodos, role]);
+    ].filter((todo) => {
+      const state = todoStates[todo.id];
+      if (!state) return true;
+      if (state.state === "done") return false;
+      if (state.state === "snoozed" && state.snoozed_until && new Date(state.snoozed_until).getTime() > Date.now()) return false;
+      return true;
+    }).filter((todo) => role === "technician" ? todo.id.startsWith("order-") || todo.id.startsWith("pickup-") : role === "frontdesk" ? todo.id.startsWith("quote-") || todo.id.startsWith("order-") : true);
+  }, [orders, quoteTodos, role, todoStates]);
 
   const roleLinks = useMemo(() => {
     if (role === "technician") return quickLinks.filter((item) => ["/operations/construction", "/operations/orders", "/operations/calendar", "/operations/cars"].includes(item.href));
@@ -171,10 +197,28 @@ export default function DashboardPage() {
     return quickLinks;
   }, [role]);
 
-  function markTodoDone(id: string) {
-    const next = [...doneTodos, id];
-    setDoneTodos(next);
-    window.localStorage.setItem("carcare-dashboard-done-todos", JSON.stringify(next));
+  async function updateTodoState(id: string, state: TodoState) {
+    const snoozedUntil = state === "snoozed" ? new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() : null;
+    const nextRow: TodoStateRow = { todo_id: id, state, snoozed_until: snoozedUntil };
+    setTodoStates((current) => ({ ...current, [id]: nextRow }));
+    const localDone = Object.values({ ...todoStates, [id]: nextRow }).filter((row) => row.state === "done").map((row) => row.todo_id);
+    window.localStorage.setItem("carcare-dashboard-done-todos", JSON.stringify(localDone));
+    if (!profile?.id || !profile.tenant_id) {
+      toast("待辦狀態已暫存在此裝置，帳號尚未綁定租戶。", "warning");
+      return;
+    }
+    const { error } = await supabase.from("user_todo_states").upsert({
+      tenant_id: profile.tenant_id,
+      shop_id: profile.shop_id,
+      user_id: profile.id,
+      todo_id: id,
+      state,
+      snoozed_until: snoozedUntil,
+      error_message: state === "error" ? "使用者回報資料有誤，請重新檢查或申請。" : null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,todo_id" });
+    if (error) toast("雲端待辦狀態同步失敗，已保留本機紀錄。", "warning");
+    else toast(state === "done" ? "待辦已完成。" : state === "snoozed" ? "已延後 4 小時提醒。" : "已標記有誤，請重新申請或處理。", state === "error" ? "warning" : "success");
   }
 
   return (
@@ -254,14 +298,17 @@ export default function DashboardPage() {
                 className={`rounded-xl border border-neutral-200 bg-white p-4 ${todo.overdue ? "overdue-hint" : ""}`}
               >
                 <p className="font-black">{todo.title}</p>
+                {todoStates[todo.id]?.state === "error" ? <p className="mt-1 text-xs font-bold text-red-700">資料有誤，請重新申請或檢查</p> : null}
                 {todo.overdue ? <p className="mt-1 text-xs font-bold text-amber-700">已逾期，建議優先處理</p> : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link href={todo.href} className="primary-btn">
                     前往處理
                   </Link>
-                  <button className="secondary-btn" type="button" onClick={() => markTodoDone(todo.id)}>
+                  <button className="secondary-btn" type="button" onClick={() => updateTodoState(todo.id, "done")}>
                     標記完成
                   </button>
+                  <button className="secondary-btn" type="button" onClick={() => updateTodoState(todo.id, "snoozed")}>稍後提醒</button>
+                  <button className="secondary-btn" type="button" onClick={() => updateTodoState(todo.id, "error")}>有誤</button>
                 </div>
               </div>
             ))}

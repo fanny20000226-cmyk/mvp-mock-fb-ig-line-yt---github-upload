@@ -24,9 +24,19 @@ export function UiFeedbackProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ toast, confirm }), [confirm, toast]);
   useEffect(() => {
     const nativeAlert = window.alert;
-    window.alert = (message?: unknown) => toast(String(message ?? ""), "info");
+    window.alert = (message?: unknown) => {
+      const text = String(message ?? "");
+      const tone: ToastTone = /失敗|錯誤|異常|無法|未授權/i.test(text) ? "error" : /警告|衝突|缺少|尚未|請先/i.test(text) ? "warning" : /成功|完成|已建立|已更新|已儲存/i.test(text) ? "success" : "info";
+      toast(text, tone);
+    };
     return () => { window.alert = nativeAlert; };
   }, [toast]);
+  useEffect(() => {
+    if (!dialog) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") { dialog.resolve(false); setDialog(null); } };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [dialog]);
   function closeDialog(result: boolean) { dialog?.resolve(result); setDialog(null); }
 
   return <UiFeedbackContext.Provider value={value}>

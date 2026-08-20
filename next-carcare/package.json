@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "security:audit": "node scripts/security-audit.mjs"
+    "security:audit": "node scripts/security-audit.mjs",
+    "security:tenant": "node scripts/tenant-security-audit.mjs",
+    "test:smoke": "node scripts/production-smoke.mjs",
+    "test:integration-contract": "node scripts/integration-contract-audit.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
