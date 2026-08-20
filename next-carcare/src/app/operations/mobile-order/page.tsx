@@ -31,7 +31,7 @@ type QuickItem = {
 type SelectedItem = QuickItem & {
   price: number;
 };
-type WorkTemplate = { id: string; name: string; estimatedHours: number; items: SelectedItem[] };
+type WorkTemplate = { id: string; name: string; estimatedHours: number; items: SelectedItem[]; builtIn?: boolean };
 const templateKey = "carcare-work-templates-v1";
 const draftKey = "carcare-mobile-order-draft-v1";
 
@@ -67,6 +67,31 @@ const interiorItems: QuickItem[] = [
   { id: "seat-passenger", label: "副駕座椅", group: "seat", defaultPrice: 800 },
   { id: "seat-rear", label: "後排座椅", group: "seat", defaultPrice: 1200 },
   { id: "seat-bench", label: "後排連體座椅", group: "seat", defaultPrice: 1600 },
+];
+
+const builtInTemplates: WorkTemplate[] = [
+  {
+    id: "builtin-interior",
+    name: "內裝深層清潔",
+    estimatedHours: 4,
+    builtIn: true,
+    items: [
+      { ...mainItems.find((item) => item.id === "base-interior")!, price: 6800 },
+      { ...interiorItems.find((item) => item.id === "carpet-all")!, price: 2200 },
+      { ...interiorItems.find((item) => item.id === "seat-bench")!, price: 1600 },
+    ],
+  },
+  {
+    id: "builtin-pet",
+    name: "寵物毛髮加強方案",
+    estimatedHours: 5,
+    builtIn: true,
+    items: [
+      { ...mainItems.find((item) => item.id === "base-interior")!, price: 6800 },
+      { ...mainItems.find((item) => item.id === "addon-pet")!, price: 1200 },
+      { ...mainItems.find((item) => item.id === "addon-odor")!, price: 1500 },
+    ],
+  },
 ];
 
 function money(value: number) {
@@ -121,10 +146,13 @@ export default function MobileOrderPage() {
 
   useEffect(() => {
     getCurrentProfile().then(setProfile);
-    try { setTemplates(JSON.parse(localStorage.getItem(templateKey) || "[]") as WorkTemplate[]); } catch { setTemplates([]); }
+    try {
+      const customTemplates = JSON.parse(localStorage.getItem(templateKey) || "[]") as WorkTemplate[];
+      setTemplates([...builtInTemplates, ...customTemplates.filter((item) => !item.builtIn)]);
+    } catch { setTemplates(builtInTemplates); }
     try {
       const draft = JSON.parse(localStorage.getItem(draftKey) || "null") as Record<string, unknown> | null;
-      if (draft) { setCustomerName(String(draft.customerName || "")); setCustomerPhone(String(draft.customerPhone || "")); setPlateNo(String(draft.plateNo || "")); setBrand(String(draft.brand || "")); setCarModel(String(draft.carModel || carTypes[0])); setRemark(String(draft.remark || "")); setDeposit(Number(draft.deposit || 0)); setSelected((draft.selected || {}) as Record<string, SelectedItem>); setLastDraftAt(String(draft.savedAt || "")); }
+      if (draft) { setMode(draft.mode === "new" ? "new" : "existing"); setCustomerName(String(draft.customerName || "")); setCustomerPhone(String(draft.customerPhone || "")); setPlateNo(String(draft.plateNo || "")); setBrand(String(draft.brand || "")); setCarModel(String(draft.carModel || carTypes[0])); setRemark(String(draft.remark || "")); setDeposit(Number(draft.deposit || 0)); setSelected((draft.selected || {}) as Record<string, SelectedItem>); setInteriorOpen(Boolean(draft.interiorOpen)); setLastDraftAt(String(draft.savedAt || "")); }
     } catch { /* ignore invalid local draft */ }
     const sync = () => { setOnline(navigator.onLine); if (navigator.onLine) toast("網路已恢復，可繼續提交本機草稿。", "success"); else toast("目前離線，資料會暫存在本機。", "warning"); };
     setOnline(navigator.onLine); window.addEventListener("online", sync); window.addEventListener("offline", sync); return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
@@ -133,10 +161,10 @@ export default function MobileOrderPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const savedAt = new Date().toISOString();
-      localStorage.setItem(draftKey, JSON.stringify({ customerName, customerPhone, plateNo, brand, carModel, remark, selected, deposit, savedAt })); setLastDraftAt(savedAt);
+      localStorage.setItem(draftKey, JSON.stringify({ mode, customerName, customerPhone, plateNo, brand, carModel, remark, selected, deposit, interiorOpen, savedAt })); setLastDraftAt(savedAt);
     }, 600);
     return () => window.clearTimeout(timer);
-  }, [brand, carModel, customerName, customerPhone, deposit, plateNo, remark, selected]);
+  }, [brand, carModel, customerName, customerPhone, deposit, interiorOpen, mode, plateNo, remark, selected]);
 
   const selectedItems = useMemo(() => Object.values(selected), [selected]);
   const baseSubtotal = selectedItems.filter((item) => item.group === "base").reduce((sum, item) => sum + item.price, 0);
@@ -152,12 +180,18 @@ export default function MobileOrderPage() {
 
   function applyTemplate(template: WorkTemplate) { setSelected(Object.fromEntries(template.items.map((item) => [item.id, item]))); setEstimatedHours(String(template.estimatedHours)); toast(`已套用「${template.name}」，預估 ${template.estimatedHours} 小時。`, "success"); }
   function saveTemplate() {
-    if (!canManageTemplates) return toast("只有店長可以维护施工方案模板。", "error");
+    if (!canManageTemplates) return toast("只有店長可以維護施工方案模板。", "error");
     if (!templateName.trim() || !selectedItems.length) return toast("請先輸入模板名稱並選擇施工項目。", "warning");
-    const next = [...templates.filter((item) => item.name !== templateName.trim()), { id: `tpl-${Date.now()}`, name: templateName.trim(), estimatedHours: Math.max(0.5, Number(estimatedHours || 0)), items: selectedItems }];
-    setTemplates(next); localStorage.setItem(templateKey, JSON.stringify(next)); setTemplateName(""); toast("施工模板已儲存在此裝置。", "success");
+    const customTemplates = templates.filter((item) => !item.builtIn && item.name !== templateName.trim());
+    const custom = { id: `tpl-${Date.now()}`, name: templateName.trim(), estimatedHours: Math.max(0.5, Number(estimatedHours || 0)), items: selectedItems };
+    const next = [...builtInTemplates, ...customTemplates, custom];
+    setTemplates(next); localStorage.setItem(templateKey, JSON.stringify([...customTemplates, custom])); setTemplateName(""); toast("施工模板已儲存在此裝置。", "success");
   }
-  async function deleteTemplate(id: string) { if (!canManageTemplates || !(await confirm({ title: "刪除施工模板", message: "只會刪除此裝置上的模板，確定繼續？", confirmLabel: "確認刪除", tone: "warning" }))) return; const next = templates.filter((item) => item.id !== id); setTemplates(next); localStorage.setItem(templateKey, JSON.stringify(next)); }
+  async function deleteTemplate(id: string) { if (!canManageTemplates || !(await confirm({ title: "刪除施工模板", message: "只會刪除此裝置上的模板，確定繼續？", confirmLabel: "確認刪除", tone: "warning" }))) return; const next = templates.filter((item) => item.id !== id); setTemplates(next); localStorage.setItem(templateKey, JSON.stringify(next.filter((item) => !item.builtIn))); }
+  async function clearDraft() {
+    if (!(await confirm({ title: "清除快速開單草稿", message: "會清除目前尚未送出的客戶、車輛與施工項目，確定繼續？", confirmLabel: "清除草稿", tone: "warning" }))) return;
+    localStorage.removeItem(draftKey); setMode("existing"); setCustomerName(""); setCustomerPhone(""); setPlateNo(""); setBrand(""); setCarModel(carTypes[0]); setRemark(""); setSelected({}); setDeposit(0); setInteriorOpen(false); setLastDraftAt(""); toast("快速開單草稿已清除。", "success");
+  }
 
   function toggleItem(item: QuickItem) {
     setSelected((current) => {
@@ -332,11 +366,11 @@ export default function MobileOrderPage() {
           <p className="text-xs font-black text-carcare-yellow">PEIWAY Mobile</p>
           <h1 className="text-2xl font-black text-neutral-950">行動快速開單</h1>
           <p className="mt-1 text-sm text-neutral-500">手機端卡片式流程：客戶、車輛、施工項目、車內清潔、金額與儲存。</p>
-          <p className="mt-2 text-sm font-bold text-neutral-600">{online ? "● 已連線" : "○ 離線暫存"}・最後草稿：{lastDraftAt ? new Date(lastDraftAt).toLocaleTimeString("zh-TW") : "尚未儲存"}</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-neutral-600">{online ? "● 已連線" : "○ 離線暫存"}・最後草稿：{lastDraftAt ? new Date(lastDraftAt).toLocaleTimeString("zh-TW") : "尚未儲存"}</p>{lastDraftAt ? <button type="button" className="text-sm font-black text-red-700" onClick={clearDraft}>清除草稿</button> : null}</div>
         </header>
 
-        <Card title="常用施工方案" desc="員工可一鍵套用；店長可维护此裝置上的模板。">
-          <div className="grid gap-2 sm:grid-cols-2">{templates.map((template) => <article key={template.id} className="rounded-xl border border-neutral-200 p-3"><button type="button" className="w-full text-left" onClick={() => applyTemplate(template)}><strong className="block text-base">{template.name}</strong><span className="text-sm text-neutral-600">{template.items.length} 項・預估 {template.estimatedHours} 小時</span></button>{canManageTemplates ? <button type="button" className="mt-2 text-sm font-bold text-red-700" onClick={() => deleteTemplate(template.id)}>刪除模板</button> : null}</article>)}</div>
+        <Card title="常用施工方案" desc="內建常用組合可直接套用；店長也可維護此裝置上的模板。">
+          <div className="grid gap-2 sm:grid-cols-2">{templates.map((template) => <article key={template.id} className="rounded-xl border border-neutral-200 p-3"><button type="button" className="w-full text-left" onClick={() => applyTemplate(template)}><strong className="block text-base">{template.name}{template.builtIn ? <span className="ml-2 rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">內建</span> : null}</strong><span className="text-sm text-neutral-600">{template.items.length} 項・預估 {template.estimatedHours} 小時</span></button>{canManageTemplates && !template.builtIn ? <button type="button" className="mt-2 text-sm font-bold text-red-700" onClick={() => deleteTemplate(template.id)}>刪除模板</button> : null}</article>)}</div>
           {canManageTemplates ? <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_8rem_auto]"><label><span className="field-label">模板名稱</span><input className="form-input" value={templateName} onChange={(event) => setTemplateName(event.target.value)} /></label><label><span className="field-label">預估工時</span><input className="form-input" type="number" min="0.5" step="0.5" value={estimatedHours} onChange={(event) => setEstimatedHours(event.target.value)} /></label><button type="button" className="primary-btn self-end" onClick={saveTemplate}>儲存目前方案</button></div> : null}
         </Card>
 
