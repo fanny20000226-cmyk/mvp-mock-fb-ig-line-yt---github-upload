@@ -116,6 +116,7 @@ export type PhotoDriveSyncInput = {
   construction_order_id: string;
   order_no?: string | null;
   quotation_id?: string | null;
+  is_test?: boolean;
 };
 
 function eventNo(prefix = "N8N") {
@@ -382,6 +383,7 @@ export async function sendPhotoDriveSyncToN8n(input: PhotoDriveSyncInput) {
       construction_order_id: input.construction_order_id,
       order_no: input.order_no || input.construction_order_id,
       quotation_id: input.quotation_id || null,
+      is_test: Boolean(input.is_test),
       google_drive_root_folder_id: process.env.GOOGLE_DRIVE_PHOTO_ROOT_FOLDER_ID || "1r3-xJbC5OHkgo2ZbSY_NHCzWEEzRqmGJ",
       security_key: n8nSecurityKey()
     }

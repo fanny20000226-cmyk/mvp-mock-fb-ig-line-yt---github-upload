@@ -15,7 +15,7 @@ jobs:
       VERCEL_ORG_ID: team_60CTxFTEm5VKABqOP3AWDFms
       VERCEL_PROJECT_ID: prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus
       VERCEL_TEAM_SLUG: fanny20000226-1026s-projects
-      VERCEL_DEPLOY_HOOK_URL: "https://api.vercel.com/v1/integrations/deploy/prj_tHNszWFz5YdizDpO2Nz7Fh2CNmus/5FxMhJaBhy"
+      VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       NEXT_PUBLIC_SUPABASE_URL: "https://qhbdjeiieeiynuvlrltp.supabase.co"
     steps:
@@ -35,7 +35,13 @@ jobs:
           vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM_SLUG"
 
       - name: Fallback trigger deploy hook when token is missing
-        if: env.VERCEL_TOKEN == ''
+        if: env.VERCEL_TOKEN == '' && env.VERCEL_DEPLOY_HOOK_URL != ''
         run: |
           echo "VERCEL_TOKEN secret is missing; falling back to Deploy Hook."
           curl --fail --show-error --silent --request POST "$VERCEL_DEPLOY_HOOK_URL"
+
+      - name: Fail when no deployment credential exists
+        if: env.VERCEL_TOKEN == '' && env.VERCEL_DEPLOY_HOOK_URL == ''
+        run: |
+          echo "Neither VERCEL_TOKEN nor VERCEL_DEPLOY_HOOK_URL is configured."
+          exit 1

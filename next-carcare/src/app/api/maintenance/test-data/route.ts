@@ -3,6 +3,7 @@ import { hasMaintenanceSession } from "@/lib/maintenanceAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendSheetSyncToN8n, type SheetSyncKind } from "@/lib/n8nIntegration";
 import { errorMessageZh } from "@/lib/errorMessageZh";
+import { CAR_IMAGE_BUCKET } from "@/lib/carPhotoStorage";
 
 const employeeNo = "TEST-MONITOR-001";
 
@@ -87,9 +88,28 @@ export async function POST(request: Request) {
       }, { status: failed.length === 0 ? 200 : 502 });
     }
     if (action === "cleanup") {
+      const { data: testPhotos, error: testPhotoError } = await admin
+        .from("image_annotations")
+        .select("id,annot_data")
+        .contains("annot_data", { is_test: true })
+        .limit(1000);
+      if (testPhotoError) throw testPhotoError;
+      const photoRows = testPhotos || [];
+      const storagePaths = photoRows
+        .map((row) => String((row.annot_data as Record<string, unknown> | null)?.storage_path || ""))
+        .filter(Boolean);
+      if (storagePaths.length) {
+        const { error } = await admin.storage.from(CAR_IMAGE_BUCKET).remove(storagePaths);
+        if (error) throw error;
+      }
+      const photoIds = photoRows.map((row) => row.id).filter(Boolean);
+      if (photoIds.length) {
+        const { error } = await admin.from("image_annotations").delete().in("id", photoIds);
+        if (error) throw error;
+      }
       const tables = ["staff_attendance", "salary_records", "appointments", "staff_info"];
       for (const table of tables) { const { error } = await admin.from(table).delete().eq("is_test", true); if (error) throw error; }
-      return NextResponse.json({ ok: true, message: "全部測試資料已清理；正式資料未受影響。" });
+      return NextResponse.json({ ok: true, message: `全部測試資料已清理（含 ${photoIds.length} 張測試照片）；正式資料未受影響。` });
     }
     return NextResponse.json({ ok: false, message: "未知的測試動作。" }, { status: 400 });
   } catch (error) {

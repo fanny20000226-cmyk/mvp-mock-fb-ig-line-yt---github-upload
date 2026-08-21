@@ -8,6 +8,7 @@ export type Role =
 
 export type UserProfile = {
   id: string;
+  tenant_id: string | null;
   shop_id: string | null;
   account: string;
   name: string;

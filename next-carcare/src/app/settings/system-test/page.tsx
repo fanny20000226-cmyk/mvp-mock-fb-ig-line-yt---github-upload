@@ -61,16 +61,22 @@ export default function SystemTestPage() {
     [rows, selectedId]
   );
 
-  async function loadReports() {
+  async function loadReports(options: { preserveMessage?: boolean } = {}) {
     setLoading(true);
-    setMessage("");
-    const response = await authenticatedFetch("/api/system-test/reports", { cache: "no-store" });
+    if (!options.preserveMessage) setMessage("");
+    const response = await authenticatedFetch(`/api/system-test/reports?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: { "cache-control": "no-cache" },
+    });
     const data = await response.json();
     if (!response.ok) {
       setMessage(`讀取測試報告失敗：${data.message || "請確認 supabase-step16-system-tests.sql 已執行"}`);
       setRows([]);
     } else {
       setRows((data.rows || []) as TestRun[]);
+      if (data.warning && !options.preserveMessage) {
+        setMessage(`測試報告提示：${data.warning}`);
+      }
     }
     setLoading(false);
   }
@@ -94,11 +100,11 @@ export default function SystemTestPage() {
     } else {
       setMessage("測試完成：已驗證資料寫入、欄位完整性、清理測試資料與 N8N 觸發狀態。");
     }
-    await loadReports();
+    await loadReports({ preserveMessage: true });
   }
 
   useEffect(() => {
-    loadReports();
+    void loadReports();
   }, []);
 
   return (
@@ -146,7 +152,7 @@ export default function SystemTestPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button type="button" className="secondary-btn" onClick={loadReports} disabled={loading}>
+              <button type="button" className="secondary-btn" onClick={() => void loadReports()} disabled={loading}>
                 {loading ? "讀取中..." : "重新整理報告"}
               </button>
               <button type="button" className="primary-btn" onClick={runManualTest} disabled={running}>

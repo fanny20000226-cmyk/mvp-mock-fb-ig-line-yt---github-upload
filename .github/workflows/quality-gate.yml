@@ -1,0 +1,62 @@
+name: CarCare quality gate
+
+on:
+  pull_request:
+    paths:
+      - "next-carcare/**"
+      - ".github/workflows/quality-gate.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "next-carcare/**"
+      - ".github/workflows/quality-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carcare-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: next-carcare
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Security audit
+        run: npm run security:audit
+      - name: Tenant and RLS audit
+        run: npm run security:tenant
+      - name: N8N and Google integration contract
+        run: npm run test:integration-contract
+      - name: TypeScript
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
+      - name: Start production server
+        env:
+          N8N_WEBHOOK_SECRET: ci-only-n8n-secret
+          CRON_SECRET: ci-only-cron-secret
+        run: |
+          npm run start -- -p 3100 > /tmp/carcare-next.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3100/login > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/carcare-next.log
+          exit 1
+      - name: Auth boundary smoke test
+        env:
+          BASE_URL: http://127.0.0.1:3100
+        run: npm run test:smoke

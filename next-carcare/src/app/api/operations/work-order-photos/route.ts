@@ -25,6 +25,10 @@ function firstValue(row: JsonRow | null | undefined, keys: string[]) {
   return "";
 }
 
+function isTestRow(row: JsonRow | null | undefined) {
+  return row?.is_test === true || String(row?.is_test || "").toLowerCase() === "true";
+}
+
 async function loadOrderContext(request: Request, orderId: string) {
   const { profile } = await requireServerProfile(request);
   const admin = getSupabaseAdmin();
@@ -87,6 +91,7 @@ async function loadOrderContext(request: Request, orderId: string) {
     customerName: firstValue(customer, ["name", "customer_name", "full_name"]),
     plate: firstValue(car, ["license_plate", "plate_no", "plate", "car_no"]) || firstValue(orderRow, ["license_plate", "plate_no", "plate"]),
     model: firstValue(car, ["model", "car_model", "vehicle_model"]),
+    isTest: isTestRow(orderRow) || isTestRow(quote) || isTestRow(car) || isTestRow(customer),
   };
 }
 
@@ -175,6 +180,7 @@ export async function POST(request: Request) {
       uploaded_at: uploadedAt,
       drive_sync_status: "pending",
       branch_name: branchName,
+      is_test: context.isTest,
     };
     const { data: annotation, error: insertError } = await context.admin
       .from("image_annotations")
@@ -230,6 +236,7 @@ export async function POST(request: Request) {
       construction_order_id: orderId,
       order_no: context.orderNo,
       quotation_id: context.quotationId,
+      is_test: context.isTest,
     }).catch((syncError) => {
       console.error("work order photo Google Drive dispatch raw error", syncError);
       return { ok: false, error: syncError instanceof Error ? syncError.message : String(syncError) };

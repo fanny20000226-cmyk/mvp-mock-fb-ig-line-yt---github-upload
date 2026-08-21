@@ -47,18 +47,11 @@ type MaintenanceRecord = {
 };
 
 const repairItems = [
-  ["N8N 同步狀態異常修復", "重新檢測同步通道、校正滯留時間與狀態標記"],
-  ["PDF 產生失敗狀態清零修復", "清除殘留錯誤狀態，解除 PDF 生成流程鎖定"],
-  ["資料關聯斷裂安全校正", "標準化空關聯標示，僅修正監控狀態不改營業資料"],
-  ["系統快取殘留清理", "清理後台顯示快取與錯誤快取，降低頁面卡頓"],
-  ["日誌異常排序修復", "依時間重新整理監控日誌，過濾重複告警"],
-  ["權限狀態異常修復", "刷新權限快取與只讀檢查狀態"],
-  ["雲端試算表欄位對齊校正", "重新比對欄位順序與必要表頭"],
-  ["報表統計格式校正", "統一金額、小數位與時間格式"],
-  ["頁面渲染殘留 BUG 修復", "重新整理卡片載入狀態與數字顯示"],
-  ["Webhook 狀態偵測重置", "重新檢測 Webhook 通道與最後回應時間"],
-  ["時間時區校正", "統一系統時間顯示為 Asia/Taipei"],
-  ["重複偵測異常清除", "過濾假錯誤與同類重複告警"]
+  ["同步事件重新關聯", "依事件編號與資料目標合併派送、回呼及重試結果"],
+  ["現行告警重新計算", "只保留每個同步目標的最新未解決狀態"],
+  ["同步通道重新分類", "依 event_type、sync_type 與 source_table 分流，不再用全文關鍵字誤判"],
+  ["測試事件隔離", "排除 is_test 與 Monitor/Codex 測試事件，不污染正式健康分數"],
+  ["Monitor 顯示快取刷新", "清除本次維護工作階段快取並重新讀取正式監控資料"]
 ];
 
 const optimizeItems = [
@@ -103,32 +96,31 @@ function saveHistory(records: MaintenanceRecord[]) {
   window.localStorage.setItem(storageKey(), JSON.stringify(records.slice(0, 80)));
 }
 
-function calcHealthScore(overview: Overview | null, history: MaintenanceRecord[]) {
+function calcHealthScore(overview: Overview | null) {
   const failedStatuses = overview?.statuses.filter((item) => !item.ok).length || 0;
   const failedCounts = overview?.counts.filter((item) => !item.ok).length || 0;
   const anomalies = overview?.anomalies.length || 0;
-  const boost = history[0]?.type === "repair" || history[0]?.type === "optimize" ? 4 : 0;
-  return Math.max(55, Math.min(100, 96 - failedStatuses * 8 - failedCounts * 5 - anomalies * 2 + boost));
+  return Math.max(55, Math.min(100, 96 - failedStatuses * 8 - failedCounts * 5 - anomalies * 2));
 }
 
 function makeRecord(
   type: "repair" | "optimize",
   beforeScore: number,
+  afterScore: number,
   overview: Overview | null
 ): MaintenanceRecord {
   const source = type === "repair" ? repairItems : optimizeItems;
-  const afterScore = Math.min(100, beforeScore + (type === "repair" ? 8 : 5));
   return {
     id: `${type}-${Date.now()}`,
     type,
-    title: type === "repair" ? "一鍵修復全部 BUG" : "一鍵系統優化保養",
+    title: type === "repair" ? "Monitor 告警狀態校正" : "一鍵系統優化保養",
     operator: "最高維護管理員",
     createdAt: new Date().toISOString(),
     beforeScore,
     afterScore,
     summary:
       type === "repair"
-        ? "已完成 12 項安全自癒巡檢：同步狀態、PDF 狀態、資料關聯標示、快取、日誌、權限、試算表欄位、報表格式、頁面渲染、Webhook、時區與重複告警皆已校正。所有動作僅限系統狀態與顯示校正，不修改任何門市營運資料。"
+        ? "已重新關聯派送、回呼與重試結果，依明確事件欄位分類通道，排除測試紀錄後重算現行告警。歷史失敗仍保留於技術日誌；本動作不修改門市營運資料。"
         : "已完成 8 項系統保養巡檢：載入速度、資料庫讀取範圍、N8N 同步效率、Google 試算表穩定性、日誌整理、頁面渲染、權限驗證與 PDF 輸出流程皆已優化。",
     items: source.map(([name, after], index) => ({
       name,
@@ -281,7 +273,7 @@ export default function MaintenanceDashboardPage() {
     setTestMessage(result.message || (response.ok ? "操作完成。" : "操作失敗。")); setTestRunning("");
   }
 
-  async function load() {
+  async function load(): Promise<Overview | null> {
     setLoading(true);
     setError("");
     const response = await fetch("/api/maintenance/overview", {
@@ -291,7 +283,7 @@ export default function MaintenanceDashboardPage() {
     if (response.status === 401) {
       setLoading(false);
       setError("登入狀態尚未生效，請重新登入維護平台。");
-      return;
+      return null;
     }
     const result = (await response.json().catch(() => ({}))) as {
       ok?: boolean;
@@ -301,9 +293,10 @@ export default function MaintenanceDashboardPage() {
     setLoading(false);
     if (!response.ok || !result.ok || !result.overview) {
       setError(result.message || "讀取監控資料失敗。");
-      return;
+      return null;
     }
     setOverview(result.overview);
+    return result.overview;
   }
 
   async function logout() {
@@ -316,7 +309,7 @@ export default function MaintenanceDashboardPage() {
     load();
   }, []);
 
-  const healthScore = useMemo(() => calcHealthScore(overview, history), [overview, history]);
+  const healthScore = useMemo(() => calcHealthScore(overview), [overview]);
 
   const filteredAnomalies = useMemo(() => {
     if (!overview) return [];
@@ -334,7 +327,7 @@ export default function MaintenanceDashboardPage() {
     if (running) return;
     setRunning(type);
     setProgress(8);
-    await load();
+    const refreshedOverview = await load();
     for (const value of [18, 34, 52, 71, 88, 100]) {
       await new Promise((resolve) => setTimeout(resolve, 180));
       setProgress(value);
@@ -342,7 +335,7 @@ export default function MaintenanceDashboardPage() {
     if (type === "repair") {
       window.sessionStorage.clear();
     }
-    const record = makeRecord(type, healthScore, overview);
+    const record = makeRecord(type, healthScore, calcHealthScore(refreshedOverview), refreshedOverview);
     const next = [record, ...loadHistory()].slice(0, 80);
     saveHistory(next);
     setHistory(next);
@@ -423,9 +416,9 @@ export default function MaintenanceDashboardPage() {
         <section className="grid gap-4 lg:grid-cols-[1fr_1fr_280px]">
           <article className="card border-2 border-carcare-yellow">
             <p className="text-sm font-black text-carcare-yellow">Safe Repair</p>
-            <h2 className="mt-1 text-2xl font-black">一鍵修復全部BUG</h2>
+            <h2 className="mt-1 text-2xl font-black">重新校正 Monitor 告警</h2>
             <p className="mt-2 text-sm text-neutral-600">
-              執行12項安全自癒：同步、PDF狀態、快取、權限、欄位對齊、時間與重複告警校正。
+              重新關聯 N8N 派送、回呼與重試結果，排除測試事件，只保留目前尚未解決的告警。
             </p>
             <button
               type="button"
@@ -433,7 +426,7 @@ export default function MaintenanceDashboardPage() {
               disabled={Boolean(running)}
               onClick={() => runMaintenance("repair")}
             >
-              <Wrench size={18} /> 一鍵修復全部BUG
+              <Wrench size={18} /> 校正並重新檢測
             </button>
           </article>
 
@@ -459,7 +452,7 @@ export default function MaintenanceDashboardPage() {
               <span className="text-sm font-black">系統健康分數</span>
             </div>
             <p className="mt-4 text-6xl font-black text-carcare-yellow">{healthScore}</p>
-            <p className="mt-2 text-sm text-white/70">依通道狀態、異常數與最近維護紀錄計算。</p>
+            <p className="mt-2 text-sm text-white/70">依目前通道狀態與未解決異常即時計算。</p>
           </article>
         </section>
 
