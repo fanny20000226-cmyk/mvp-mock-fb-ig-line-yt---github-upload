@@ -63,9 +63,41 @@ const syncStatusTables = new Set([
   "salary_records",
   "appointments",
   "staff_mistake_record",
+  "customer_timeline_events",
+  "customer_followups",
+  "order_workflow_events",
+  "construction_inspections",
+  "work_order_incidents",
+  "appointment_capacity_rules",
+  "appointment_waitlist",
+  "daily_closings",
+  "reconciliation_issues",
+  "refund_records",
+  "payment_corrections",
+  "approval_requests",
+  "notification_center",
 ]);
 
-export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment" | "staff_mistake";
+export type SheetSyncKind =
+  | "customer"
+  | "finance"
+  | "salary"
+  | "employee"
+  | "attendance"
+  | "appointment"
+  | "staff_mistake"
+  | "crm_timeline"
+  | "followup"
+  | "order_workflow"
+  | "inspection"
+  | "incident"
+  | "capacity"
+  | "waitlist"
+  | "closing"
+  | "refund"
+  | "approval"
+  | "notification"
+  | "analytics";
 
 export type SheetSyncInput = {
   sync_type: SheetSyncKind;
@@ -391,23 +423,31 @@ export async function sendPhotoDriveSyncToN8n(input: PhotoDriveSyncInput) {
 }
 
 export async function sendSheetSyncToN8n(input: SheetSyncInput) {
-  const sheetName =
-    input.sync_type === "customer"
-      ? "客戶主檔"
-      : input.sync_type === "salary"
-        ? "每月薪資紀錄"
-        : input.sync_type === "employee"
-          ? "員工人事檔"
-          : input.sync_type === "attendance"
-            ? "出勤紀錄"
-            : input.sync_type === "appointment"
-              ? "預約紀錄"
-              : input.sync_type === "staff_mistake"
-                ? "員工缺失扣款"
-              : "交易財務明細";
+  const sheetNames: Record<SheetSyncKind, string> = {
+    customer: "客戶主檔",
+    finance: "交易財務明細",
+    salary: "每月薪資紀錄",
+    employee: "員工人事檔",
+    attendance: "出勤紀錄",
+    appointment: "預約紀錄",
+    staff_mistake: "員工缺失扣款",
+    crm_timeline: "客戶完整時間軸",
+    followup: "售後回訪紀錄",
+    order_workflow: "訂單流程紀錄",
+    inspection: "施工驗收紀錄",
+    incident: "施工異常紀錄",
+    capacity: "門市產能設定",
+    waitlist: "預約候補名單",
+    closing: "每日關帳核帳",
+    refund: "退款與收款更正",
+    approval: "高風險操作審核",
+    notification: "全域通知中心",
+    analytics: "經營分析報表",
+  };
+  const sheetName = sheetNames[input.sync_type];
   const targetSheetId =
     input.target_sheet_id ||
-    (["salary", "employee", "attendance", "staff_mistake"].includes(input.sync_type)
+    (["salary", "employee", "attendance", "staff_mistake", "incident"].includes(input.sync_type)
       ? process.env.GOOGLE_SALARY_SHEET_ID || process.env.GOOGLE_REPORT_SHEET_ID || ""
       : process.env.GOOGLE_REPORT_SHEET_ID || "");
 

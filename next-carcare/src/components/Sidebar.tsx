@@ -35,7 +35,11 @@ const menuGroups = [
   {
     label: "工作台",
     icon: LayoutDashboard,
-    items: [{ href: "/dashboard", label: "工作台總覽", icon: LayoutDashboard }]
+    items: [
+      { href: "/dashboard", label: "工作台總覽", icon: LayoutDashboard },
+      { href: "/enterprise/dashboard", label: "角色儀表板", icon: ChartNoAxesCombined },
+      { href: "/enterprise/control", label: "ERP / CRM 控制中心", icon: DatabaseBackup }
+    ]
   },
   {
     label: "現場作業",
