@@ -24,7 +24,8 @@ const deductionRows: Array<[keyof StaffSalary, string]> = [
   ["pension_self_pay", "勞退自提"],
   ["sick_leave_deduction", "請假扣款－事病假"],
   ["advance_payment", "預支"],
-  ["kip_penalty", "KPI 未達標扣款"]
+  ["kip_penalty", "KPI 未達標扣款"],
+  ["mistake_deduction", "排程缺失扣款"]
 ];
 
 export default function PeiwaySalaryPdf({ staff, salary }: { staff: StaffInfo; salary: StaffSalary }) {

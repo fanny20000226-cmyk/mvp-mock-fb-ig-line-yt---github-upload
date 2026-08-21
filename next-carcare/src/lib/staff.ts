@@ -78,6 +78,7 @@ export type StaffSalary = {
   sick_leave_deduction: number;
   advance_payment: number;
   kip_penalty: number;
+  mistake_deduction: number;
   gross_amount: number;
   deduction_amount: number;
   net_salary: number;
@@ -99,6 +100,22 @@ export type StaffAttendance = {
   leave_type: string | null;
   leave_hours: number;
   overtime_hours: number;
+};
+
+export type StaffMistakeRecord = {
+  id: string;
+  appointment_id: string;
+  appointment_no?: string | null;
+  employee_no: string;
+  mistake_type: string;
+  description: string;
+  deduct_amount: number;
+  occurred_at: string;
+  is_settled: boolean;
+  settled_salary_id?: string | null;
+  sync_status?: "synced" | "pending" | "failed" | null;
+  last_sync_at?: string | null;
+  sync_error?: string | null;
 };
 
 export type SalaryTotalsInput = Partial<
@@ -126,6 +143,7 @@ export type SalaryTotalsInput = Partial<
     | "sick_leave_deduction"
     | "advance_payment"
     | "kip_penalty"
+    | "mistake_deduction"
   >
 >;
 
@@ -157,7 +175,8 @@ export function calcSalaryTotals(input: SalaryTotalsInput) {
     n(input.pension_self_pay) +
     leaveDeduction +
     n(input.advance_payment) +
-    n(input.kip_penalty);
+    n(input.kip_penalty) +
+    n(input.mistake_deduction);
 
   return {
     overtime_pay: overtimePay,
@@ -237,6 +256,14 @@ export async function loadStaffAttendance(employeeNo: string) {
     .select("id, employee_no, work_date, clock_in_at, clock_out_at, late_minutes, leave_type, leave_hours, overtime_hours")
     .eq("employee_no", employeeNo)
     .order("work_date", { ascending: false });
+}
+
+export async function loadStaffMistakes(employeeNo: string) {
+  return supabase
+    .from("staff_mistake_record")
+    .select("id, appointment_id, appointment_no, employee_no, mistake_type, description, deduct_amount, occurred_at, is_settled, settled_salary_id, sync_status, last_sync_at, sync_error")
+    .eq("employee_no", employeeNo)
+    .order("occurred_at", { ascending: false });
 }
 
 export async function loadStaffModifyRequests(staffId: string) {

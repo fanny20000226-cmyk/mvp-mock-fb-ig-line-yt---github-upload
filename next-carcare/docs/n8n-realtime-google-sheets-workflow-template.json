@@ -188,6 +188,29 @@
               },
               "renameOutput": true,
               "outputKey": "attendance"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "staff-mistake-sync",
+                    "leftValue": "={{ $json.sync_type }}",
+                    "rightValue": "staff_mistake",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "staff_mistake"
             }
           ]
         },
@@ -230,7 +253,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const row = $json.row || {};\nconst salaryId = $json.unique_key || row.id || row.salary_record_id || '';\nreturn [{ json: {\n  \"薪資年/月\": row.salary_month || row.payroll_month || '',\n  \"員工編號\": row.staff_no || row.staff_code || row.employee_no || '',\n  \"員工姓名\": row.staff_name || row.employee_name || row.name || '',\n  \"職稱\": row.position || row.title || '',\n  \"門市\": row.shop_name || row.store_name || row.shop_id || row.store_id || '',\n  \"本薪\": row.base_salary || 0,\n  \"職務津貼\": row.position_allowance || 0,\n  \"伙食津貼\": row.meal_allowance || 0,\n  \"全勤獎金\": row.attendance_bonus || row.full_attendance_bonus || 0,\n  \"加班費\": row.overtime_pay || 0,\n  \"交通津貼\": row.transport_allowance || 0,\n  \"激勵獎金\": row.incentive_bonus || 0,\n  \"外派支援津貼\": row.dispatch_allowance || row.support_allowance || 0,\n  \"應休未休\": row.unused_leave_pay || 0,\n  \"帶人金\": row.mentor_bonus || row.mentoring_bonus || 0,\n  \"績效獎金\": row.performance_bonus || 0,\n  \"業績獎金\": row.sales_bonus || 0,\n  \"勞保費(自付)\": row.labor_insurance_fee || 0,\n  \"健保費(自付)\": row.health_insurance_fee || 0,\n  \"勞退自提\": row.pension_self_pay || row.pension_self || 0,\n  \"事病假扣款\": row.sick_leave_deduction || row.leave_deduction || 0,\n  \"預支\": row.advance_payment || 0,\n  \"kip未達標扣款\": row.kip_penalty || row.kip_deduction || 0,\n  \"應給總額\": row.gross_amount || row.gross_pay || 0,\n  \"應扣總額\": row.deduction_amount || row.total_deduction || 0,\n  \"實領金額\": row.net_salary || row.net_pay || 0,\n  \"建檔時間\": row.created_at || $json.received_at || '',\n  \"建立人\": row.created_by || row.created_by_name || '',\n  \"系統薪資紀錄ID\": salaryId\n}}];"
+        "jsCode": "const row = $json.row || {};\nconst salaryId = $json.unique_key || row.id || row.salary_record_id || '';\nreturn [{ json: {\n  \"薪資年/月\": row.salary_month || row.payroll_month || '',\n  \"員工編號\": row.staff_no || row.staff_code || row.employee_no || '',\n  \"員工姓名\": row.staff_name || row.employee_name || row.name || '',\n  \"職稱\": row.position || row.title || '',\n  \"門市\": row.shop_name || row.store_name || row.shop_id || row.store_id || '',\n  \"本薪\": row.base_salary || 0,\n  \"職務津貼\": row.position_allowance || 0,\n  \"伙食津貼\": row.meal_allowance || 0,\n  \"全勤獎金\": row.attendance_bonus || row.full_attendance_bonus || 0,\n  \"加班費\": row.overtime_pay || 0,\n  \"交通津貼\": row.transport_allowance || 0,\n  \"激勵獎金\": row.incentive_bonus || 0,\n  \"外派支援津貼\": row.dispatch_allowance || row.support_allowance || 0,\n  \"應休未休\": row.unused_leave_pay || 0,\n  \"帶人金\": row.mentor_bonus || row.mentoring_bonus || 0,\n  \"績效獎金\": row.performance_bonus || 0,\n  \"業績獎金\": row.sales_bonus || 0,\n  \"勞保費(自付)\": row.labor_insurance_fee || 0,\n  \"健保費(自付)\": row.health_insurance_fee || 0,\n  \"勞退自提\": row.pension_self_pay || row.pension_self || 0,\n  \"事病假扣款\": row.sick_leave_deduction || row.leave_deduction || 0,\n  \"預支\": row.advance_payment || 0,\n  \"kip未達標扣款\": row.kip_penalty || row.kip_deduction || 0,\n  \"排程缺失扣款\": row.mistake_deduction || 0,\n  \"應給總額\": row.gross_amount || row.gross_pay || 0,\n  \"應扣總額\": row.deduction_amount || row.total_deduction || 0,\n  \"實領金額\": row.net_salary || row.net_pay || 0,\n  \"建檔時間\": row.created_at || $json.received_at || '',\n  \"建立人\": row.created_by || row.created_by_name || '',\n  \"系統薪資紀錄ID\": salaryId\n}}];"
       },
       "id": "code-salary-row",
       "name": "Map Salary Row",
@@ -497,6 +520,51 @@
           "name": "Google Sheets OAuth2 account"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const row = $json.row || {};\nreturn [{ json: {\n  \"缺失紀錄ID\": $json.unique_key || row.id || '',\n  \"排程ID\": row.appointment_id || '',\n  \"排程單號\": row.appointment_no || '',\n  \"員工編號\": row.employee_no || '',\n  \"缺失類型\": row.mistake_type || '',\n  \"缺失說明\": row.description || '',\n  \"扣款金額\": row.deduct_amount || 0,\n  \"發生時間\": row.occurred_at || row.created_at || '',\n  \"是否已結算\": row.is_settled ? '是' : '否',\n  \"結算薪資單ID\": row.settled_salary_id || '',\n  \"門市ID\": row.shop_id || '',\n  \"更新時間\": row.updated_at || $json.received_at || ''\n}}];"
+      },
+      "id": "map-staff-mistake-row",
+      "name": "Map Staff Mistake Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 940]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Validate And Normalize').first().json.target_sheet_id || $vars.GOOGLE_SALARY_SHEET_ID || $vars.GOOGLE_REPORT_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "員工缺失扣款",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": ["缺失紀錄ID"],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "upsert-staff-mistake-sheet",
+      "name": "Upsert Staff Mistake Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1180, 940],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets OAuth2 account"
+        }
+      }
     }
   ],
   "connections": {
@@ -573,6 +641,13 @@
         [
           {
             "node": "Map Attendance Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Map Staff Mistake Row",
             "type": "main",
             "index": 0
           }
@@ -688,6 +763,28 @@
           }
         ]
       ]
+    },
+    "Map Staff Mistake Row": {
+      "main": [
+        [
+          {
+            "node": "Upsert Staff Mistake Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Staff Mistake Sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
@@ -695,7 +792,7 @@
     "executionOrder": "v1"
   },
   "active": false,
-  "versionId": "peiway-realtime-template-v3",
+  "versionId": "peiway-realtime-template-v4",
   "meta": {
     "templateCredsSetupCompleted": false
   },

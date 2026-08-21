@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import RequireAuth from "@/components/RequireAuth";
 import SalaryPdfButton from "@/components/SalaryPdfButton";
 import { getCurrentProfile } from "@/lib/auth";
-import { calcSalaryTotals, money, type StaffInfo, type StaffModifyRequest, type StaffSalary } from "@/lib/staff";
+import { calcSalaryTotals, money, type StaffInfo, type StaffMistakeRecord, type StaffModifyRequest, type StaffSalary } from "@/lib/staff";
 import { supabase } from "@/lib/supabase";
 import { errorMessageZh } from "@/lib/errorMessageZh";
 import SyncStatusBadge from "@/components/SyncStatusBadge";
@@ -43,7 +43,8 @@ const deductionFields = [
   ["pension_self_pay", "勞退自提"],
   ["sick_leave_deduction", "事病假扣款"],
   ["advance_payment", "預支"],
-  ["kip_penalty", "KPI 未達標扣款"]
+  ["kip_penalty", "KPI 未達標扣款"],
+  ["mistake_deduction", "待結算缺失扣款"]
 ] as const;
 const editableRequestFields = ["phone", "mailing_address", "email", "emergency_contact", "emergency_phone", "avatar_url"] as const;
 
@@ -78,7 +79,8 @@ function emptySalaryForm(): SalaryForm {
     leave_day_rate: "0",
     sick_leave_deduction: "0",
     advance_payment: "0",
-    kip_penalty: "0"
+    kip_penalty: "0",
+    mistake_deduction: "0"
   };
 }
 
@@ -91,6 +93,9 @@ export default function PayrollPage() {
   const [salaryRows, setSalaryRows] = useState<StaffSalary[]>([]);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [modifyRows, setModifyRows] = useState<StaffModifyRequest[]>([]);
+  const [mistakeRows, setMistakeRows] = useState<StaffMistakeRecord[]>([]);
+  const [mistakeEmployeeFilter, setMistakeEmployeeFilter] = useState("");
+  const [mistakeDateFilter, setMistakeDateFilter] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
   const [staffForm, setStaffForm] = useState({
     employee_no: "",
@@ -135,6 +140,10 @@ export default function PayrollPage() {
     () => staffRows.find((staff) => staff.employee_no === salaryForm.employee_no),
     [salaryForm.employee_no, staffRows]
   );
+  const filteredMistakeRows = useMemo(
+    () => mistakeRows.filter((row) => (!mistakeEmployeeFilter || row.employee_no === mistakeEmployeeFilter) && (!mistakeDateFilter || row.occurred_at.slice(0, 10) === mistakeDateFilter)),
+    [mistakeDateFilter, mistakeEmployeeFilter, mistakeRows]
+  );
   const salaryTotals = useMemo(() => {
     const raw = Object.fromEntries(
       Object.entries(salaryForm).map(([key, value]) => [key, Number(value || 0)])
@@ -148,12 +157,13 @@ export default function PayrollPage() {
     setProfileShopId(profile?.shop_id || null);
     setProfileId(profile?.id || null);
 
-    const [shopResult, staffResult, salaryResult, attendanceResult, modifyResult] = await Promise.all([
+    const [shopResult, staffResult, salaryResult, attendanceResult, modifyResult, mistakeResult] = await Promise.all([
       supabase.from("shops").select("id, name").order("name"),
       supabase.from("staff_info").select("*").order("employee_no", { ascending: true }),
       supabase.from("salary_records").select("*").order("salary_month", { ascending: false }).order("created_at", { ascending: false }),
       supabase.from("staff_attendance").select("id, employee_no, work_date, late_minutes, leave_type, leave_hours, overtime_hours").order("work_date", { ascending: false }).limit(80),
-      supabase.from("staff_info_modify_request").select("*").order("requested_at", { ascending: false }).limit(80)
+      supabase.from("staff_info_modify_request").select("*").order("requested_at", { ascending: false }).limit(80),
+      supabase.from("staff_mistake_record").select("*").order("occurred_at", { ascending: false }).limit(300)
     ]);
 
     const allStaff = (staffResult.data || []) as StaffInfo[];
@@ -168,6 +178,7 @@ export default function PayrollPage() {
     setSalaryRows(((salaryResult.data || []) as StaffSalary[]).filter((row) => scopedNos.has(row.employee_no)));
     setAttendanceRows(((attendanceResult.data || []) as AttendanceRow[]).filter((row) => scopedNos.has(row.employee_no)));
     setModifyRows(((modifyResult.data || []) as StaffModifyRequest[]).filter((row) => !row.employee_no || scopedNos.has(row.employee_no)));
+    setMistakeRows(((mistakeResult.data || []) as StaffMistakeRecord[]).filter((row) => scopedNos.has(row.employee_no)));
   }
 
   useEffect(() => {
@@ -176,6 +187,9 @@ export default function PayrollPage() {
 
   function fillSalaryDefaults(employeeNo: string) {
     const staff = staffRows.find((row) => row.employee_no === employeeNo);
+    const pendingMistakeTotal = mistakeRows
+      .filter((row) => row.employee_no === employeeNo && !row.is_settled)
+      .reduce((sum, row) => sum + Number(row.deduct_amount || 0), 0);
     setSalaryForm((current) => ({
       ...current,
       employee_no: employeeNo,
@@ -184,7 +198,8 @@ export default function PayrollPage() {
       meal_allowance: String(staff?.meal_allowance_default || 0),
       transport_allowance: String(staff?.transport_allowance_default || 0),
       overtime_rate: String(staff?.overtime_rate_default || 0),
-      leave_day_rate: String(staff?.leave_day_rate_default || 0)
+      leave_day_rate: String(staff?.leave_day_rate_default || 0),
+      mistake_deduction: String(pendingMistakeTotal)
     }));
   }
 
@@ -292,6 +307,7 @@ export default function PayrollPage() {
       sick_leave_deduction: totals.sick_leave_deduction,
       advance_payment: Number(salaryForm.advance_payment || 0),
       kip_penalty: Number(salaryForm.kip_penalty || 0),
+      mistake_deduction: Number(salaryForm.mistake_deduction || 0),
       gross_amount: totals.gross_amount,
       deduction_amount: totals.deduction_amount,
       net_salary: totals.net_salary,
@@ -300,6 +316,14 @@ export default function PayrollPage() {
 
     const { data, error } = await supabase.from("salary_records").insert(payload).select("*").single();
     if (error) return alert(error.message);
+
+    const pendingMistakeIds = mistakeRows.filter((row) => row.employee_no === selectedStaff.employee_no && !row.is_settled).map((row) => row.id);
+    if (pendingMistakeIds.length) {
+      const settled = await supabase.from("staff_mistake_record").update({ is_settled: true, settled_salary_id: data.id }).in("id", pendingMistakeIds);
+      if (settled.error) {
+        alert(`薪資單已建立，但缺失扣款結算標記失敗：${settled.error.message}`);
+      }
+    }
 
     try {
       const response = await authenticatedFetch("/api/hr/salary-sync", {
@@ -540,6 +564,45 @@ export default function PayrollPage() {
               </div>
             ))}
             {!modifyRows.length ? <p className="text-neutral-500">目前沒有資料變更申請。</p> : null}
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-black text-carcare-yellow">Schedule Quality</p>
+              <h2 className="text-xl font-black">員工缺失總覽</h2>
+              <p className="mt-1 text-sm text-neutral-500">由排程登記的缺失與扣款，待結算金額會自動帶入建立薪資單。</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select className="form-input" value={mistakeEmployeeFilter} onChange={(event) => setMistakeEmployeeFilter(event.target.value)}>
+                <option value="">全部員工</option>
+                {staffRows.map((staff) => <option key={staff.employee_no} value={staff.employee_no}>{staff.name} / {staff.employee_no}</option>)}
+              </select>
+              <input className="form-input" type="date" value={mistakeDateFilter} onChange={(event) => setMistakeDateFilter(event.target.value)} />
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {filteredMistakeRows.map((row) => {
+              const staff = staffRows.find((item) => item.employee_no === row.employee_no);
+              return (
+                <article key={row.id} className="rounded-2xl border border-neutral-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black">{staff?.name || row.employee_no} / {row.mistake_type}</p>
+                      <p className="text-sm text-neutral-500">排程 {row.appointment_no || row.appointment_id} · {new Date(row.occurred_at).toLocaleString("zh-TW")}</p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-black ${row.is_settled ? "bg-neutral-100 text-neutral-600" : "bg-carcare-yellow text-carcare-black"}`}>{row.is_settled ? "已結算" : "待結算"}</span>
+                  </div>
+                  <p className="mt-3 rounded-xl bg-neutral-50 p-3 text-sm">{row.description}</p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-lg font-black text-red-600">扣款 {money(row.deduct_amount)}</p>
+                    <SyncStatusBadge table="staff_mistake_record" row={row as StaffMistakeRecord & Record<string, unknown>} syncType="staff_mistake" isAdmin={profileRole === "admin"} onChanged={load} />
+                  </div>
+                </article>
+              );
+            })}
+            {!filteredMistakeRows.length ? <p className="text-neutral-500">目前沒有符合條件的缺失紀錄。</p> : null}
           </div>
         </section>
 
