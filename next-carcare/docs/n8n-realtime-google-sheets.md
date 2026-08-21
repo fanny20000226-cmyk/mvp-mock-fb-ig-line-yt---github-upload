@@ -92,6 +92,7 @@ The system sends this shape:
 - `customer`: upsert into `客戶主檔`
 - `finance`: upsert into `交易財務明細`
 - `salary`: append or upsert into `員工薪資明細表（雲端建檔）`
+- `staff_mistake`: append or update `員工缺失扣款` using `缺失紀錄ID` as the unique key
 
 Use the payload `target_sheet_id` when present. If it is empty, fall back to the matching N8N variable.
 
@@ -104,6 +105,16 @@ Open this page in the system:
 ```
 
 Use the realtime sync test buttons for customer and finance. Salary sync is triggered from the HR payroll page when a salary record is saved.
+
+## Calendar staff mistakes
+
+Run `supabase-step23-calendar-staff-mistakes.sql` before enabling this branch. The migration adds multi-staff appointment assignment, schedule categories, the `staff_mistake_record` table, and the salary deduction field.
+
+The imported workflow template version 4 contains `Map Staff Mistake Row` and `Upsert Staff Mistake Sheet`. Create a Google Sheets tab named `員工缺失扣款` with these headers:
+
+`缺失紀錄ID`, `排程ID`, `排程單號`, `員工編號`, `缺失類型`, `缺失說明`, `扣款金額`, `發生時間`, `是否已結算`, `結算薪資單ID`, `門市ID`, `更新時間`.
+
+The main application only emits a generic N8N system event. It does not contain LINE API calls, LINE tokens, recipient IDs, or message-sending code. Any future forwarding to LINE OA must remain an external N8N decision and is outside the application.
 
 ## Troubleshooting
 

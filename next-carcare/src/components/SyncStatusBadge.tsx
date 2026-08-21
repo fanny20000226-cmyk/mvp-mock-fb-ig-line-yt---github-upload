@@ -18,7 +18,7 @@ const label = { synced: "已同步", pending: "待同步", failed: "同步失敗
 export default function SyncStatusBadge({ table, row, syncType, isAdmin, onChanged }: {
   table: string;
   row: Record<string, unknown> & { id: string; sync_status?: SyncState | null; last_sync_at?: string | null; sync_error?: string | null };
-  syncType: "customer" | "finance" | "salary" | "appointment";
+  syncType: "customer" | "finance" | "salary" | "appointment" | "staff_mistake";
   isAdmin?: boolean;
   onChanged?: () => void;
 }) {

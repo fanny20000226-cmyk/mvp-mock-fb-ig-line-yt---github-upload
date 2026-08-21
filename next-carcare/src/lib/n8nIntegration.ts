@@ -62,9 +62,10 @@ const syncStatusTables = new Set([
   "transaction_record",
   "salary_records",
   "appointments",
+  "staff_mistake_record",
 ]);
 
-export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment";
+export type SheetSyncKind = "customer" | "finance" | "salary" | "employee" | "attendance" | "appointment" | "staff_mistake";
 
 export type SheetSyncInput = {
   sync_type: SheetSyncKind;
@@ -401,10 +402,12 @@ export async function sendSheetSyncToN8n(input: SheetSyncInput) {
             ? "出勤紀錄"
             : input.sync_type === "appointment"
               ? "預約紀錄"
+              : input.sync_type === "staff_mistake"
+                ? "員工缺失扣款"
               : "交易財務明細";
   const targetSheetId =
     input.target_sheet_id ||
-    (["salary", "employee", "attendance"].includes(input.sync_type)
+    (["salary", "employee", "attendance", "staff_mistake"].includes(input.sync_type)
       ? process.env.GOOGLE_SALARY_SHEET_ID || process.env.GOOGLE_REPORT_SHEET_ID || ""
       : process.env.GOOGLE_REPORT_SHEET_ID || "");
 

@@ -3,7 +3,14 @@ import { sendSheetSyncToN8n, type SheetSyncKind, updateSourceSyncStatus } from "
 import { apiError, requireScopedShopId, requireServerProfile } from "@/lib/serverAuth";
 
 function normalizeKind(value: unknown): SheetSyncKind | null {
-  return value === "customer" || value === "finance" || value === "appointment" ? value : null;
+  return value === "customer" || value === "finance" || value === "appointment" || value === "staff_mistake" ? value : null;
+}
+
+function sourceTable(syncType: SheetSyncKind) {
+  if (syncType === "customer") return "customers";
+  if (syncType === "appointment") return "appointments";
+  if (syncType === "staff_mistake") return "staff_mistake_record";
+  return "payment";
 }
 
 export async function POST(request: Request) {
@@ -25,7 +32,7 @@ export async function POST(request: Request) {
     const shopId = await requireScopedShopId(profile, body.store_id);
     const result = await sendSheetSyncToN8n({
       sync_type: syncType,
-      source_table: String(body.source_table || (syncType === "customer" ? "customers" : syncType === "appointment" ? "appointments" : "payment")),
+      source_table: String(body.source_table || sourceTable(syncType)),
       operation: body.operation === "update" || body.operation === "insert" || body.operation === "test" ? body.operation : "upsert",
       unique_key: uniqueKey,
       record: record as Record<string, unknown>,
@@ -35,7 +42,7 @@ export async function POST(request: Request) {
       model: typeof body.model === "string" ? body.model : null
     });
     await updateSourceSyncStatus({
-      source_table: String(body.source_table || (syncType === "customer" ? "customers" : syncType === "appointment" ? "appointments" : "payment")),
+      source_table: String(body.source_table || sourceTable(syncType)),
       unique_key: uniqueKey,
       ok: Boolean(result.ok),
       error: result.ok ? null : "N8N 即時同步失敗",

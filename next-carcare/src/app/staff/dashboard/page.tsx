@@ -9,11 +9,13 @@ import {
   getStaffSession,
   loadStaffAttendance,
   loadStaffModifyRequests,
+  loadStaffMistakes,
   loadStaffProfile,
   loadStaffSalary,
   money,
-type StaffAttendance,
+  type StaffAttendance,
   type StaffInfo,
+  type StaffMistakeRecord,
   type StaffModifyRequest,
   type StaffSalary
 } from "@/lib/staff";
@@ -29,6 +31,8 @@ type StaffAppointment = {
   car_model: string | null;
   service_content: string;
   status: string;
+  schedule_type?: "evaluation" | "construction" | "reminder";
+  assign_staff_ids?: string[];
 };
 
 const changeableFields = [
@@ -69,6 +73,7 @@ export default function StaffDashboardPage() {
   const [attendanceRows, setAttendanceRows] = useState<StaffAttendance[]>([]);
   const [appointmentRows, setAppointmentRows] = useState<StaffAppointment[]>([]);
   const [requests, setRequests] = useState<StaffModifyRequest[]>([]);
+  const [mistakeRows, setMistakeRows] = useState<StaffMistakeRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(currentMonth);
   const [requestForm, setRequestForm] = useState({
@@ -88,13 +93,15 @@ export default function StaffDashboardPage() {
     const profileResult = await loadStaffProfile(session.employee_no);
     const profile = (profileResult.data || null) as StaffInfo | null;
 
-    const [salaryResult, attendanceResult, requestResult, appointmentResult] = await Promise.all([
+    const [salaryResult, attendanceResult, requestResult, mistakeResult, appointmentResult] = await Promise.all([
       loadStaffSalary(session.employee_no),
       loadStaffAttendance(session.employee_no),
       profile?.id ? loadStaffModifyRequests(profile.id) : Promise.resolve({ data: [] }),
+      loadStaffMistakes(session.employee_no),
       supabase
         .from("appointments")
-        .select("id, appointment_no, appoint_date, appoint_time, customer_name, license_plate, car_brand, car_model, service_content, status")
+        .select("id, appointment_no, appoint_date, appoint_time, customer_name, license_plate, car_brand, car_model, service_content, status, schedule_type, assign_staff_ids")
+        .contains("assign_staff_ids", [session.employee_no])
         .gte("appoint_date", new Date().toISOString().slice(0, 10))
         .order("appoint_date", { ascending: true })
         .order("appoint_time", { ascending: true })
@@ -106,6 +113,7 @@ export default function StaffDashboardPage() {
     setAttendanceRows((attendanceResult.data || []) as StaffAttendance[]);
     setAppointmentRows(appointmentResult.error ? [] : ((appointmentResult.data || []) as StaffAppointment[]));
     setRequests((requestResult.data || []) as StaffModifyRequest[]);
+    setMistakeRows(mistakeResult.error ? [] : ((mistakeResult.data || []) as StaffMistakeRecord[]));
     setLoading(false);
   }
 
@@ -181,10 +189,11 @@ export default function StaffDashboardPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <div className="card"><p className="text-sm text-neutral-500">薪資紀錄</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{salaryRows.length}</p></div>
           <div className="card"><p className="text-sm text-neutral-500">出勤紀錄</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{attendanceRows.length}</p></div>
           <div className="card"><p className="text-sm text-neutral-500">最近實領薪資</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{money(salaryRows[0]?.net_salary || 0)}</p></div>
+          <div className="card"><p className="text-sm text-neutral-500">個人缺失紀錄</p><p className="mt-2 text-3xl font-black text-carcare-yellow">{mistakeRows.length}</p></div>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1fr_0.9fr]">
@@ -279,6 +288,27 @@ export default function StaffDashboardPage() {
               </div>
             ))}
             {!monthAttendance.length ? <p className="text-neutral-500">目前沒有這個月份的出勤紀錄。</p> : null}
+          </div>
+        </section>
+
+        <section className="card">
+          <h2 className="text-xl font-black">個人缺失紀錄</h2>
+          <p className="mt-1 text-sm text-neutral-500">此區僅供本人檢視，紀錄由排程管理與人資建立，員工無法編輯。</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {mistakeRows.map((row) => (
+              <article key={row.id} className="rounded-2xl border border-neutral-200 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-black">{row.mistake_type}</p>
+                    <p className="text-sm text-neutral-500">排程 {row.appointment_no || row.appointment_id} / {new Date(row.occurred_at).toLocaleString("zh-TW")}</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-black ${row.is_settled ? "bg-neutral-100 text-neutral-600" : "bg-carcare-yellow text-carcare-black"}`}>{row.is_settled ? "已結算" : "待結算"}</span>
+                </div>
+                <p className="mt-3 rounded-xl bg-neutral-50 p-3 text-sm">{row.description}</p>
+                <p className="mt-3 text-lg font-black text-red-600">扣款 {money(row.deduct_amount)}</p>
+              </article>
+            ))}
+            {!mistakeRows.length ? <p className="text-neutral-500">目前沒有個人缺失紀錄。</p> : null}
           </div>
         </section>
 
