@@ -95,10 +95,11 @@ export default function EnterpriseControlPage() {
   const pendingNotifications = rows("notifications").filter((row) => text(row, "status") === "unread");
   const pendingApprovals = rows("approvals").filter((row) => text(row, "status") === "pending");
   const openIssues = rows("issues").filter((row) => text(row, "status") !== "resolved");
-  const revenue = rows("payments").filter((row) => !row.is_test && !row.is_void).reduce((sum, row) => sum + Number(row.amount || row.paid_amount || 0), 0);
+  const revenueRows = rows("payments").filter((row) => !row.is_test && !row.is_void && Number(row.amount || row.paid_amount || 0) > 0);
+  const revenue = revenueRows.reduce((sum, row) => sum + Number(row.amount || row.paid_amount || 0), 0);
   const shopRevenue = useMemo(() => {
     const map = new Map<string, number>();
-    rows("payments").filter((row) => !row.is_test && !row.is_void).forEach((row) => map.set(String(row.shop_id || ""), (map.get(String(row.shop_id || "")) || 0) + Number(row.amount || row.paid_amount || 0)));
+    revenueRows.forEach((row) => map.set(String(row.shop_id || ""), (map.get(String(row.shop_id || "")) || 0) + Number(row.amount || row.paid_amount || 0)));
     return Array.from(map).map(([id, amount]) => ({ id, amount, name: text(rows("shops").find((shop) => shop.id === id) || {}, "name") })).sort((a, b) => b.amount - a.amount);
   }, [data]);
 
