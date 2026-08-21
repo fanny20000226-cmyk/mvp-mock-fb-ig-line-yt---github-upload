@@ -67,13 +67,14 @@ async function createCustomerSample(shopId: string): Promise<SampleResult> {
     name: `N8N即時同步測試客戶${String(stamp).slice(-4)}`,
     phone: `09${String(stamp).slice(-8)}`,
     store_id: shopId,
-    source_channel: "system-realtime-test",
+    is_test: true,
     created_at: nowIso(),
     updated_at: nowIso()
   };
   const inserted = await insertFirstWorking("customers", [
     sample,
-    { name: sample.name, phone: sample.phone, shop_id: shopId },
+    { name: sample.name, phone: sample.phone, shop_id: shopId, is_test: true },
+    { name: sample.name, phone: sample.phone, is_test: true },
     { name: sample.name, phone: sample.phone }
   ]);
 
@@ -109,12 +110,20 @@ async function createFinanceSample(shopId: string): Promise<SampleResult> {
     pay_amount: 1680,
     pay_method: "system-realtime-test",
     pay_time: nowIso(),
+    is_test: true,
     created_at: nowIso(),
     updated_at: nowIso()
   };
 
   const inserted = await insertFirstWorking("transaction_record", [
     sample,
+    {
+      store_id: sample.store_id,
+      pay_amount: sample.pay_amount,
+      pay_method: sample.pay_method,
+      pay_time: sample.pay_time,
+      is_test: true
+    },
     {
       store_id: sample.store_id,
       pay_amount: sample.pay_amount,

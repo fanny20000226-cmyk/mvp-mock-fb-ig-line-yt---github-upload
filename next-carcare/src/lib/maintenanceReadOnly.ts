@@ -34,13 +34,162 @@ const countTargets = [
 ];
 
 const syncChannels = [
-  { key: "customer", label: "客戶", keyword: "customer" },
-  { key: "quotation", label: "報價", keyword: "quotation" },
-  { key: "salary", label: "人資薪資", keyword: "salary" },
-  { key: "attendance", label: "出勤", keyword: "attendance" },
-  { key: "appointment", label: "預約", keyword: "appointment" },
-  { key: "finance", label: "財務", keyword: "finance" }
-];
+  { key: "customer", label: "客戶" },
+  { key: "quotation", label: "報價" },
+  { key: "salary", label: "人資薪資" },
+  { key: "attendance", label: "出勤" },
+  { key: "appointment", label: "預約" },
+  { key: "finance", label: "財務" },
+  { key: "photo", label: "施工照片" }
+] as const;
+
+type SyncChannelKey = (typeof syncChannels)[number]["key"];
+type SyncLogRow = Record<string, unknown>;
+type ResolvedSyncEvent = {
+  channel: SyncChannelKey;
+  correlationKey: string;
+  eventNo: string;
+  happenedAt: string | null;
+  status: string;
+  error: string;
+  row: SyncLogRow;
+};
+
+function objectValue(value: unknown): SyncLogRow {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as SyncLogRow : {};
+}
+
+function nestedLogValues(row: SyncLogRow) {
+  const raw = objectValue(row.raw_payload);
+  const params = {
+    ...objectValue(raw.content_params),
+    ...objectValue(row.content_params)
+  };
+  const record = {
+    ...objectValue(objectValue(raw.content_params).record),
+    ...objectValue(params.record)
+  };
+  return { raw, params, record };
+}
+
+function logTime(row: SyncLogRow) {
+  const raw = row.callback_time || row.dispatched_at || row.send_time || row.created_at || row.updated_at;
+  return raw ? String(raw) : null;
+}
+
+function logStatus(row: SyncLogRow) {
+  return String(row.callback_status || row.dispatch_status || row.status || row.send_status || "").toLowerCase();
+}
+
+function isFailedStatus(status: string) {
+  return status.includes("fail") || status.includes("error");
+}
+
+function isPendingStatus(status: string) {
+  return status.includes("pending") || status.includes("queue");
+}
+
+function classifySyncChannel(row: SyncLogRow): SyncChannelKey | null {
+  const { raw, params } = nestedLogValues(row);
+  const eventType = String(row.event_type || raw.event_type || "").toLowerCase();
+  const syncType = String(params.sync_type || raw.sync_type || "").toLowerCase();
+  const sourceTable = String(params.source_table || raw.source_table || "").toLowerCase();
+
+  if (eventType.includes("photo") || syncType === "photo") return "photo";
+  if (syncType === "customer" || ["customers", "cars"].includes(sourceTable)) return "customer";
+  if (["quotation", "quote", "work_order"].includes(syncType) || ["quotations", "construction_orders"].includes(sourceTable)) return "quotation";
+  if (["salary", "employee", "payroll"].includes(syncType) || ["salary_records", "staff_info", "employees"].includes(sourceTable)) return "salary";
+  if (syncType === "attendance" || ["staff_attendance", "attendance_log"].includes(sourceTable)) return "attendance";
+  if (["appointment", "reservation"].includes(syncType) || ["appointments", "reservations"].includes(sourceTable)) return "appointment";
+  if (["finance", "payment", "transaction"].includes(syncType) || ["payment", "transaction_record"].includes(sourceTable)) return "finance";
+
+  if (eventType.includes("customer")) return "customer";
+  if (eventType.includes("quotation") || eventType.includes("quote")) return "quotation";
+  if (eventType.includes("salary") || eventType.includes("payroll") || eventType.includes("employee")) return "salary";
+  if (eventType.includes("attendance")) return "attendance";
+  if (eventType.includes("appointment") || eventType.includes("reservation")) return "appointment";
+  if (eventType.includes("finance") || eventType.includes("payment")) return "finance";
+  return null;
+}
+
+function isTestSyncLog(row: SyncLogRow) {
+  const { raw, params, record } = nestedLogValues(row);
+  if (row.is_test === true || raw.is_test === true || params.is_test === true || record.is_test === true) return true;
+  const markerText = [
+    row.event_no,
+    params.customer_name,
+    params.order_no,
+    params.unique_key,
+    record.name,
+    record.customer_name,
+    record.appointment_no,
+    record.employee_no
+  ].map((value) => String(value || "").toLowerCase()).join(" ");
+  return markerText.includes("monitor 測試")
+    || markerText.includes("codex連動總檢查")
+    || markerText.includes("cx-test")
+    || markerText.includes("test-monitor")
+    || markerText.includes("test-a");
+}
+
+function mergeNonEmptyRows(rows: SyncLogRow[]) {
+  return rows.reduce<SyncLogRow>((merged, row) => {
+    Object.entries(row).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== "") merged[key] = value;
+    });
+    return merged;
+  }, {});
+}
+
+function eventCorrelationKey(row: SyncLogRow, channel: SyncChannelKey, eventNo: string) {
+  const { raw, params } = nestedLogValues(row);
+  const target = params.storage_path
+    || params.annotation_id
+    || params.unique_key
+    || raw.unique_key
+    || row.work_order_id
+    || row.plate;
+  return target ? `${channel}:${String(target)}` : `${channel}:event:${eventNo}`;
+}
+
+function resolvedSyncEvents(dispatchLogs: SyncLogRow[], callbackLogs: SyncLogRow[]) {
+  const byEvent = new Map<string, SyncLogRow[]>();
+  [...dispatchLogs, ...callbackLogs].forEach((row) => {
+    if (isTestSyncLog(row)) return;
+    const eventNo = String(row.event_no || row.id || "");
+    if (!eventNo) return;
+    const current = byEvent.get(eventNo) || [];
+    current.push(row);
+    byEvent.set(eventNo, current);
+  });
+
+  const events: ResolvedSyncEvent[] = [];
+  byEvent.forEach((rows, eventNo) => {
+    const ordered = [...rows].sort((a, b) => String(logTime(a) || "").localeCompare(String(logTime(b) || "")));
+    const latest = ordered[ordered.length - 1];
+    const merged = mergeNonEmptyRows(ordered);
+    const channel = classifySyncChannel(merged);
+    if (!channel) return;
+    events.push({
+      channel,
+      correlationKey: eventCorrelationKey(merged, channel, eventNo),
+      eventNo,
+      happenedAt: logTime(latest),
+      status: logStatus(latest),
+      error: String(latest.error_message || latest.error_note || latest.error || merged.error_message || merged.error_note || "同步失敗"),
+      row: merged
+    });
+  });
+
+  const latestByTarget = new Map<string, ResolvedSyncEvent>();
+  events.forEach((event) => {
+    const current = latestByTarget.get(event.correlationKey);
+    if (!current || String(event.happenedAt || "").localeCompare(String(current.happenedAt || "")) > 0) {
+      latestByTarget.set(event.correlationKey, event);
+    }
+  });
+  return Array.from(latestByTarget.values());
+}
 
 function errorMessage(error: unknown) {
   if (!error) return "";
@@ -98,32 +247,27 @@ async function tableConnectionStatus(): Promise<StatusResult> {
 async function syncStatuses(): Promise<StatusResult[]> {
   const logs = await safeRows<Record<string, unknown>>("n8n_event_dispatch_logs", 500);
   const callbacks = await safeRows<Record<string, unknown>>("n8n_callback_logs", 500);
+  const resolved = resolvedSyncEvents(logs, callbacks);
   return syncChannels.map((channel) => {
-    const channelLogs = [...logs, ...callbacks].filter((row) => {
-      const source = JSON.stringify(row).toLowerCase();
-      return source.includes(channel.keyword);
-    }).sort((a, b) => String(b.created_at || b.callback_time || b.send_time || b.updated_at || "").localeCompare(String(a.created_at || a.callback_time || a.send_time || a.updated_at || "")));
-    const statusOf = (row: Record<string, unknown>) => String(row.status || row.dispatch_status || row.callback_status || row.send_status || "").toLowerCase();
-    const failed = channelLogs.filter((row) => {
-      const status = statusOf(row);
-      return status.includes("fail") || status.includes("error") || status.includes("failed");
-    });
-    const latest = channelLogs[0];
-    const latestStatus = latest ? statusOf(latest) : "";
-    const latestFailed = latestStatus.includes("fail") || latestStatus.includes("error");
-    const latestPending = latestStatus.includes("pending") || latestStatus.includes("queue");
+    const channelEvents = resolved
+      .filter((event) => event.channel === channel.key)
+      .sort((a, b) => String(b.happenedAt || "").localeCompare(String(a.happenedAt || "")));
+    const failed = channelEvents.filter((event) => isFailedStatus(event.status));
+    const pending = channelEvents.filter((event) => isPendingStatus(event.status));
+    const latest = channelEvents[0];
+    const ok = failed.length === 0 && pending.length === 0;
     return {
       key: channel.key,
       label: `N8N ${channel.label}通道`,
-      ok: Boolean(latest) && !latestFailed && !latestPending,
+      ok,
       detail: !latest
-        ? "尚無同步紀錄，請確認 N8N 是否已接收過此類資料。"
-        : latestFailed
-          ? `最近一次同步失敗：${String(latest.error_message || latest.error_note || latest.error || "請至 N8N 查看詳細紀錄。")}`
-          : latestPending
-            ? "最近一次同步仍在等待處理。"
+        ? "尚無正式同步紀錄，目前沒有未解決告警。"
+        : failed.length
+          ? `尚有 ${failed.length} 筆未解決同步失敗：${failed[0].error}`
+          : pending.length
+            ? `尚有 ${pending.length} 筆同步等待處理。`
             : "最近一次同步已完成。",
-      lastSync: String(latest?.created_at || latest?.callback_time || latest?.send_time || latest?.updated_at || "") || null,
+      lastSync: latest?.happenedAt || null,
       failedCount: failed.length
     };
   });
@@ -182,14 +326,13 @@ async function detectAnomalies(): Promise<Anomaly[]> {
     }
   });
 
-  [...dispatchLogs, ...callbackLogs].forEach((log) => {
-    const status = String(log.status || log.dispatch_status || log.send_status || "").toLowerCase();
-    if (status.includes("fail") || status.includes("error") || status.includes("failed")) {
+  resolvedSyncEvents(dispatchLogs, callbackLogs).forEach((event) => {
+    if (isFailedStatus(event.status)) {
       anomalies.push({
         category: "N8N Webhook同步失敗",
-        ref: String(log.event_no || log.id || "-"),
-        happenedAt: String(log.created_at || log.send_time || "") || null,
-        detail: String(log.error_message || log.error_note || log.error || "同步失敗")
+        ref: event.eventNo,
+        happenedAt: event.happenedAt,
+        detail: event.error
       });
     }
   });

@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendEventToN8n } from "@/lib/n8nIntegration";
 import type { Role } from "@/lib/permissions";
+import { HttpError } from "@/lib/serverAuth";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -185,13 +186,13 @@ export async function assertSystemTestAccess(request: Request, mode: SystemTestM
   }
 
   const token = authHeader.replace("Bearer ", "");
-  if (!token) throw new Error("請先登入後再執行資料庫傳送測試。");
+  if (!token) throw new HttpError(401, "請先登入後再執行資料庫傳送測試。");
 
   const client = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
   const { data: authUser, error: authError } = await client.auth.getUser(token);
-  if (authError || !authUser.user?.id) throw new Error("登入狀態已失效，請重新登入。");
+  if (authError || !authUser.user?.id) throw new HttpError(401, "登入狀態已失效，請重新登入。");
 
   const { data, error } = await client
     .from("users")
@@ -199,8 +200,8 @@ export async function assertSystemTestAccess(request: Request, mode: SystemTestM
     .eq("id", authUser.user.id)
     .eq("active", true)
     .single();
-  if (error || !data) throw new Error("找不到有效管理員帳號。");
-  if (!allowedRoles.includes(data.role as Role)) throw new Error("只有總管理員或店長可以執行自動測試。");
+  if (error || !data) throw new HttpError(403, "找不到有效管理員帳號。");
+  if (!allowedRoles.includes(data.role as Role)) throw new HttpError(403, "只有總管理員或店長可以執行自動測試。");
   return data as Profile;
 }
 

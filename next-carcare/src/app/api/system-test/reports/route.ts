@@ -3,6 +3,11 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { apiError, requireServerProfile } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+const noStoreHeaders = {
+  "cache-control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+};
 
 type DispatchLogRow = {
   id: string;
@@ -74,7 +79,10 @@ export async function GET(request: Request) {
     await requireServerProfile(request, ["admin", "shop_manager"]);
   } catch (error) {
     const parsed = apiError(error);
-    return NextResponse.json({ rows: [], message: parsed.message }, { status: parsed.status });
+    return NextResponse.json(
+      { rows: [], message: parsed.message },
+      { status: parsed.status, headers: noStoreHeaders }
+    );
   }
   const admin = getSupabaseAdmin();
 
@@ -88,24 +96,30 @@ export async function GET(request: Request) {
       .limit(50);
 
     if (error) throw error;
-    return NextResponse.json({ rows: data || [] });
+    return NextResponse.json({ rows: data || [] }, { headers: noStoreHeaders });
   } catch (error) {
     const message = errorMessage(error);
     if (message.includes("system_test_runs")) {
       try {
         const rows = await readFallbackReports(admin);
-        return NextResponse.json({
-          rows,
-          warning: "system_test_runs 尚未建立，暫時改讀 N8N 發送紀錄。",
-        });
+        return NextResponse.json(
+          {
+            rows,
+            warning: "system_test_runs 尚未建立，暫時改讀 N8N 發送紀錄。",
+          },
+          { headers: noStoreHeaders }
+        );
       } catch (fallbackError) {
-        return NextResponse.json({
-          rows: [],
-          warning: errorMessage(fallbackError),
-        });
+        return NextResponse.json(
+          {
+            rows: [],
+            warning: errorMessage(fallbackError),
+          },
+          { headers: noStoreHeaders }
+        );
       }
     }
 
-    return NextResponse.json({ rows: [], warning: message });
+    return NextResponse.json({ rows: [], warning: message }, { headers: noStoreHeaders });
   }
 }
