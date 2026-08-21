@@ -27,7 +27,8 @@ export default function EnterpriseDashboard() {
   const role = data.profile?.role || "worker";
   const orders = list(data, "orders"), appointments = list(data, "appointments"), incidents = list(data, "incidents"), notifications = list(data, "notifications");
   const payments = list(data, "payments"), approvals = list(data, "approvals"), closings = list(data, "closings");
-  const revenue = useMemo(() => payments.filter((row) => !row.is_test && !row.is_void).reduce((sum, row) => sum + Number(row.amount || row.paid_amount || 0), 0), [payments]);
+  const revenuePayments = useMemo(() => payments.filter((row) => !row.is_test && !row.is_void && Number(row.amount || row.paid_amount || 0) > 0), [payments]);
+  const revenue = useMemo(() => revenuePayments.reduce((sum, row) => sum + Number(row.amount || row.paid_amount || 0), 0), [revenuePayments]);
   const inProgress = orders.filter((row) => ["in_progress", "施工中"].includes(text(row, "workflow_status", "status"))).length;
   const pendingInspection = orders.filter((row) => ["pending_inspection", "待驗收"].includes(text(row, "workflow_status", "status"))).length;
   const openIncidents = incidents.filter((row) => !row.handled).length;
