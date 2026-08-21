@@ -139,7 +139,9 @@ export default function CalendarPage() {
   const [mistakeRow, setMistakeRow] = useState<AppointmentRow | null>(null);
   const [mistakeSaving, setMistakeSaving] = useState(false);
   const [mistakeForm, setMistakeForm] = useState({ employee_no: "", mistake_type: "施工缺失", description: "", deduct_amount: "0" });
+  const [mobileFormOpen, setMobileFormOpen] = useState(false);
   const canWrite = canWriteAppointment(profile?.role);
+  const appointmentFormOpen = mobileFormOpen || Boolean(form.id);
 
   async function load() {
     const currentProfile = await getCurrentProfile();
@@ -227,6 +229,7 @@ export default function CalendarPage() {
   }
 
   function editRow(row: AppointmentRow) {
+    setMobileFormOpen(true);
     setForm({
       id: row.id,
       customer_id: row.customer_id || "",
@@ -380,6 +383,7 @@ export default function CalendarPage() {
       }
 
       setForm(emptyForm());
+      setMobileFormOpen(false);
       await load();
       alert("預約已儲存，並已送出 N8N/Google Sheets 同步事件。");
     } catch (error) {
@@ -487,23 +491,35 @@ export default function CalendarPage() {
                 <p className="text-sm font-black text-carcare-yellow">{form.id ? "編輯預約" : "新增預約"}</p>
                 <h2 className="text-xl font-black">客戶與車輛預約資料</h2>
               </div>
-              {form.id ? (
-                <button type="button" className="secondary-btn" onClick={() => setForm(emptyForm())}>
-                  取消編輯
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="secondary-btn md:hidden"
+                  aria-expanded={appointmentFormOpen}
+                  aria-controls="appointment-create-fields"
+                  onClick={() => setMobileFormOpen((open) => !open)}
+                >
+                  {appointmentFormOpen ? "收合新增預約" : "展開新增預約"}
                 </button>
-              ) : null}
+                {form.id ? (
+                  <button type="button" className="secondary-btn" onClick={() => { setForm(emptyForm()); setMobileFormOpen(false); }}>
+                    取消編輯
+                  </button>
+                ) : null}
+              </div>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-4">
-              <select className="form-input" value={form.customer_id} onChange={(event) => selectCustomer(event.target.value)}>
+            <div id="appointment-create-fields" className={`${appointmentFormOpen ? "block" : "hidden"} md:block`}>
+              <div className="grid gap-3 lg:grid-cols-4">
+                <select className="form-input" value={form.customer_id} onChange={(event) => selectCustomer(event.target.value)}>
                 <option value="">新客戶 / 手動填寫</option>
                 {customers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name || "未命名"} / {customer.phone || "未填電話"}
                   </option>
                 ))}
-              </select>
-              <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(event) => setForm({ ...form, customer_name: event.target.value })} />
+                </select>
+                <input className="form-input" placeholder="客戶姓名" value={form.customer_name} onChange={(event) => setForm({ ...form, customer_name: event.target.value })} />
               <input className="form-input" placeholder="聯絡電話" value={form.customer_phone} onChange={(event) => setForm({ ...form, customer_phone: event.target.value })} />
               <input className="form-input" placeholder="車牌" value={form.license_plate} onChange={(event) => setForm({ ...form, license_plate: event.target.value })} />
               <input className="form-input" placeholder="車廠品牌" value={form.car_brand} onChange={(event) => setForm({ ...form, car_brand: event.target.value })} />
@@ -532,11 +548,12 @@ export default function CalendarPage() {
                   {!staffRows.length ? <span className="text-sm text-neutral-500">目前沒有可指派員工。</span> : null}
                 </div>
               </fieldset>
-              <textarea className="form-input lg:col-span-4" placeholder="備註" value={form.remark} onChange={(event) => setForm({ ...form, remark: event.target.value })} />
+                <textarea className="form-input lg:col-span-4" placeholder="備註" value={form.remark} onChange={(event) => setForm({ ...form, remark: event.target.value })} />
+              </div>
+              <button className="primary-btn mt-4" disabled={saving} type="submit">
+                {saving ? "儲存中..." : form.id ? "更新預約並同步雲端" : "建立預約並同步雲端"}
+              </button>
             </div>
-            <button className="primary-btn mt-4" disabled={saving} type="submit">
-              {saving ? "儲存中..." : form.id ? "更新預約並同步雲端" : "建立預約並同步雲端"}
-            </button>
           </form>
         ) : null}
 
